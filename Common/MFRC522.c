@@ -220,12 +220,15 @@ MFRC522_StatusTypeDef MFRC522_Request (uint8_t reqMode, uint8_t * TagType) {
 
 MFRC522_StatusTypeDef MFRC522_ToCard (MFRC522_CommandsTypeDef command, uint8_t * sendData, uint8_t sendLen, uint8_t * backData, uint16_t * backLen) {
 	MFRC522_StatusTypeDef status = MI_ERR;
-	static uint8_t irqEn = 0x00;
-	static uint8_t waitIRq = 0x00;
+	static uint8_t irqEn;
+	static uint8_t waitIRq;
 	static uint8_t lastBits;
 	static uint8_t n;
 	static uint16_t i;
 
+	irqEn = 0x00;
+	waitIRq = 0x00;
+	
 	switch (command) {
 		case PCD_AUTHENT: {
 			irqEn = 0x12;
@@ -284,9 +287,10 @@ MFRC522_StatusTypeDef MFRC522_ToCard (MFRC522_CommandsTypeDef command, uint8_t *
 MFRC522_StatusTypeDef MFRC522_Anticoll (uint8_t * serNum) {
 	static MFRC522_StatusTypeDef status;
 	static uint8_t i;
-	static uint8_t serNumCheck = 0;
+	static uint8_t serNumCheck;
 	static uint16_t unLen;
 
+	serNumCheck = 0;
 	MFRC522_WriteRegister(MFRC522_REG_BIT_FRAMING, 0x00);												// TxLastBists = BitFramingReg[2..0]
 	serNum[0] = PICC_ANTICOLL;
 	serNum[1] = 0x20;
