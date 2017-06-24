@@ -2,8 +2,9 @@
 
 FLASH_Status FlashPagesErase (uint32_t Address, uint8_t Pages, const uint32_t PageSize)
 {
-	uint32_t LastAddress;
-	FLASH_Status Result = FLASH_COMPLETE;
+	static uint32_t LastAddress;
+	static FLASH_Status Result;
+	Result = FLASH_COMPLETE;
 	
 	LastAddress = Address + Pages * PageSize;
 	
@@ -21,7 +22,8 @@ FLASH_Status FlashPagesErase (uint32_t Address, uint8_t Pages, const uint32_t Pa
 
 FLASH_Status FlashErase (uint32_t Address, uint32_t Size, const uint32_t PageSize)
 {
-	FLASH_Status Result = FLASH_COMPLETE;
+	static FLASH_Status Result;
+	Result = FLASH_COMPLETE;
 		
 	while (Size > PageSize && Result == FLASH_COMPLETE)
 	{
@@ -39,7 +41,7 @@ FLASH_Status FlashErase (uint32_t Address, uint32_t Size, const uint32_t PageSiz
 
 void Internal_Flash_Write32 (uint32_t address, uint32_t size, uint32_t * data)
 {
-	uint32_t i;
+	static uint32_t i;
 	
 	FLASH_Unlock();
 	
@@ -65,7 +67,7 @@ void Internal_Flash_Write32 (uint32_t address, uint32_t size, uint32_t * data)
 
 void Internal_Flash_Write8 (uint32_t address, uint32_t count, char * data) 
 {
-	uint32_t i;
+	static uint32_t i;
 
 	FLASH_Unlock();
 	
