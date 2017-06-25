@@ -18,7 +18,7 @@ void LCD_Init (LCD_SPI_StructTypeDef * LCD_SPI_Struct)
 	HD44780_SPI_Write(LCD_SPI_Struct, 0x03 << 4, 1);
 	HD44780_SPI_Write(LCD_SPI_Struct, 0x02 << 4, 1);  //4 bit wide bus
 	LCD_SPI_Struct->Delay_Func(10); //delay 10ms		
-	HD44780_SPI_Cmd(LCD_SPI_Struct, LCD_CMD_4b_2lines);  //5us delay
+	HD44780_SPI_Cmd(LCD_SPI_Struct, LCD_CMD_4b_2lines | LCD_SPI_Struct->Font);  //5us delay
 	                                                                                                                                                                                                                                                                                                                                      					
 	if (LCD_SPI_Struct->LCD_Type == LCD_NORMAL)
 	{
