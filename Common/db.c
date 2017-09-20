@@ -183,14 +183,14 @@ long dbGetEntrySize (const char * Tag, char * db)
   long db_pointer = db_offset;
 
   /* Find tag by name */
-  db_pointer = FindTag(Tag, db);
-  if (db_pointer == 0) return DB_TagNotFound;
+  db_pointer = FindTag(Tag, db) + 1;
+  if (db_pointer == 0) return 0;
 	
   /* Get data size */
 	W32.Bytes[0] = db[db_pointer++];
 	W32.Bytes[1] = db[db_pointer++];
 	W32.Bytes[2] = db[db_pointer++];
-	W32.Bytes[3] = db[db_pointer];
+	W32.Bytes[3] = db[db_pointer++];
 	
   return W32.Lvar;
 }

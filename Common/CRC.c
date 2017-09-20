@@ -84,7 +84,6 @@ static const unsigned long crc16_tab[] = {
 long crc32(char * buf, long size)
 {
   unsigned long crc = 0;
-  //crc = crc ^ ~0U;
   while (size--)
     crc = crc32_tab[(crc ^ *buf++) & 0xFF] ^ (crc >> 8);
   return crc ^ ~0U;
