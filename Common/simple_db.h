@@ -46,4 +46,15 @@ DB_ErrorTypeDef DB_Validate (void * db);
 DB_DataTypeDef DB_GetDataType (const char * Tag, void * db);
 uint16_t DB_GetEntrySize (const char * Tag, void * db);
 uint32_t DB_GetSize (void * db);
+
+static const struct
+{
+	DB_ErrorTypeDef (* Init)  (uint32_t (*CRC_Func)(void * buf, uint32_t size));
+	DB_ErrorTypeDef (* Write) (const char * Tag,	void * Data, uint16_t Size,	DB_DataTypeDef DataType, void * db);
+	uint16_t (* Read) (const char * Tag, void * Data, void * db);
+	DB_ErrorTypeDef (* Validate) (void * db);
+	DB_DataTypeDef (* GetDataType) (const char * Tag, void * db);
+	uint16_t (* GetEntrySize) (const char * Tag, void * db);
+	uint32_t (* GetSize) (void * db);
+}SimpleDB = { DB_Init, DB_StoreData, DB_ReadData, DB_Validate, DB_GetDataType, DB_GetEntrySize, DB_GetSize };
 #endif

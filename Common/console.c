@@ -2,66 +2,43 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-char GetParams (char * Source, char ** Dist, char BreakChar, 
-                void * memalloc (char len), void * memrelease (char * p))
+char ** GetParamsFromString (char * src, char delim)
 {
-    char i, j, k = 0;
-    char * ParamsSizes;
+	char ** result; //pointer to pointer value that will be returned as the result
+	char * token;
+	char delimstring[] = {delim, 0};
+	uint8_t i = 0;
 
-    //get number of params in string separeted by BreakChar
-    char n = GetParamsNum(Source, BreakChar);
-    
-    //reserve memory for pointers
-    ParamsSizes = memalloc (n);
-    GetParamsSize(Source, ParamsSizes, BreakChar);
-
-    * Dist = memalloc (n);
-
-    for (i = 0; i < n; i ++)
-    {
-        Dist[i] = memalloc (ParamsSizes[i] + 1);
-        
-        for (j = 0; j < ParamsSizes[i]; j++)
-            Dist[i][j] = Source[k++];
-        k++;
-        
-        Dist[i][j + 1] = 0;
-    }
-    
-    memrelease(ParamsSizes);
-    
-    return n;
+	/* Calculate amount of memory need to store params pointers */
+	token = src; //store pointer position
+	while(*src)
+		if (*src++ == delim)
+			i++;
+	src = token; //restore pointer position (reusing variable)
+		
+	/* Get memory for array of pointers */
+	result = malloc(i + 2);
+		
+	result[i + 1] = NULL; //null terminate last pointer
+	i = 0;	//reusing counter variable
+		
+	/* Find first occurance */	
+	token = strtok(src, delimstring);
+		
+	/* While possible, assing the pointer values */	
+	while (token)
+	{
+		result[i++] = token; //store pointer position
+		token = strtok(NULL, delimstring); //get new occurance if possible
+	}
+	
+	return result;
 }
 
-char GetParamsNum (char * Source, char BreakChar)
+size_t GetParamsFromStringLen (char ** params)
 {
-    char n = 1;
-    while (* Source)
-        if (* Source++ == BreakChar)  n++;  
-    return n;
-}
-
-char GetParamsSize (char * Source, char * Dist, char BreakChar)
-{
-    char i, n = 0;
-    while (* Source)
-    {
-        i = 0;
-        while (* Source++ != BreakChar && * Source) i++;
-        if (* Source) 
-            Dist[n] = i;
-        else 
-            Dist[n] = i + 1;
-        n++;
-    }
-    return n;
-}
-
-void ReleaseMemory (char ParamNum, char ** Dist, void * memrelease (char * p))
-{
-  while(ParamNum)
-    memrelease (Dist[ParamNum--]);
-
-  memrelease (* Dist);
+	size_t i = 0;
+	while (params[i++]);
+	return i - 1;
 }
 
