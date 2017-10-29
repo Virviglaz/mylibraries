@@ -28,6 +28,23 @@ SW_I2C_DriverStructTypeDef * SW_I2C_GetDriver (void)
 	return SW_I2C_Driver;
 }
 
+void SW_I2C_RESET_BUS (void)
+{
+	SW_I2C_Driver->IO_SDA_Write(LOW);
+	SW_I2C_Driver->IO_SCL_Write(LOW);
+	
+	//Some delay if needed
+	if (SW_I2C_Driver->Delay_func)
+		SW_I2C_Driver->Delay_func(SW_I2C_Driver->DelayValue);	
+
+	SW_I2C_Driver->IO_SDA_Write(HIGH);
+	SW_I2C_Driver->IO_SCL_Write(HIGH);
+
+	//Some delay if needed
+	if (SW_I2C_Driver->Delay_func)
+		SW_I2C_Driver->Delay_func(SW_I2C_Driver->DelayValue);	
+}
+
 I2C_Result SW_I2C_WR (uint8_t address, uint8_t * reg, uint8_t reglen, uint8_t * buf, uint16_t size)
 {
   I2C_Result Result = I2C_ADD_NOT_EXIST;

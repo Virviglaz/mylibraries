@@ -1,4 +1,7 @@
-#include "GPIO.h"
+#ifndef MPU6050_H
+#define MPU6050_H
+
+#include <stdint.h>
 
 typedef enum
 {
@@ -18,31 +21,53 @@ typedef enum
 
 typedef struct
 {
-	/* Functions */
-	char (*WriteReg)(char I2C_Adrs, char Reg, char Value);
-	char (*ReadReg) (char I2C_Adrs, char Reg, char * buf, char size);
-	void (*delay_func)(unsigned int ms);
-	char (*CheckRDY_pin)(void);
+	uint8_t Status;
 	
 	/* Acc Data */
-	short x,y,z;
-	short x_offset, y_offset, z_offset;
+	int16_t X,Y,Z;
+	
+	/* Temperature Data */	
+	int16_t T;
 	
 	/* Gyro Data */
-	short ax, ay, az;
-	short ax_offset, ay_offset, az_offset; 
+	int16_t aX, aY, aZ;
+	
+}MPU6050_ResultTypeDef;
+
+typedef struct
+{
+	/* Acc Data */
+	int16_t x_offset, y_offset, z_offset;
+	
+	/* Gyro Data */
+	int16_t ax_offset, ay_offset, az_offset;	
+}MPU6050_ZeroCalTypeDef;
+
+typedef struct
+{
+	/* Functions */
+	uint8_t (*WriteReg)(uint8_t I2C_Adrs, uint8_t Reg, uint8_t Value);
+	uint8_t (*ReadReg) (uint8_t I2C_Adrs, uint8_t Reg, uint8_t * buf, uint16_t size);
+	void (*delay_func)(unsigned int ms);
+	uint16_t (*CheckRDY_pin)(void);
+	
+	/* Acc & Gyro Data */
+	MPU6050_ResultTypeDef * MPU6050_Result;
+	
+	/* Acc & Gyro Zero calibration */
+	MPU6050_ZeroCalTypeDef * MPU6050_ZeroCal; 
 	
 	/* Temperature Data */
-	float T;
+	float Temperature;
 	
 	/* Settings */
-	char I2C_Adrs;
-	char GyroSampleRateHz;
+	uint8_t I2C_Adrs;
+	uint8_t GyroSampleRateHz;
 	MPU6050_RA_GYRO_CONFIG_TypeDef GyroScale;
 	MPU6050_RA_ACCEL_CONFIG_TypeDef AccelScale;
-	char FilterOrder;
-	char UseRDYpin;
+	uint8_t FilterOrder;
 }MPU6050_StructTypeDef;
+
 
 #define MPU6050_RA_XG_OFFS_TC       	0x00 //[7] PWR_MODE, [6:1] XG_OFFS_TC, [0] OTP_BNK_VLD
 #define MPU6050_RA_YG_OFFS_TC       	0x01 //[7] PWR_MODE, [6:1] YG_OFFS_TC, [0] OTP_BNK_VLD
@@ -178,6 +203,8 @@ typedef struct
 
 #define DATA_READY_BIT								0x01
 
-char MPU6050_Init (MPU6050_StructTypeDef * MPU6050_Struct);
-char MPU6050_GetResult (MPU6050_StructTypeDef * MPU6050_Struct);
+uint8_t MPU6050_Init (MPU6050_StructTypeDef * MPU6050_Struct);
+uint8_t MPU6050_GetResult (MPU6050_StructTypeDef * MPU6050_Struct);
 void MPU6050_CalibrateZero (MPU6050_StructTypeDef * MPU6050_Struct);
+
+#endif
