@@ -30,6 +30,7 @@ typedef enum {
 
 I2C_Result SW_I2C_ASSIGN (SW_I2C_DriverStructTypeDef * SW_I2C_DriverToAssign);
 SW_I2C_DriverStructTypeDef * SW_I2C_GetDriver (void);
+void SW_I2C_RESET_BUS (void);
 I2C_Result SW_I2C_WR (uint8_t address, uint8_t * reg, uint8_t reglen, uint8_t * buf, uint16_t size);
 I2C_Result SW_I2C_RD (uint8_t address, uint8_t * reg, uint8_t reglen, uint8_t * buf, uint16_t size);
 uint8_t SW_I2C_WriteWithFlagPooling (uint8_t address, uint8_t reg, uint8_t * value, uint8_t attempts, uint8_t flagToPooling);

@@ -1,3 +1,29 @@
+#ifndef BMP180_H
+#define BMP180_H
+
+#include <stdint.h>
+#include <math.h>
+
+/* Registers Deginition */
+#define AC1_Reg		0xAA
+#define AC2_Reg 	0xAC
+#define AC3_Reg 	0xAE
+#define AC4_Reg 	0xB0
+#define AC5_Reg 	0xB2
+#define AC6_Reg		0xB4
+#define B1_Reg		0xB6
+#define B2_Reg		0xB8
+#define MB_Reg		0xBA
+#define MC_Reg		0xBC
+#define MD_Reg		0xBE
+
+#define out_xlsb	0xF8
+#define out_lsb		0xF7
+#define out_msb		0xF6
+#define ctrl_meas	0xF4
+#define id				0xD0
+#define soft_reset 0xE0
+
 typedef enum
 {
 	BMP180_OV_Single = 0,
@@ -10,15 +36,15 @@ typedef struct
 {
 	/* Data */
 	float Temperature;
-	long Pressure;
+	int32_t Pressure;
 	
 	/* Functions */
-	char (*WriteReg)(char I2C_Adrs, char Reg, char Value);
-	char (*ReadReg) (char I2C_Adrs, char Reg, char * buf, char size);
-	void (*delay_func)(unsigned int ms);
+	uint8_t (*WriteReg)(uint8_t I2C_Adrs, uint8_t Reg, uint8_t Value);
+	uint8_t (*ReadReg) (uint8_t I2C_Adrs, uint8_t Reg, uint8_t * buf, uint16_t size);
+	void (*delay_func)(uint16_t ms);
 	
 	/* Settings */
-	char I2C_Adrs;				//I2c address. Default value 0xEE
+	uint8_t I2C_Adrs;				//I2c address. Default value 0xEE
 	BMP180_OversamplingEnumTypeDef P_Oversampling;
 	
 	/* Internal data */
@@ -37,8 +63,10 @@ typedef struct
 	long UP;
 }BMP180_StructTypeDef;
 
-char BMP180_Init (BMP180_StructTypeDef * BMP180_Struct);
+uint8_t BMP180_Init (BMP180_StructTypeDef * BMP180_Struct);
 void BMP180_Get_Result (BMP180_StructTypeDef * BMP180_Struct);
-float Altitude (long Pressure);
-unsigned short Pa_To_Hg (long Pressure_In_Pascals);
-char BMP180_Check_ID (BMP180_StructTypeDef * BMP180_Struct);
+float Altitude (uint32_t Pressure);
+uint16_t Pa_To_Hg (uint32_t Pressure_In_Pascals);
+uint8_t BMP180_Check_ID (BMP180_StructTypeDef * BMP180_Struct);
+
+#endif

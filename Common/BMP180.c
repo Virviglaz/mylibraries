@@ -1,35 +1,16 @@
 #include "BMP180.h"
-#include <math.h>
 
-/* Registers Deginition */
-#define AC1_Reg		0xAA
-#define AC2_Reg 	0xAC
-#define AC3_Reg 	0xAE
-#define AC4_Reg 	0xB0
-#define AC5_Reg 	0xB2
-#define AC6_Reg		0xB4
-#define B1_Reg		0xB6
-#define B2_Reg		0xB8
-#define MB_Reg		0xBA
-#define MC_Reg		0xBC
-#define MD_Reg		0xBE
-
-#define out_xlsb	0xF8
-#define out_lsb		0xF7
-#define out_msb		0xF6
-#define ctrl_meas	0xF4
-#define id				0xD0
-#define soft_reset 0xE0
-
+/* Internal functions */
 void BMP180_Read_UT_Value (BMP180_StructTypeDef * BMP180_Struct);	
 void BMP180_Read_UP_Value (BMP180_StructTypeDef * BMP180_Struct);
-void BMP180_StartConversion (BMP180_StructTypeDef * BMP180_Struct, char Flag);
-unsigned char BMP180_Busy (BMP180_StructTypeDef * BMP180_Struct);
+void BMP180_StartConversion (BMP180_StructTypeDef * BMP180_Struct, uint8_t Flag);
+uint8_t BMP180_Busy (BMP180_StructTypeDef * BMP180_Struct);
 void BMP180_SW_Reset (BMP180_StructTypeDef * BMP180_Struct);
 
-char BMP180_Init (BMP180_StructTypeDef * BMP180_Struct)
+/* Public functions */
+uint8_t BMP180_Init (BMP180_StructTypeDef * BMP180_Struct)
 {
-	char buf[22], Result;
+	uint8_t buf[22], Result;
 	BMP180_SW_Reset(BMP180_Struct);
 	if ((Result = BMP180_Struct->ReadReg(BMP180_Struct->I2C_Adrs, AC1_Reg, buf, sizeof(buf))) != 0) return Result;
 	BMP180_Struct->AC1 = (buf[0]<<8)  | buf[1];
@@ -48,7 +29,7 @@ char BMP180_Init (BMP180_StructTypeDef * BMP180_Struct)
 
 void BMP180_Read_UT_Value (BMP180_StructTypeDef * BMP180_Struct)
 {
-	char buf[2];
+	uint8_t buf[2];
 	BMP180_Struct->WriteReg(BMP180_Struct->I2C_Adrs, ctrl_meas, 0x2E);
 	BMP180_Struct->delay_func(50);
 	BMP180_Struct->ReadReg(BMP180_Struct->I2C_Adrs, out_msb, buf, 2);
@@ -57,7 +38,7 @@ void BMP180_Read_UT_Value (BMP180_StructTypeDef * BMP180_Struct)
 
 void BMP180_Read_UP_Value (BMP180_StructTypeDef * BMP180_Struct)
 {
-	char buf[3];
+	uint8_t buf[3];
 	BMP180_Struct->WriteReg(BMP180_Struct->I2C_Adrs, ctrl_meas, 0x34 + (BMP180_Struct->P_Oversampling << 6));
 	BMP180_Struct->delay_func(100);
 	BMP180_Struct->ReadReg(BMP180_Struct->I2C_Adrs, out_msb, buf, 3);
@@ -99,34 +80,34 @@ void BMP180_Get_Result (BMP180_StructTypeDef * BMP180_Struct)
 }
 
 /* Returns absolute altitude */
-float Altitude (long Pressure)
+float Altitude (uint32_t Pressure)
 {
 	const float p0 = 101325;     // Pressure at sea level (Pa)
 	return (float)44330 * (1 - pow(((float) Pressure/p0), 0.190295));
 }
 
 /* Converts pressure to mm Hg */
-unsigned short Pa_To_Hg (long Pressure_In_Pascals)
+unsigned short Pa_To_Hg (uint32_t Pressure_In_Pascals)
 {
 	return (unsigned long)(Pressure_In_Pascals * 760) / 101325;
 }
 
-char BMP180_Check_ID (BMP180_StructTypeDef * BMP180_Struct)
+uint8_t BMP180_Check_ID (BMP180_StructTypeDef * BMP180_Struct)
 {
-	char inbuff;
+	uint8_t inbuff;
 	BMP180_Struct->ReadReg(BMP180_Struct->I2C_Adrs, 0xD0, &inbuff, 1);
 	if (inbuff == 0x55) return 0;
 	return 1;
 }
 
-void BMP180_StartConversion (BMP180_StructTypeDef * BMP180_Struct, char Flag)
+void BMP180_StartConversion (BMP180_StructTypeDef * BMP180_Struct, uint8_t Flag)
 {
 	BMP180_Struct->WriteReg(BMP180_Struct->I2C_Adrs, ctrl_meas, Flag);
 }
 
 unsigned char BMP180_Busy (BMP180_StructTypeDef * BMP180_Struct)
 {
-	char inbuff;	
+	uint8_t inbuff;	
 	BMP180_Struct->delay_func(10);
 	BMP180_Struct->ReadReg(BMP180_Struct->I2C_Adrs, ctrl_meas, &inbuff, 1);
 	return inbuff & (1<<5);

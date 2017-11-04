@@ -2,7 +2,7 @@
 
 char EEPROM_RW (EEPROM_StructTypeDef * EEPROM)
 {
-	char m_adrs[2], Result = 0, BytesToHandle;
+	uint8_t m_adrs[2], Result = 0, BytesToHandle;
 	
 	/* Calculate start address */
 	m_adrs[1] = (char)EEPROM->Mem_adrs;

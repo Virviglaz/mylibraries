@@ -12,9 +12,9 @@ const float A2 = -0.00393;
   * @param  SI7005_Struct: pointer to structer with all settings defined
   * @retval 0 if succes, interface error code or 0xFF if ID mismatch
   */
-char SI7005_CheckID (SI7005_StructTypeDef * SI7005_Struct)
+uint8_t SI7005_CheckID (SI7005_StructTypeDef * SI7005_Struct)
 {
-	char ID, Res;
+	uint8_t ID, Res;
 	Res = SI7005_Struct->ReadReg(SI7005_Struct->I2C_Adrs, 17, &ID, 1);
 	if (Res) return Res;
 	if (ID != 0x50) return 0xFF;
@@ -26,7 +26,7 @@ char SI7005_CheckID (SI7005_StructTypeDef * SI7005_Struct)
   * @param  SI7005_Struct: pointer to structer with all settings defined
   * @retval Interface error code
   */
-char SI7005_StartConversion (SI7005_StructTypeDef * SI7005_Struct)
+uint8_t SI7005_StartConversion (SI7005_StructTypeDef * SI7005_Struct)
 {
 	return SI7005_Struct->WriteReg(SI7005_Struct->I2C_Adrs, 3, SI7005_Struct->MeasType);
 }
@@ -36,10 +36,10 @@ char SI7005_StartConversion (SI7005_StructTypeDef * SI7005_Struct)
   * @param  SI7005_Struct: pointer to structer with all settings defined
   * @retval Interface error code
   */
-char SI7005_GetResult (SI7005_StructTypeDef * SI7005_Struct)
+uint8_t SI7005_GetResult (SI7005_StructTypeDef * SI7005_Struct)
 {
-	char Res;
-	char buf[2];
+	uint8_t Res;
+	uint8_t buf[2];
 	Res = SI7005_Struct->ReadReg(SI7005_Struct->I2C_Adrs, 1, buf, 2);
 	if (SI7005_Struct->MeasType == MeasHum)
 	{
@@ -66,9 +66,9 @@ char SI7005_GetResult (SI7005_StructTypeDef * SI7005_Struct)
   * @param  SI7005_Struct: pointer to structer with all settings defined
   * @retval Value of ready bit in status register
   */
-char SI7005_DataReady (SI7005_StructTypeDef * SI7005_Struct)
+uint8_t SI7005_DataReady (SI7005_StructTypeDef * SI7005_Struct)
 {
-	char Res;
+	uint8_t Res;
 	SI7005_Struct->ReadReg(SI7005_Struct->I2C_Adrs, 0, &Res, 1);
 	return Res;	//0 - complete, 1 - in progress
 }
