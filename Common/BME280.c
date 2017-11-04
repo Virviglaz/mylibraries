@@ -30,6 +30,8 @@ uint8_t BME280_Init (BME280_StructTypeDef * BME280_Struct)
 {
 	uint8_t Result;
 	uint8_t buf[4];
+	
+	if (BME280_Struct == 0 || BME280_Struct->BME280_Calibration == 0) return 1;
 
 	if ((Result = BME280_Struct->ReadReg(BME280_Struct->I2C_Adrs, 0x88, (uint8_t*)BME280_Struct->BME280_Calibration, 24)) != 0) return Result; //T1..T3, P1..P9 -> 0x88..0x9F
 	BME280_Struct->ReadReg(BME280_Struct->I2C_Adrs, 0xA1, (uint8_t*)&BME280_Struct->BME280_Calibration->dig_H1, 1);	//H1 -> 0xA1

@@ -32,6 +32,22 @@ typedef enum
 	BMP180_OversamplingX8,	
 }BMP180_OversamplingEnumTypeDef;
 
+
+typedef struct
+{
+	int16_t AC1;
+	int16_t AC2;
+	int16_t AC3;
+	uint16_t AC4;
+	uint16_t AC5;
+	uint16_t AC6;
+	int16_t B1;
+	int16_t B2;
+	int16_t MB;
+	int16_t MC;
+	int16_t MD;	
+}BMP180_CalibrationStructTypeDef;
+
 typedef struct
 {
 	/* Data */
@@ -47,20 +63,7 @@ typedef struct
 	uint8_t I2C_Adrs;				//I2c address. Default value 0xEE
 	BMP180_OversamplingEnumTypeDef P_Oversampling;
 	
-	/* Internal data */
-	short AC1;
-	short AC2;
-	short AC3;
-	unsigned short AC4;
-	unsigned short AC5;
-	unsigned short AC6;
-	short B1;
-	short B2;
-	short MB;
-	short MC;
-	short MD;
-	long UT;
-	long UP;
+	BMP180_CalibrationStructTypeDef * BMP180_Calibration;
 }BMP180_StructTypeDef;
 
 uint8_t BMP180_Init (BMP180_StructTypeDef * BMP180_Struct);
