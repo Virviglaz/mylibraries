@@ -168,7 +168,7 @@ long dbGetSize (char * db)
 	W32.Bytes[1] = db[1];
 	W32.Bytes[2] = db[2];
 	W32.Bytes[3] = db[3];
-	
+	if (W32.Lvar == 0xFFFFFFFF) return 0;
   return W32.Lvar;
 }
 
