@@ -17,7 +17,7 @@ typedef struct
 	
 	/* Functions */
 	uint8_t (*WriteReg)(uint8_t I2C_Adrs, uint8_t Reg, uint8_t Value);
-	uint8_t (*ReadReg) (uint8_t I2C_Adrs, uint8_t Res, uint8_t * buf, uint16_t size);	
+	uint8_t (*ReadReg) (uint8_t I2C_Adrs, uint8_t Reg, uint8_t * buf, uint16_t size);	
 	
 	/* Settings */
 	char I2C_Adrs;

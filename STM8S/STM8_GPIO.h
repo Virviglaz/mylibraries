@@ -1,3 +1,9 @@
+#ifndef STM8_GPIO_H
+#define STM8_GPIO_H
+
+#define _STDINT
+#include "stm8s_gpio.h"
+
 #define PA0			GPIOA, GPIO_PIN_0
 #define PA1			GPIOA, GPIO_PIN_1
 #define PA2			GPIOA, GPIO_PIN_2
@@ -52,10 +58,12 @@
 #define PF6			GPIOF, GPIO_PIN_6
 #define PF7			GPIOF, GPIO_PIN_7
 
-void PIN_ON(GPIO_TypeDef * GPIOx, u8 PINx);
-void PIN_OFF(GPIO_TypeDef * GPIOx, u8 PINx);
-u8 PIN_SYG(GPIO_TypeDef * GPIOx, u8 PINx);
-void PIN_IN (GPIO_TypeDef * GPIOx, u8 PINx);
-void PIN_OUT_PP (GPIO_TypeDef * GPIOx, u8 PINx);
-void PIN_INV(GPIO_TypeDef * GPIOx, u8 PINx);
-void PIN_IN_PU (GPIO_TypeDef * GPIOx,u8 PINx);
+void PIN_ON(GPIO_TypeDef * GPIOx, uint8_t PINx);
+void PIN_OFF(GPIO_TypeDef * GPIOx, uint8_t PINx);
+uint8_t PIN_SYG(GPIO_TypeDef * GPIOx, uint8_t PINx);
+void PIN_IN (GPIO_TypeDef * GPIOx, uint8_t PINx);
+void PIN_OUT_PP (GPIO_TypeDef * GPIOx, uint8_t PINx);
+void PIN_INV(GPIO_TypeDef * GPIOx, uint8_t PINx);
+void PIN_IN_PU (GPIO_TypeDef * GPIOx,uint8_t PINx);
+
+#endif

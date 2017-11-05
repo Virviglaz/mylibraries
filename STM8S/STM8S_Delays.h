@@ -1,4 +1,9 @@
-/** TIM4 Prescaler */
+#ifndef STM8S_DELAYS_H
+#define STM8S_DELAYS_H
+
+#define _STDINT
+#include "stm8s.h"
+
 typedef enum
 {
   TIM4_PRSC_1  = ((uint8_t)0x00),
@@ -14,3 +19,4 @@ typedef enum
 void delays_init (TIM4_PRSC_TypeDef TIM4_PRSC);
 void delay_us (unsigned short us);
 void delay_ms (unsigned short ms);
+#endif
