@@ -30,7 +30,7 @@ char EEPROM_RW (EEPROM_StructTypeDef * EEPROM)
 	if (!EEPROM->size || Result) return Result; //nothing to write any more
 
 	/* Reading or Writing full pages */
-	do
+	while(EEPROM->size >= EEPROM->PageSize)
 	{
 		if (EEPROM->isWriting)
 		{
@@ -47,9 +47,8 @@ char EEPROM_RW (EEPROM_StructTypeDef * EEPROM)
 		EEPROM->size -= EEPROM->PageSize;
 		EEPROM->Mem_adrs += EEPROM->PageSize;
 		m_adrs[1] = (char)EEPROM->Mem_adrs;
-		m_adrs[0] = (char)(EEPROM->Mem_adrs >> 8);		
-		
-	}while(EEPROM->size >= EEPROM->PageSize);
+		m_adrs[0] = (char)(EEPROM->Mem_adrs >> 8);			
+	}
 	
 	if (!EEPROM->size) return Result; //nothing to write any more
 	
