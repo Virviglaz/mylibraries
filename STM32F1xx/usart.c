@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include "stm32f10x_usart.h"
-//#include "usart.h"
 
 ErrorStatus USART_STD_Init (USART_TypeDef* USARTx, uint32_t USART_BaudRate)
 {
@@ -15,6 +14,14 @@ ErrorStatus USART_STD_Init (USART_TypeDef* USARTx, uint32_t USART_BaudRate)
 		RCC->APB1ENR |= RCC_APB1Periph_USART2;
 	else
 		return ERROR;
+	
+	/*switch (USARTx)
+	{
+		case USART1: RCC->APB2ENR |= RCC_APB2Periph_USART1; break;
+		case USART2: RCC->APB2ENR |= RCC_APB1Periph_USART2; break;
+		case USART3: RCC->APB2ENR |= RCC_APB1Periph_USART3; break;
+	}*/
+	
 	
 	/* Configure USART with standart settings */
 	USART_InitStruct.USART_BaudRate = USART_BaudRate;
