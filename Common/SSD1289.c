@@ -82,22 +82,23 @@ void SSD1289_PrintChar (uint16_t StartX, uint16_t StartY, uint8_t FontX, uint8_t
 	SSD1289_DrawPic(StartX, StartY, FontX, FontY, SSD1289->Fontbuffer);
 }
 
-uint8_t SSD1289_PrintText (uint16_t StartX, uint16_t StartY, uint8_t FontX, uint8_t FontY, char * font, char * buf, uint16_t Color, uint16_t BackColor)
+uint16_t SSD1289_PrintText (uint16_t StartX, uint16_t StartY, uint8_t FontX, uint8_t FontY, char * font, char * buf, uint16_t Color, uint16_t BackColor)
 {
-	uint16_t X = StartX;
+	uint16_t X = StartX, Row = 0;
 	while(* buf)
 	{
 		if (* buf == '\n')
 		{	
 			StartX = X;
 			StartY += FontY;
+			Row += 1;
 		}
 		else
 		{
 			SSD1289_PrintChar(StartX, StartY, FontX, FontY, font, * buf, Color, BackColor);
-			StartX += FontX;
+			StartX += FontX;			
 		}
 		buf++;
 	}
-	return StartY;
+	return Row;
 }
