@@ -31,5 +31,5 @@ void SSD1289_SetWindows (uint16_t xStart, uint16_t yStart, uint16_t xLong, uint1
 void SSD1289_Clear (uint16_t Color);
 void SSD1289_FillWindow (uint16_t StartX, uint16_t StartY, uint16_t SizeX, uint16_t SizeY, uint16_t Color);
 void SSD1289_DrawPic (uint16_t StartX, uint16_t StartY, uint16_t SizeX, uint16_t SizeY, uint16_t * pic);
-uint8_t SSD1289_PrintText (uint16_t StartX, uint16_t StartY, uint8_t FontX, uint8_t FontY, char * font, char * buf, uint16_t Color, uint16_t BackColor);
+uint16_t SSD1289_PrintText (uint16_t StartX, uint16_t StartY, uint8_t FontX, uint8_t FontY, char * font, char * buf, uint16_t Color, uint16_t BackColor);
 #endif
