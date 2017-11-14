@@ -2,6 +2,7 @@
 #define DS18B20_H
 
 #include "CRC.h"
+#include <stdint.h>
 
 /* DS18B20 Commands list */
 #define DS18B20_READ_ROM									0x33

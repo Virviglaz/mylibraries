@@ -115,14 +115,17 @@ char DS18B20_Start_Conversion_Skip_Rom (DS18B20_single_TypeDef * DS18B20)
 char DS18B20_Read_Skip_Rom (DS18B20_single_TypeDef * DS18B20)
 {
 	char Result;
+	int16_t rawvalue;
 
 	Result = DS18B20->One_Wire_Interface->ResetFunc();
 	if (Result)	return Result;
 
 	DS18B20->One_Wire_Interface->WriteByte (DS18B20_SKIP_ROM);
 	DS18B20->One_Wire_Interface->WriteByte (DS18B20_READ_STRATCHPAD_CMD);
+	rawvalue = DS18B20->One_Wire_Interface->ReadByte();
+	rawvalue |= DS18B20->One_Wire_Interface->ReadByte() << 8;
 	
-	DS18B20->Temp = (float)(DS18B20->One_Wire_Interface->ReadByte() | (DS18B20->One_Wire_Interface->ReadByte()) << 8) / 16;
+	DS18B20->Temp = (float)(rawvalue) / 16;
 	return Result;
 }
 
