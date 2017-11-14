@@ -175,6 +175,7 @@ DB_ErrorTypeDef DB_Validate (void * db)
 
 uint32_t DB_GetSize (void * db)
 {
+	if (*(uint32_t*)db == 0xFFFFFFFF) return 0;
 	return *(uint32_t*)db;
 }
 
