@@ -17,6 +17,6 @@ typedef enum
 } TIM4_PRSC_TypeDef;
 
 void delays_init (TIM4_PRSC_TypeDef TIM4_PRSC);
-void delay_us (unsigned short us);
-void delay_ms (unsigned short ms);
+void delay_us (uint16_t us);
+void delay_ms (uint16_t ms);
 #endif
