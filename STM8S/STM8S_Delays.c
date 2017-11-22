@@ -8,7 +8,7 @@ void delays_init (TIM4_PRSC_TypeDef TIM4_PRSC)
   TIM4->CR1 = TIM4_CR1_CEN;
 }
 
-void delay_us (unsigned short us)
+void delay_us (uint16_t us)
 {
   while (us > 100)
   {
@@ -20,7 +20,7 @@ void delay_us (unsigned short us)
   while (TIM4->CNTR < us);  
 }
 
-void delay_ms (unsigned short ms)
+void delay_ms (uint16_t ms)
 {
   ms <<= 2;
   while (ms--) 

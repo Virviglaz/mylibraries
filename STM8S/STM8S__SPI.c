@@ -1,5 +1,4 @@
 #include "STM8S__SPI.h"
-#include "STM8_GPIO.h"
 
 void SPI_Init_ClockLOW (SPI_BaudRatePrescaler_TypeDef SPI_BaudRatePrescaler)
 {
@@ -15,9 +14,9 @@ void SPI_Init_ClockHigh (SPI_BaudRatePrescaler_TypeDef SPI_BaudRatePrescaler)
   SPI->CR1 = SPI_CR1_SPE | SPI_CR1_MSTR | SPI_CR1_CPOL | SPI_CR1_CPHA | SPI_BaudRatePrescaler;
 }
 
-u8 SPI_ReadByte (u8 Data)
+uint8_t SPI_ReadByte (uint8_t Data)
 {
-  u8 res;
+  uint8_t res;
 	
     /* Loop while DR register in not empty */
   while (!(SPI->SR & SPI_SR_TXE));
@@ -28,7 +27,7 @@ u8 SPI_ReadByte (u8 Data)
   /* Wait to receive a byte */
   while (!(SPI->SR & SPI_SR_RXNE));
 		
-  res = (u8)SPI->DR;
+  res = (uint8_t)SPI->DR;
 		
   #ifdef DEBUG_SPI
     printf("SPI: WR 0x%.2X, RD 0x%.2X\n", byte, res);
@@ -38,7 +37,7 @@ u8 SPI_ReadByte (u8 Data)
   return res;
 }
 
-void SPI_Select (GPIO_TypeDef * GPIOx, u8 PINx)
+void SPI_Select (GPIO_TypeDef * GPIOx, uint8_t PINx)
 {
 	#ifdef DEBUG_SPI
 		printf("SPI: CS low\n");
@@ -47,7 +46,7 @@ void SPI_Select (GPIO_TypeDef * GPIOx, u8 PINx)
 	PIN_OFF(GPIOx, PINx);
 }
 
-void SPI_Deselect (GPIO_TypeDef * GPIOx, u8 PINx)
+void SPI_Deselect (GPIO_TypeDef * GPIOx, uint8_t PINx)
 {
 	while (SPI->SR & SPI_SR_BSY);
 	PIN_ON(GPIOx, PINx);
@@ -57,9 +56,9 @@ void SPI_Deselect (GPIO_TypeDef * GPIOx, u8 PINx)
 	#endif
 }
 
-u8 SPI_WriteReg (GPIO_TypeDef * GPIOx, u8 PINx, u8 reg, u8 * buf, u16 size)
+uint8_t SPI_WriteReg (GPIO_TypeDef * GPIOx, uint8_t PINx, uint8_t reg, uint8_t * buf, uint16_t size)
 {
-	u8 result;
+	uint8_t result;
         
 	SPI_Select(GPIOx, PINx);	
 	result = SPI_ReadByte(reg);
@@ -71,9 +70,9 @@ u8 SPI_WriteReg (GPIO_TypeDef * GPIOx, u8 PINx, u8 reg, u8 * buf, u16 size)
 	return result;
 }
 
-u8 SPI_ReadReg (GPIO_TypeDef * GPIOx, u8 PINx, u8 reg, u8 * buf, u16 size)
+uint8_t SPI_ReadReg (GPIO_TypeDef * GPIOx, uint8_t PINx, uint8_t reg, uint8_t * buf, uint16_t size)
 {
-	u8 result;
+	uint8_t result;
 
 	SPI_Select(GPIOx, PINx);	
 	result = SPI_ReadByte(reg);
@@ -85,9 +84,9 @@ u8 SPI_ReadReg (GPIO_TypeDef * GPIOx, u8 PINx, u8 reg, u8 * buf, u16 size)
 	return result;
 }
 
-u8 SPI_ReadRegInc (GPIO_TypeDef * GPIOx, u8 PINx, u8 reg, u8 * buf, u16 size, s8 inc)
+uint8_t SPI_ReadRegInc (GPIO_TypeDef * GPIOx, uint8_t PINx, uint8_t reg, uint8_t * buf, uint16_t size, s8 inc)
 {
-	u8 result;
+	uint8_t result;
 
 	SPI_Select(GPIOx, PINx);	
 	result = SPI_ReadByte(reg);
@@ -99,9 +98,9 @@ u8 SPI_ReadRegInc (GPIO_TypeDef * GPIOx, u8 PINx, u8 reg, u8 * buf, u16 size, s8
 	return result;
 }
 
-u8 SPI_RW_Reg (GPIO_TypeDef * GPIOx, u8 PINx, u8 reg, u8 * buf, u16 size)
+uint8_t SPI_RW_Reg (GPIO_TypeDef * GPIOx, uint8_t PINx, uint8_t reg, uint8_t * buf, uint16_t size)
 {
-	u8 result, tmp;
+	uint8_t result, tmp;
 	SPI_Select(GPIOx, PINx);
 	result = SPI_ReadByte(reg);
 	

@@ -18,7 +18,7 @@ const RegDataTypeDef GLCD_InitSequence[] = {
 		0x004A0000, 0x004B0000, 0x0044EF00, 0x00450000, 0x0046013F, 0x00300707, 0x00310204,
 		0x00320204, 0x00330502, 0x00340507, 0x00350204, 0x00360204, 0x00370502, 0x003A0302,
 		0x003B0302, 0x00230000, 0x00240000, 0x00258000, 0x004f0000, 0x004e0000};
-
+		
 void SSD1289_Init (SSD1289_StructTypeDef * SSD1289_InitStruct)
 {
 	uint8_t cnt;
@@ -42,11 +42,9 @@ void SSD1289_SetCursor(uint16_t Xpos, uint16_t Ypos)
 
 void SSD1289_SetWindows (uint16_t xStart, uint16_t yStart, uint16_t xLong, uint16_t yLong)
 { 
-	xLong--;
-	yLong--;
-	SSD1289->WriteReg(0x0044, xStart | ((xStart + xLong) << 8));
+	SSD1289->WriteReg(0x0044, xStart | ((xStart + --xLong) << 8));
 	SSD1289->WriteReg(0x0045, yStart);
-	SSD1289->WriteReg(0x0046, yStart + yLong);
+	SSD1289->WriteReg(0x0046, yStart + --yLong);
 	SSD1289_SetCursor(xStart, yStart);
 }
 
