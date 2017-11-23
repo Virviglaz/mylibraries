@@ -14,6 +14,14 @@ static void HD44780_Cmd(HD44780_CMD_TypeDef CMD);
 static uint8_t Translate (uint8_t dat);
 
 /* Public functions */
+
+HD44780_StructTypeDef * HD44780_Driver (HD44780_StructTypeDef * HD44780_InitStruct)
+{
+  if (HD44780_InitStruct) //assign driver if defined
+    HD44780 = HD44780_InitStruct;
+  return HD44780;
+}
+
 void HD44780_Init (HD44780_StructTypeDef * HD44780_InitStruct)
 {
   if (HD44780_InitStruct == 0) return;
@@ -23,17 +31,20 @@ void HD44780_Init (HD44780_StructTypeDef * HD44780_InitStruct)
   HD44780 = HD44780_InitStruct;
   
   /* Assign interface function */
-  HD44780_Write = HD44780->HD44780_Connection->BUS ? HD44780_Write_8bit : HD44780_Write_4bit;
+  HD44780_Write = HD44780->HD44780_Connection->BUS ? 
+            HD44780_Write_8bit : HD44780_Write_4bit;
 
   HD44780_Write(0x03, 1);
   HD44780_Write(0x03, 1);
   HD44780_Write(0x03, 1);
   HD44780_Write(0x02, 1);  //4 bit wide bus
   HD44780->Delay_Func(INIT_DELAY);	
-  HD44780_Cmd((HD44780_CMD_TypeDef)(HD44780_CMD_4b_2lines | (HD44780_CMD_TypeDef)HD44780->Font));
+  HD44780_Cmd((HD44780_CMD_TypeDef)(HD44780_CMD_4b_2lines | 
+                                    (HD44780_CMD_TypeDef)HD44780->Font));
                                                                                                                                                                                                                                                             					
   if (HD44780->LCD_Type == LCD_NORMAL)
   {
+    // HD44780
     HD44780_Cmd(HD44780_CMD_Home);
     HD44780_Cmd(HD44780_CMD_Clear);
     HD44780->Delay_Func(INIT_DELAY);	
@@ -98,6 +109,11 @@ void HD44780_PutChar (uint8_t data)
   }
 }
 
+void HD44780_Update (void)
+{
+  HD44780_Cmd(HD44780_RAW_DATA);
+}
+
 static uint8_t Translate (uint8_t dat)
 {
   if (HD44780->Font != ENGLISH_RUSSIAN_FONT) return dat; //support only russian
@@ -117,6 +133,11 @@ static void HD44780_Write_4bit (uint8_t data, uint8_t cmd)
   if (HD44780->BackLightIsOn)
     LatchData |= HD44780->HD44780_Connection->BackLightPin;
 
+  /* Add external connection if used */
+  if (HD44780->HD44780_ExtConnection)
+    LatchData |= HD44780->HD44780_ExtConnection->EXT1_Pin
+      | HD44780->HD44780_ExtConnection->EXT2_Pin;  
+  
   /* Send data */	
   if (cmd != HD44780_RAW_DATA)
   {
@@ -130,21 +151,28 @@ static void HD44780_Write_4bit (uint8_t data, uint8_t cmd)
   }
 }
 
+// data format MSB->DDDDDDDD->CCCCCCCC->LSB, C-ctrl, D-data pins
 static void HD44780_Write_8bit (uint8_t data, uint8_t cmd)
 {
-  uint8_t LatchData = data | HD44780->BackLightIsOn;
+  /* Backlight enable/disable and data prepare*/
+  uint16_t LatchData = (data << 8) | HD44780->BackLightIsOn; 
   if (!cmd) LatchData |= HD44780->HD44780_Connection->RS_Pin;
+ 
+  /* Add external connection if used */
+  if (HD44780->HD44780_ExtConnection)
+    LatchData |= HD44780->HD44780_ExtConnection->EXT1_Pin
+      | HD44780->HD44780_ExtConnection->EXT2_Pin;
   
   /* Send data */	
   if (cmd != HD44780_RAW_DATA)
   {
     /* Send positive strobe */
     LatchData |= HD44780->HD44780_Connection->E_Pin;
-    HD44780->WriteData(LatchData);
+    HD44780->Write16bData(LatchData);
 
     /* Send negative strobe */
     LatchData &= ~HD44780->HD44780_Connection->E_Pin;
-    HD44780->WriteData(LatchData);
+    HD44780->Write16bData(LatchData);
   } 
 }
 

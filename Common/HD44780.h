@@ -25,6 +25,12 @@ typedef enum
 
 typedef struct
 {
+  uint8_t EXT1_Pin;
+  uint8_t EXT2_Pin;
+}HD44780_ExtConnection_TypeDef;
+
+typedef struct
+{
   HD44780_BusTypeDef BUS;
   uint8_t data_shift;
   uint8_t RS_Pin;
@@ -35,16 +41,18 @@ typedef struct
 typedef struct
 {
   /* Functions */
-  void (*WriteData)(uint8_t data);
-  void (*Delay_Func)(uint16_t ms);
+  void (*WriteData)(uint8_t data);      //used to write data for 4b connection
+  void (*Write16bData)(uint16_t data);  //used to write data for 8b connection
+  void (*Delay_Func)(uint16_t ms);      //used to perform delay at init stage
   
   /* Settings */
-  uint8_t BackLightIsOn;
-  LCD_TypeDef LCD_Type;
-  CharacterFontTableTypeDef Font;
+  uint8_t BackLightIsOn;                //enables backlight if not zero
+  LCD_TypeDef LCD_Type;                 //define screen type - OLED or LCD
+  CharacterFontTableTypeDef Font;       //font definition
   
   /* Connection definition structure */
   HD44780_Connection_TypeDef * HD44780_Connection;
+  HD44780_ExtConnection_TypeDef * HD44780_ExtConnection;
 }HD44780_StructTypeDef;
 
 typedef enum
@@ -79,6 +87,7 @@ typedef enum
 	HD44780_RAW_DATA				= 0xFF,
 }HD44780_CMD_TypeDef;
 
+HD44780_StructTypeDef * HD44780_Driver (HD44780_StructTypeDef * HD44780_InitStruct);
 void HD44780_Init (HD44780_StructTypeDef * HD44780_InitStruct);
 void HD44780_StdConnectionInit (HD44780_Connection_TypeDef * HD44780_Connection,
                                 HD44780_KnowConnectionsTypeDef Connection);
@@ -86,6 +95,7 @@ void HD44780_SetPos (uint8_t row, uint8_t col);
 void HD44780_Print (char * string);
 void HD44780_Clear (void);
 void HD44780_PutChar (uint8_t data); //for connection with STDIO
+void HD44780_Update (void);
 
 static const struct
 {
@@ -95,8 +105,9 @@ static const struct
   void (* SetPos) (uint8_t row, uint8_t col);
   void (* Print) (char * string);
   void (* Clear) (void);
+  void (* Update)(void);
 }LCD_HD44780 = { HD44780_Init, HD44780_StdConnectionInit, 
-            HD44780_SetPos, HD44780_Print, HD44780_Clear };
+            HD44780_SetPos, HD44780_Print, HD44780_Clear, HD44780_Update };
 
 static const char HD44780_RusFont[] = {
   'A',  //'A'
