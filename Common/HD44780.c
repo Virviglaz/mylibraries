@@ -34,13 +34,18 @@ void HD44780_Init (HD44780_StructTypeDef * HD44780_InitStruct)
   HD44780_Write = HD44780->HD44780_Connection->BUS ? 
             HD44780_Write_8bit : HD44780_Write_4bit;
 
-  HD44780_Write(0x03, 1);
-  HD44780_Write(0x03, 1);
-  HD44780_Write(0x03, 1);
-  HD44780_Write(0x02, 1);  //4 bit wide bus
+  if (HD44780->HD44780_Connection->BUS == BUS_4b)
+  {
+    HD44780_Write(0x03, 1);
+    HD44780_Write(0x03, 1);
+    HD44780_Write(0x03, 1);
+    HD44780_Write(0x02, 1);  //4 bit wide bus
+  }
+
   HD44780->Delay_Func(INIT_DELAY);	
   HD44780_Cmd((HD44780_CMD_TypeDef)(HD44780_CMD_4b_2lines | 
                                     (HD44780_CMD_TypeDef)HD44780->Font));
+  
                                                                                                                                                                                                                                                             					
   if (HD44780->LCD_Type == LCD_NORMAL)
   {
