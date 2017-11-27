@@ -274,7 +274,7 @@ int rtc_init(void)
 	volatile u16 i;
 
 	/* Enable PWR and BKP clocks */
-	//RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR | RCC_APB1Periph_BKP, ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR | RCC_APB1Periph_BKP, ENABLE);
 
 	/* LSI clock stabilization time */
 	for(i=0;i<5000;i++) { ; }
