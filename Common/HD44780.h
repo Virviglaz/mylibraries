@@ -84,6 +84,7 @@ typedef enum
 	HD44780_CMD_UnderlineCursorON	                = 0x0E,
 	HD44780_CMD_BlockCursorON		        = 0x0F,
 	HD44780_CMD_CursorOFF			        = 0x0C,
+	HD44780_CMD_SetCGRAM		= 0x40,
 	HD44780_RAW_DATA				= 0xFF,
 }HD44780_CMD_TypeDef;
 
@@ -96,6 +97,8 @@ void HD44780_Print (char * string);
 void HD44780_Clear (void);
 void HD44780_PutChar (uint8_t data); //for connection with STDIO
 void HD44780_Update (void);
+void HD44780_Cmd(HD44780_CMD_TypeDef CMD);
+void HD44780_CustomChar (uint8_t num, uint8_t * data);
 
 static const struct
 {
@@ -106,8 +109,10 @@ static const struct
   void (* Print) (char * string);
   void (* Clear) (void);
   void (* Update)(void);
-}LCD_HD44780 = { HD44780_Init, HD44780_StdConnectionInit, 
-            HD44780_SetPos, HD44780_Print, HD44780_Clear, HD44780_Update };
+	void (* SendCmd) (HD44780_CMD_TypeDef CMD);
+	void (* CustomChar) (uint8_t num, uint8_t * data);
+}LCD_HD44780 = { HD44780_Init, HD44780_StdConnectionInit, HD44780_SetPos, HD44780_Print, 
+											HD44780_Clear, HD44780_Update, HD44780_Cmd, HD44780_CustomChar };
 
 static const char HD44780_RusFont[] = {
   'A',  //'A'
