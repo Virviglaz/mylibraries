@@ -38,17 +38,15 @@ void HD44780_Init (HD44780_StructTypeDef * HD44780_InitStruct)
   if (HD44780->HD44780_Connection->BUS == BUS_4b)
   {
 		/* 4 bit wide bus init */
-    HD44780_WriteToBus(0x03);
-    HD44780_WriteToBus(0x03);
-    HD44780_WriteToBus(0x03);
-    HD44780_WriteToBus(0x02);  
+    HD44780_WriteToBus(0x03 << HD44780->HD44780_Connection->data_shift);
+    HD44780_WriteToBus(0x03 << HD44780->HD44780_Connection->data_shift);
+    HD44780_WriteToBus(0x03 << HD44780->HD44780_Connection->data_shift);
+    HD44780_WriteToBus(0x02 << HD44780->HD44780_Connection->data_shift);  
   }
 	else
 
   HD44780->Delay_Func(INIT_DELAY);	
-  HD44780_Cmd((HD44780_CMD_TypeDef)(HD44780_CMD_4b_2lines | 
-                                    (HD44780_CMD_TypeDef)HD44780->Font));
-  
+  HD44780_Write(HD44780_CMD_4b_2lines | HD44780->Font, 1);
                                                                                                                                                                                                                                                             					
   if (HD44780->LCD_Type == LCD_NORMAL)
   {
@@ -118,7 +116,7 @@ void HD44780_PutChar (uint8_t data)
 
 void HD44780_Update (void)
 {
-  HD44780_Cmd(HD44780_RAW_DATA);
+  HD44780_Cmd(HD44780_NOP_DATA);
 }
 
 void HD44780_Cmd (HD44780_CMD_TypeDef CMD)
@@ -129,7 +127,7 @@ void HD44780_Cmd (HD44780_CMD_TypeDef CMD)
 void HD44780_CustomChar (uint8_t num, uint8_t * data)
 {
 	uint8_t cnt;
-	HD44780_Cmd ((HD44780_CMD_TypeDef)(HD44780_CMD_SetCGRAM + num * 8));
+	HD44780_Write (HD44780_CMD_SetCGRAM + num * 8, 1);
 	for (cnt = 0; cnt != 8; cnt++)
 		HD44780_Write(data[cnt], 0);
 
@@ -150,8 +148,6 @@ static void HD44780_Write_4bit (uint8_t data, uint8_t cmd)
   /* Prepare SPI data */
   uint8_t LatchData = 0;
 	
-	if (cmd == HD44780_RAW_DATA) return; //do nothing
-	
   if (!cmd) LatchData = HD44780->HD44780_Connection->RS_Pin;
 
   /* Set pin states */
@@ -163,6 +159,12 @@ static void HD44780_Write_4bit (uint8_t data, uint8_t cmd)
     LatchData |= HD44780->HD44780_ExtConnection->EXT1_Pin
       | HD44780->HD44780_ExtConnection->EXT2_Pin;  
 
+	if (cmd == HD44780_NOP_DATA) 
+	{
+		HD44780->WriteData(LatchData);
+		return;
+	}	
+	
 	/* Send high nible */
 	HD44780_WriteToBus(LatchData | ((data & 0xF0) >> 4) << HD44780->HD44780_Connection->data_shift);
 	
@@ -187,14 +189,18 @@ static void HD44780_Write_8bit (uint8_t data, uint8_t cmd)
   /* Backlight enable/disable and data prepare*/
   uint16_t LatchData = (data << 8) | HD44780->BackLightIsOn; 
 
-	if (cmd == HD44780_RAW_DATA) return;
-
   if (!cmd) LatchData |= HD44780->HD44780_Connection->RS_Pin;
  
   /* Add external connection if used */
   if (HD44780->HD44780_ExtConnection)
     LatchData |= HD44780->HD44780_ExtConnection->EXT1_Pin
       | HD44780->HD44780_ExtConnection->EXT2_Pin;
+
+	if (cmd == HD44780_NOP_DATA) 
+	{
+		HD44780->WriteData(LatchData);
+		return;
+	}	
   
   /* Send data */	
 	HD44780_WriteToBus(LatchData);

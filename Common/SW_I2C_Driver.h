@@ -28,10 +28,24 @@ typedef enum {
 		I2C_INTERFACE_ERROR,
 } I2C_Result;
 
+static const char * I2C_ErrorMessage[] = { 
+	"SUCCESS", 
+	"TIMEOUT", 
+	"ERROR", 
+	"BUS BUSY", 
+	"ACK OK",
+	"ACK NOT OK",
+	"ADD NOT EXIST",
+	"VERIFY ERROR",
+	"INTERFACE ERROR"
+};
+
 I2C_Result SW_I2C_ASSIGN (SW_I2C_DriverStructTypeDef * SW_I2C_DriverToAssign);
 SW_I2C_DriverStructTypeDef * SW_I2C_GetDriver (void);
 void SW_I2C_RESET_BUS (void);
 I2C_Result SW_I2C_WR (uint8_t address, uint8_t * reg, uint8_t reglen, uint8_t * buf, uint16_t size);
 I2C_Result SW_I2C_RD (uint8_t address, uint8_t * reg, uint8_t reglen, uint8_t * buf, uint16_t size);
+I2C_Result SW_I2C_FAST_RD (uint8_t address, uint8_t * buf, uint16_t size);
+I2C_Result SW_I2C_RD_POOLING_ACK (uint8_t address, uint8_t reg, uint8_t * buf, uint16_t size, uint8_t attempts);
 uint8_t SW_I2C_WriteWithFlagPooling (uint8_t address, uint8_t reg, uint8_t * value, uint8_t attempts, uint8_t flagToPooling);
 #endif

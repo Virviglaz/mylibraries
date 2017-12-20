@@ -56,7 +56,7 @@ I2C_Result SW_I2C_WR (uint8_t address, uint8_t * reg, uint8_t reglen, uint8_t * 
   if (SW_I2C_Start() != I2C_SUCCESS) return I2C_BUS_BUSY;
 	
 	/* Send device address for write */
-  if (SW_I2C_Write(address & 0xFE) == I2C_SUCCESS) //if device respond, procceed
+  if (SW_I2C_Write(address & 0xFE) == ACK) //if device respond, procceed
   {
 		Result = I2C_SUCCESS;
 		
@@ -82,7 +82,7 @@ I2C_Result SW_I2C_RD (uint8_t address, uint8_t * reg, uint8_t reglen, uint8_t * 
 	if (SW_I2C_Start() != I2C_SUCCESS) return I2C_BUS_BUSY;
 
 	/* Send device address for write */
-  if (SW_I2C_Write(address & 0xFE) == I2C_SUCCESS) //if device respond, procceed
+  if (SW_I2C_Write(address & 0xFE) == ACK) //if device respond, procceed
   {
     Result = (I2C_Result)ACK;
 		
@@ -98,6 +98,60 @@ I2C_Result SW_I2C_RD (uint8_t address, uint8_t * reg, uint8_t reglen, uint8_t * 
         Result = I2C_SUCCESS;
       }   
   }
+  SW_I2C_Stop();
+  return Result;
+}
+
+I2C_Result SW_I2C_FAST_RD (uint8_t address, uint8_t * buf, uint16_t size)
+{
+	I2C_Result Result = I2C_ADD_NOT_EXIST;
+
+	/* Check interface exist */
+	if (SW_I2C_Driver == 0) return I2C_INTERFACE_ERROR;
+	
+	/* Check BUS */
+	if (SW_I2C_Start() != I2C_SUCCESS) return I2C_BUS_BUSY;
+
+	if (SW_I2C_Write(address | 0x01) == ACK)
+	{
+		while (size--)
+			* buf++ = SW_I2C_Read(size ? 1 : 0);  //read to buffer
+		Result = I2C_SUCCESS;
+	}   
+  
+  SW_I2C_Stop();
+  return Result;
+}
+
+I2C_Result SW_I2C_RD_POOLING_ACK (uint8_t address, uint8_t reg, uint8_t * buf, uint16_t size, uint8_t attempts)
+{
+	I2C_Result Result = I2C_ADD_NOT_EXIST;
+
+	/* Check interface exist */
+	if (SW_I2C_Driver == 0) return I2C_INTERFACE_ERROR;
+	
+	/* Check BUS */
+	if (SW_I2C_Start() != I2C_SUCCESS) return I2C_BUS_BUSY;
+
+	/* Send device address for write */
+  if (SW_I2C_Write(address & 0xFE) == ACK) //if device respond, procceed
+  {
+		SW_I2C_Write(reg);
+		do
+		{
+			SW_I2C_ReStart();
+			Result = (I2C_Result)SW_I2C_Write(address | 0x01);
+		}while (Result && --attempts);
+		
+		if (attempts) 
+		{
+			while (size--)
+				* buf++ = SW_I2C_Read(size ? 1 : 0);  //read to buffer
+		}
+		else
+			Result = I2C_TIMEOUT;
+	}
+
   SW_I2C_Stop();
   return Result;
 }
@@ -137,7 +191,7 @@ uint8_t SW_I2C_WriteWithFlagPooling (uint8_t address, uint8_t reg, uint8_t * val
 	if (attempts == 0) return I2C_TIMEOUT;
 
 	return res;
-}	
+}
 
 /* INTERNAL STATIC FUNCTIONS */
 
