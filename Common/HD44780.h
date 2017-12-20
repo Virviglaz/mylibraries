@@ -85,7 +85,7 @@ typedef enum
 	HD44780_CMD_BlockCursorON		        = 0x0F,
 	HD44780_CMD_CursorOFF			        = 0x0C,
 	HD44780_CMD_SetCGRAM		= 0x40,
-	HD44780_RAW_DATA				= 0xFF,
+	HD44780_NOP_DATA				= 0xFF,
 }HD44780_CMD_TypeDef;
 
 HD44780_StructTypeDef * HD44780_Driver (HD44780_StructTypeDef * HD44780_InitStruct);
