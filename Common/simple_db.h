@@ -46,6 +46,7 @@ DB_ErrorTypeDef DB_Validate (void * db);
 DB_DataTypeDef DB_GetDataType (const char * Tag, void * db);
 uint16_t DB_GetEntrySize (const char * Tag, void * db);
 uint32_t DB_GetSize (void * db);
+DB_ErrorTypeDef DB_DeleteEntry (const char * Tag, void * db);
 
 static const struct
 {
@@ -56,5 +57,6 @@ static const struct
 	DB_DataTypeDef (* GetDataType) (const char * Tag, void * db);
 	uint16_t (* GetEntrySize) (const char * Tag, void * db);
 	uint32_t (* GetSize) (void * db);
-}SimpleDB = { DB_Init, DB_StoreData, DB_ReadData, DB_Validate, DB_GetDataType, DB_GetEntrySize, DB_GetSize };
+	DB_ErrorTypeDef (* DeleteEntry) (const char * Tag, void * db);
+}SimpleDB = { DB_Init, DB_StoreData, DB_ReadData, DB_Validate, DB_GetDataType, DB_GetEntrySize, DB_GetSize, DB_DeleteEntry };
 #endif
