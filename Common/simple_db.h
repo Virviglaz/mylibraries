@@ -14,7 +14,8 @@ DB_DataTypeDef DataType [8 - 16 bit]
 [Data] - entry data (raw data)
 ...
 [Tag] - entry name (null-terminated)
-DB_DataTypeDef DataType [8 - 16 bit]
+null
+DB_DataTypeDef DataType [8 bit]
 8 8 - entry size (16 bit)
 [Data] - entry data (raw data)
 */
@@ -47,6 +48,7 @@ DB_DataTypeDef DB_GetDataType (const char * Tag, void * db);
 uint16_t DB_GetEntrySize (const char * Tag, void * db);
 uint32_t DB_GetSize (void * db);
 DB_ErrorTypeDef DB_DeleteEntry (const char * Tag, void * db);
+uint16_t DB_GetAmountOfTags (void * db);
 
 static const struct
 {
@@ -58,5 +60,6 @@ static const struct
 	uint16_t (* GetEntrySize) (const char * Tag, void * db);
 	uint32_t (* GetSize) (void * db);
 	DB_ErrorTypeDef (* DeleteEntry) (const char * Tag, void * db);
-}SimpleDB = { DB_Init, DB_StoreData, DB_ReadData, DB_Validate, DB_GetDataType, DB_GetEntrySize, DB_GetSize, DB_DeleteEntry };
+	uint16_t (* GetAmountOfTags) (void * db);
+}SimpleDB = { DB_Init, DB_StoreData, DB_ReadData, DB_Validate, DB_GetDataType, DB_GetEntrySize, DB_GetSize, DB_DeleteEntry, DB_GetAmountOfTags };
 #endif
