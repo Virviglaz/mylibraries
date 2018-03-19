@@ -3,7 +3,7 @@
 /* Internal variables */
 uint32_t (* CRC32_CalcFunc)(void * buf, uint32_t size);
 static void DB_UpdateSizeAndCRC (uint32_t size, void * db);
-static uint32_t DB_FindEntryPointer (const char * Tag, void * db);
+static uint32_t DB_FindEntryPointer (const char * Tag, uint16_t * TagsFound, void * db);
 
 /**
   * @brief  Assign CRC calculation function
@@ -32,7 +32,7 @@ DB_ErrorTypeDef DB_StoreData   (const char * Tag,	void * Data, uint16_t DataSize
 	uint32_t pointer, size = DB_GetSize(db);
 	
 	/* Check if tag already exist */
-	if (DB_FindEntryPointer(Tag, db)) return DB_TagExist;
+	if (DB_FindEntryPointer(Tag, 0, db)) return DB_TagExist;
 	
 	/* Calculate initial offset */
 	pointer = (size <= 8 || size == 0xFFFFFFFF) ? 8 : size;
@@ -79,7 +79,7 @@ uint16_t DB_ReadData (const char * Tag, void * Data, void * db)
 	DB_DataTypeDef DataType;
 	
 	/* Find Tag pointer */
-	uint32_t pointer = DB_FindEntryPointer(Tag, db);
+	uint32_t pointer = DB_FindEntryPointer(Tag, 0, db);
 	
 	/* Tag not found */
 	if (pointer == 0) return 0;
@@ -112,7 +112,7 @@ uint16_t DB_ReadData (const char * Tag, void * Data, void * db)
 DB_DataTypeDef DB_GetDataType (const char * Tag, void * db)
 {
 	/* Find Tag pointer */
-	uint32_t pointer = DB_FindEntryPointer(Tag, db);
+	uint32_t pointer = DB_FindEntryPointer(Tag, 0, db);
 	
 	/* Tag not found */
 	if (pointer == 0) return DB_TypeError;
@@ -136,7 +136,7 @@ uint16_t DB_GetEntrySize (const char * Tag, void * db)
 	DB_DataTypeDef DataType;
 	
 	/* Find Tag pointer */
-	uint32_t pointer = DB_FindEntryPointer(Tag, db);
+	uint32_t pointer = DB_FindEntryPointer(Tag, 0, db);
 	
 	/* Tag not found */
 	if (pointer == 0) return 0;
@@ -187,7 +187,7 @@ uint32_t DB_GetSize (void * db)
 DB_ErrorTypeDef DB_DeleteEntry (const char * Tag, void * db)
 {
 	/* Find Tag pointer */
-	uint32_t pointer = DB_FindEntryPointer(Tag, db);
+	uint32_t pointer = DB_FindEntryPointer(Tag, 0, db);
 	uint32_t dbsize = DB_GetSize(db);
 	uint16_t entry_size;
 	
@@ -206,6 +206,18 @@ DB_ErrorTypeDef DB_DeleteEntry (const char * Tag, void * db)
 	return DB_Success;
 }
 
+/**
+  * @brief  Get amount of tags in db
+  * @retval Pointer to database
+  */
+uint16_t DB_GetAmountOfTags (void * db)
+{
+	uint16_t Tags;
+	DB_FindEntryPointer("DEADBEEF", &Tags, db);
+
+	return Tags;
+}
+
 static void DB_UpdateSizeAndCRC (uint32_t size, void * db)
 {
 	/* Update db size */
@@ -216,13 +228,33 @@ static void DB_UpdateSizeAndCRC (uint32_t size, void * db)
 		*((uint32_t*)db + 1) = CRC32_CalcFunc((uint8_t*)db + 8, size - 8);
 }
 
-static uint32_t DB_FindEntryPointer (const char * Tag, void * db)
+static uint32_t DB_FindEntryPointer (const char * Tag, uint16_t * TagsFound, void * db)
 {
-	uint32_t pointer = 4, size = DB_GetSize(db);
+	uint32_t pointer = sizeof(uint32_t) * 2, dbsize = DB_GetSize(db);
+	uint16_t tag_size, entry_size;
 	
-	while (pointer++ < size)
-		if (strcmp((char*)db + pointer, Tag) == 0)
+	if (TagsFound) *TagsFound = 0;
+
+	/* If db not exist return 0 */
+	if (dbsize <= pointer) return 0;
+	
+	/* Search for tag */
+	do
+	{
+		if (TagsFound) *TagsFound += 1;
+		
+		/* If tag found, return pointer */
+		if (strcmp(Tag, (char*)db + pointer) == 0)
 			return pointer;
+		
+		/* Calculate offset to next tag */
+		tag_size = strlen((char*)db + pointer);
+		pointer += tag_size + 2;
+		entry_size = *(uint16_t*)((uint8_t*)db + pointer);
+		
+		/* Shift pointer to next tag */
+		pointer += sizeof(uint16_t) + entry_size;
+	}while (tag_size && pointer < dbsize);
 	
 	return 0;
 }
