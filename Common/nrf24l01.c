@@ -8,7 +8,7 @@ RF_InitTypeDef * RF_InitStruct;
 
 nRF_ERROR_TypeDef RF_Send_Cmd (nRF_RegTypeDef reg, char cmd);
 char RF_Read_Cmd(nRF_RegTypeDef adrs);
-void RF_Send_Adr (nRF_RegTypeDef adrs, char * data);
+void RF_Send_Adr (nRF_RegTypeDef adrs, char * data, char len);
 void RF_IRQ_CLEAR (char cmd);
 void RF_Flush (char cmd);
 
@@ -20,6 +20,9 @@ void RF_Flush (char cmd);
   */
 nRF_ERROR_TypeDef RF_Init (RF_InitTypeDef * InitStruct)
 {
+    const char add_var[] = {3, 4, 5};
+    char add_len = InitStruct->nRF_AddressLen ? add_var[(char)InitStruct->nRF_AddressLen - 1] : 5;
+
     // Assign the pointer to init structure
     RF_InitStruct = InitStruct;
   
@@ -39,13 +42,13 @@ nRF_ERROR_TypeDef RF_Init (RF_InitTypeDef * InitStruct)
     RF_Send_Cmd (nRF_SETUP_RETR_REG, (RF_InitStruct->nRF_Auto_Retransmit_Count & 0x0F)|((RF_InitStruct->nRF_Auto_Retransmit_Delay & 0x0F) << 4));
     RF_Send_Cmd (nRF_RF_CH_REG, (RF_InitStruct->nRF_Channel & 0x7F));
     RF_Send_Cmd (nRF_RF_SETUP_REG, (0x01 | (char)RF_InitStruct->nRF_TX_Power | (char)RF_InitStruct->nRF_Data_Rate));
-    RF_Send_Adr (nRF_RX_ADDR_P0_REG, RF_InitStruct->nRF_RX_Adress_Pipe0);
-    RF_Send_Adr (nRF_RX_ADDR_P1_REG, RF_InitStruct->nRF_RX_Adress_Pipe1);
+    RF_Send_Adr (nRF_RX_ADDR_P0_REG, RF_InitStruct->nRF_RX_Adress_Pipe0, add_len);
+    RF_Send_Adr (nRF_RX_ADDR_P1_REG, RF_InitStruct->nRF_RX_Adress_Pipe1, add_len);
     RF_Send_Cmd (nRF_RX_ADDR_P2_REG, RF_InitStruct->nRF_RX_Adress_Pipe2);
     RF_Send_Cmd (nRF_RX_ADDR_P3_REG, RF_InitStruct->nRF_RX_Adress_Pipe3);
     RF_Send_Cmd (nRF_RX_ADDR_P4_REG, RF_InitStruct->nRF_RX_Adress_Pipe4);
     RF_Send_Cmd (nRF_RX_ADDR_P5_REG, RF_InitStruct->nRF_RX_Adress_Pipe5);
-    RF_Send_Adr (nRF_TX_ADDR_REG, RF_InitStruct->nRF_TX_Adress);
+    RF_Send_Adr (nRF_TX_ADDR_REG, RF_InitStruct->nRF_TX_Adress, add_len);
     RF_Send_Cmd (nRF_RX_PW_P0_REG, RF_InitStruct->nRF_Payload_Size_Pipe0);
     RF_Send_Cmd (nRF_RX_PW_P1_REG, RF_InitStruct->nRF_Payload_Size_Pipe1);
     RF_Send_Cmd (nRF_RX_PW_P2_REG, RF_InitStruct->nRF_Payload_Size_Pipe2);
@@ -57,15 +60,6 @@ nRF_ERROR_TypeDef RF_Init (RF_InitTypeDef * InitStruct)
     return res;			 
 }
 
-void RF_ClassInit (RF_ClassTypeDef * RF_Class)
-{
-    // Assing the pointer to functions
-    RF_Class->SendPayload = RF_SendPayload;
-    RF_Class->SendPayloadACK = RF_SendPayloadACK;
-    RF_Class->Receive_Data = RF_Receive_Data;
-    RF_Class->Sleep = RF_Sleep;
-    RF_Class->WakeUp = RF_WakeUp;  
-}
 
 /**
   * @brief  Send Payload via NRF24L01 
@@ -140,6 +134,12 @@ nRF_ERROR_TypeDef RF_Receive_Data (char * data, char size)
   return res;	
 }
 
+nRF_ERROR_TypeDef RF_ChangeFreqChannel (char channel)
+{
+  RF_InitStruct->nRF_Channel = channel;
+  return RF_Send_Cmd (nRF_RF_CH_REG, (RF_InitStruct->nRF_Channel & 0x7F));
+}
+
 /* INTERNAL FUNCTIONS DEFINITIONS */
 /* NOTHING INTERESTING HERE */
 
@@ -154,9 +154,9 @@ char RF_Read_Cmd (nRF_RegTypeDef adrs)										//read data from register
   return res;
 }
 
-void RF_Send_Adr (nRF_RegTypeDef adrs, char * data)
-{	  
-  RF_InitStruct->WriteReg ((char)adrs | (1 << 5), data, Max_Adress_Len);
+void RF_Send_Adr (nRF_RegTypeDef adrs, char * data, char len)
+{ 
+  RF_InitStruct->WriteReg ((char)adrs | (1 << 5), data, len);
 }
 
 unsigned char RF_Carrier_Detect (void)										//returns 1 if Carrier Detected on current channel
