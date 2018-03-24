@@ -3,7 +3,7 @@
 
 #define Config_Reg_Reset_Value	        0x0E
 #define Max_Adress_Len 			5		//maximum Bytes in Data Adress, typ. 5
-#define Payload_send_delay		300000	//maximum delay in cycles for data send ready in case of error
+#define Payload_send_delay		10000	//maximum delay in cycles for data send ready in case of error
 #define PipeBitMask                     0x0E
 
 // NRF24l01 registers define
@@ -203,14 +203,26 @@ typedef struct
 #define ANT_DISABLE             RF_InitStruct->IO_CE_Func (0)
 
 nRF_ERROR_TypeDef RF_Init(RF_InitTypeDef * InitStruct);
-void RF_ClassInit (RF_ClassTypeDef * RF_Class);
 nRF_ERROR_TypeDef RF_SendPayload (char * data, char size);
 nRF_ERROR_TypeDef RF_SendPayloadACK (char * data, char size);
 nRF_ERROR_TypeDef RF_Receive_Data(char * data, char size);
+nRF_ERROR_TypeDef RF_ChangeFreqChannel (char channel);
 nRF_ERROR_TypeDef RF_Sleep (void);
 nRF_ERROR_TypeDef RF_WakeUp (void);
 RF_InitTypeDef * RF_InitStructGet (void);
 unsigned short RF_GetChannelFreqInMHz (void);
 
-static const RF_ClassTypeDef nRF24L01 = {RF_Init, RF_SendPayload, RF_SendPayloadACK, RF_Receive_Data, RF_Sleep, RF_WakeUp};
+static const struct
+{
+  nRF_ERROR_TypeDef (* Init) (RF_InitTypeDef * InitStruct);
+  nRF_ERROR_TypeDef (* SendPayload) (char * data, char size);
+  nRF_ERROR_TypeDef (* SendPayloadACK) (char * data, char size);
+  nRF_ERROR_TypeDef (* Receive_Data) (char * data, char size);
+  nRF_ERROR_TypeDef (* ChangeFreqChannel) (char channel);
+  nRF_ERROR_TypeDef (* Sleep) (void);
+  nRF_ERROR_TypeDef (* WakeUp) (void);
+  RF_InitTypeDef * (* InitStructGet) (void);
+  unsigned short (* GetChannelFreqInMHz) (void);
+}nRF24L01 = { RF_Init, RF_SendPayload, RF_SendPayloadACK, RF_Receive_Data, RF_ChangeFreqChannel, RF_Sleep, RF_WakeUp, RF_InitStructGet, RF_GetChannelFreqInMHz };
+
 #endif
