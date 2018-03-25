@@ -1,12 +1,20 @@
-#include "nrf24l01.h"
+#include "BLE_ADC_Hack.h"
 #include <string.h>
 
-static uint8_t NRF24L01_BLE_PreparePacket (uint8_t * buf, uint8_t * name, int32_t * data);
+/* INTERNAL FUNCTIONS */
+static uint8_t NRF24L01_BLE_PreparePacket (uint8_t * buf, uint8_t * name, int32_t * data, uint8_t isAndroidDevice);
 static inline uint8_t btLeWhitenStart(uint8_t chan);
 static void btLeWhiten(uint8_t * data, uint8_t len, uint8_t whitenCoeff);
-static uint8_t * BLE_Address (void);
 static void btLeCrc(uint8_t * data, uint8_t len, uint8_t * dst);
 static uint8_t swapbits(uint8_t a);
+
+/* CONST VARIABLES FOR INTERNAL USE */
+const uint8_t chRf[] = { 2, 26, 80 };
+const uint8_t chLe[] = { 37,38, 39 };
+const char pipe_adrs[] = { 0x71, 0x91, 0x7D, 0x6B };
+
+/* LOCAL VARIABLES FOR INTERNAL USE */
+uint8_t ch = 0;
 uint8_t * nrf_mac;
 
 void NRF24L01_ConfgureForBLE (RF_InitTypeDef * RF_InitStruct, uint8_t * mac)
@@ -14,7 +22,7 @@ void NRF24L01_ConfgureForBLE (RF_InitTypeDef * RF_InitStruct, uint8_t * mac)
   memset((char*)RF_InitStruct, 0, sizeof(RF_InitTypeDef));
   nrf_mac = mac;
   RF_InitStruct->nRF_Power = nRF_Power_On;
-  RF_InitStruct->nRF_Mode = nRF_Mode_TX;
+  RF_InitStruct->nRF_Mode = nRF_Mode_RX;
   RF_InitStruct->nRF_CRC_Mode = nRF_CRC_Off;
   RF_InitStruct->nRF_RX_IRQ_Config = nRF_Config_IRQ_RX_On;
   RF_InitStruct->nRF_TX_IRQ_Config = nRF_Config_IRQ_TX_On;
@@ -26,34 +34,51 @@ void NRF24L01_ConfgureForBLE (RF_InitTypeDef * RF_InitStruct, uint8_t * mac)
   RF_InitStruct->nRF_AddressLen = nRF_Setup_4_Byte_Adress;
   RF_InitStruct->nRF_TX_Power = nRF_TX_Power_High;
   RF_InitStruct->nRF_Data_Rate = nRF_Data_Rate_1Mbs;
-  RF_InitStruct->nRF_RX_Adress_Pipe0 = (char*)BLE_Address();
+  RF_InitStruct->nRF_RX_Adress_Pipe0 = (char*)pipe_adrs;
   RF_InitStruct->nRF_RX_Adress_Pipe1 = 0;
   RF_InitStruct->nRF_TX_Adress = RF_InitStruct->nRF_RX_Adress_Pipe0;
   RF_InitStruct->nRF_Channel = 2;
 }
 
-void NRF24L01_BLE_Encode (uint8_t * packet, uint8_t len, uint8_t channel, uint8_t * name, int32_t * data)
+void NRF24L01_BLE_Encode (uint8_t * packet, uint8_t len, uint8_t * name, int32_t * data, uint8_t isAndroidDevice)
 {
   //length is of packet, including crc. pre-populate crc in packet with initial crc value!
   uint8_t i, dataLen;
   
-  dataLen = NRF24L01_BLE_PreparePacket(packet, name, data) - 3;
+  dataLen = NRF24L01_BLE_PreparePacket(packet, name, data, isAndroidDevice) - 3;
   
   btLeCrc(packet, dataLen, packet + dataLen);
   
-  for(i = 0; i < 3; i++, dataLen++)
+  for (i = 0; i < 3; i++, dataLen++)
     packet[dataLen] = swapbits(packet[dataLen]);
   
-  btLeWhiten(packet, len, btLeWhitenStart(channel));
+  btLeWhiten(packet, len, btLeWhitenStart(chLe[ch]));
   
   for(i = 0; i < len; i++) 
     packet[i] = swapbits(packet[i]);
 }
 
-static uint8_t NRF24L01_BLE_PreparePacket (uint8_t * buf, uint8_t * name, int32_t * data)
+void NRF24L01_BLE_Decode (uint8_t * packet)
+{
+  uint8_t i;
+  
+  // decode: swap bit order, un-whiten
+  for (i = 0; i < 32; i++)
+    packet[i] = swapbits(packet[i]);
+  
+  btLeWhiten(packet, 32, btLeWhitenStart(chLe[ch]));
+}
+
+uint8_t NRF24L01_BLE_GetFreqChannel (void)
+{
+  if (++ch == sizeof(chRf)) ch = 0;
+  return chRf[ch];
+}
+
+static uint8_t NRF24L01_BLE_PreparePacket (uint8_t * buf, uint8_t * name, int32_t * data, uint8_t isAndroidDevice)
 {
   uint8_t L = 0;
-  buf[L++] = 0x42;	//PDU type, given address is random
+  buf[L++] = isAndroidDevice ? 0x42 : 0x40;	//PDU type, given address is random, 0x42 android, 0x40 Iphone
   buf[L++] = data ? 0x11+10 : 0x11;	//17 or 11 bytes of payload
   memcpy(&buf[L], nrf_mac, 6);
   L += 6;
@@ -110,18 +135,6 @@ static void btLeWhiten(uint8_t * data, uint8_t len, uint8_t whitenCoeff)
     }
     data++;
   }
-}
-
-static uint8_t * BLE_Address (void)
-{
-  static uint8_t ble_address[4];
-
-  ble_address[0] = swapbits(0x8E);
-  ble_address[1] = swapbits(0x89);
-  ble_address[2] = swapbits(0xBE);
-  ble_address[3] = swapbits(0xD6);
-
-  return ble_address;
 }
 
 static void btLeCrc(uint8_t * data, uint8_t len, uint8_t * dst)

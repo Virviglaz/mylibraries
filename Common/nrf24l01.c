@@ -67,7 +67,7 @@ nRF_ERROR_TypeDef RF_Init (RF_InitTypeDef * InitStruct)
   * @param  unsigned char DataLen: lenth of data array [1..32] for NRF24L01
   * @retval nRF_SUCCESS or nRF_ERROR_CHIP_NOT_RESPONDING if data send time overlimit
   */
-nRF_ERROR_TypeDef RF_SendPayload (char * data, char size)
+nRF_ERROR_TypeDef RF_SendPayload (char * data, char size, char RX_Enable)
 {
   unsigned long DS_Delay = Payload_send_delay;
 
@@ -77,10 +77,10 @@ nRF_ERROR_TypeDef RF_SendPayload (char * data, char size)
   
   while (DS_Delay && RF_InitStruct->IO_IRQ_Func()) DS_Delay--;
   
-  ANT_DISABLE;
+  if (!RX_Enable) ANT_DISABLE;
   
   RF_IRQ_CLEAR (RF_TX_DS_IRQ_CLEAR);
-  //RF_Flush (RF_Flush_TX_CMD);
+  RF_Flush (RF_Flush_TX_CMD);
   if (DS_Delay == 0) return nRF_ERROR_CHIP_NOT_RESPONDING;
   
   return nRF24L01_SUCCESS;
@@ -94,7 +94,7 @@ nRF_ERROR_TypeDef RF_SendPayload (char * data, char size)
             nRF_DATA_SEND_ACK_RECEIVED_OK if data send ok and Acknowledge received
             nRF_ERROR_CHIP_NOT_RESPONDING if data send time overlimit
   */
-nRF_ERROR_TypeDef RF_SendPayloadACK (char * data, char size) //return 0 if no ACK received, return 0xFF if ERROR
+nRF_ERROR_TypeDef RF_SendPayloadACK (char * data, char size, char RX_Enable) //return 0 if no ACK received, return 0xFF if ERROR
 {
   unsigned long DS_Delay = Payload_send_delay;
   nRF_ERROR_TypeDef res = nRF24L01_DATA_SEND_NO_ACK_RECEIVED;
@@ -102,15 +102,17 @@ nRF_ERROR_TypeDef RF_SendPayloadACK (char * data, char size) //return 0 if no AC
   RF_InitStruct->WriteReg (RF_SendPayload_CMD, data, size);
   
   ANT_ENABLE;
+  
   while(DS_Delay && RF_InitStruct->IO_IRQ_Func()) DS_Delay--;
-  ANT_DISABLE;
+  
+  if (!RX_Enable) ANT_DISABLE;
 
   if (RF_InitStruct->ReadReg (0xFF, 0, 0) & RF_TX_DS_IRQ_CLEAR) 
     res = nRF24L01_DATA_SEND_ACK_RECEIVED_OK; //IRQ reflected, ACK received
   
   if(DS_Delay == 0) res = nRF_ERROR_CHIP_NOT_RESPONDING;  
   RF_IRQ_CLEAR (RF_MAX_RT_IRQ_CLEAR | RF_TX_DS_IRQ_CLEAR);
-  //RF_Flush (RF_Flush_TX_CMD);
+  RF_Flush (RF_Flush_TX_CMD);
 
   return res; 
 }
@@ -184,10 +186,12 @@ void RF_Flush (char cmd)
   RF_InitStruct->WriteReg (cmd, 0, 0);
 }
 
-unsigned char RF_Mode_Set (char Mode)
+unsigned char RF_Switch_RX_TX (nRF_Mode_TypeDef Mode)
 {
 	char pMode = RF_Read_Cmd (nRF_CONFIG_REG);
+        ANT_DISABLE;
 	RF_Send_Cmd (nRF_CONFIG_REG, (pMode & 0xFE) | (Mode & 1));
+        ANT_ENABLE;
 	return pMode;
 }
 
