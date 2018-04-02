@@ -42,6 +42,7 @@ typedef enum
 
 DB_ErrorTypeDef DB_Init (uint32_t (*CRC_Func)(void * buf, uint32_t size));
 DB_ErrorTypeDef DB_StoreData   (const char * Tag,	void * Data, uint16_t Size,	DB_DataTypeDef DataType, void * db);
+DB_ErrorTypeDef DB_OverWriteData   (const char * Tag,	void * Data, uint16_t DataSize,	DB_DataTypeDef DataType, void * db);
 uint16_t DB_ReadData (const char * Tag, void * Data, void * db);
 DB_ErrorTypeDef DB_Validate (void * db);
 DB_DataTypeDef DB_GetDataType (const char * Tag, void * db);
@@ -54,6 +55,7 @@ static const struct
 {
 	DB_ErrorTypeDef (* Init)  (uint32_t (*CRC_Func)(void * buf, uint32_t size));
 	DB_ErrorTypeDef (* Write) (const char * Tag,	void * Data, uint16_t Size,	DB_DataTypeDef DataType, void * db);
+	DB_ErrorTypeDef (* OverWrite)   (const char * Tag,	void * Data, uint16_t DataSize,	DB_DataTypeDef DataType, void * db);
 	uint16_t (* Read) (const char * Tag, void * Data, void * db);
 	DB_ErrorTypeDef (* Validate) (void * db);
 	DB_DataTypeDef (* GetDataType) (const char * Tag, void * db);
@@ -61,5 +63,5 @@ static const struct
 	uint32_t (* GetSize) (void * db);
 	DB_ErrorTypeDef (* DeleteEntry) (const char * Tag, void * db);
 	uint16_t (* GetAmountOfTags) (void * db);
-}SimpleDB = { DB_Init, DB_StoreData, DB_ReadData, DB_Validate, DB_GetDataType, DB_GetEntrySize, DB_GetSize, DB_DeleteEntry, DB_GetAmountOfTags };
+}SimpleDB = { DB_Init, DB_StoreData, DB_OverWriteData, DB_ReadData, DB_Validate, DB_GetDataType, DB_GetEntrySize, DB_GetSize, DB_DeleteEntry, DB_GetAmountOfTags };
 #endif
