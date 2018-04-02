@@ -1,4 +1,5 @@
 #include "simple_db.h"
+#include "CRC.h"
 
 /* Internal variables */
 uint32_t (* CRC32_CalcFunc)(void * buf, uint32_t size);
@@ -64,6 +65,25 @@ DB_ErrorTypeDef DB_StoreData   (const char * Tag,	void * Data, uint16_t DataSize
 	DB_UpdateSizeAndCRC(pointer, db);
 
 	return DB_Success;
+}
+
+/**
+  * @brief  Store data to database overiting existing one
+  * @param  Tag name
+  * @param  Pointer to data to be stored
+  * @param  Size of data
+  * @param  Type of data
+  * @param  Pointer to database
+  * @retval enum DB_Success/DB_TagExist
+  */
+DB_ErrorTypeDef DB_OverWriteData   (const char * Tag,	void * Data, uint16_t DataSize,	DB_DataTypeDef DataType, void * db)
+{
+	/* Check if tag already exist */
+	if (DB_FindEntryPointer(Tag, 0, db))
+		DB_DeleteEntry(Tag, db);
+	
+	/* erase entry and update with a new one */
+	return DB_StoreData(Tag, Data, DataSize, DataType, db);
 }
 
 /**

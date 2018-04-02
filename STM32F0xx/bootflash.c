@@ -1,3 +1,4 @@
+#include "PCB23_HW.h"
 #include "bootflash.h"
 
 void SYSCFG_MemoryRemapConfig(uint32_t SYSCFG_MemoryRemap)
