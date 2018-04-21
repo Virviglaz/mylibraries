@@ -1,8 +1,7 @@
-/*typedef union
-{
-	float fValue;
-	char bValue[4];
-}FloatUnionTypeDef;*/
+#ifndef STRINGS_H
+#define STRINGS_H
+
+#include <stdint.h>
 
 void uLongToStr (unsigned long Value, char * String);
 void uCharToStr (unsigned char Value, char * String);
@@ -34,3 +33,8 @@ void GetFirstParamNullT (char * Source, char * OutParam, char Separator);
 char FindFirstParamNullT (char * Source, char Separator);
 char SearchForStringNullT (char * Str, const char * Source);
 void StringSmallLetters (char * Str, char size);
+uint8_t chartohex (char ch);
+uint32_t atoh (char * str);
+uint8_t getparams (char * source, char delim, char ** buffer, const uint8_t size);
+
+#endif

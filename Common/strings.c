@@ -1,5 +1,6 @@
 #include "strings.h"
 
+
 void uLongToStr (unsigned long Value, char * String)
 {
   char zero = 0;
@@ -255,6 +256,7 @@ char FindFirstParamNullT (char * Source, char Separator)
 	}
 	if (*Source == 0) return 0; //no params found
 	while (*Source++ == Separator); //skip spaces
+	*Source = 0; //terminate
 	return cnt;
 }
 
@@ -266,6 +268,7 @@ char SearchForStringNullT (char * Str, const char * Source)
 		Str++;
 	}
 	if (*Source) return 0;
+	*Str = 0; //terminate string
 	return 1;
 }
 
@@ -275,4 +278,43 @@ void StringSmallLetters (char * Str, char size)
 	for (cnt = 0; cnt < size; cnt++)
 		if (Str[cnt] >= 'A' && Str[cnt] <= 'Z')
 			Str[cnt] += ('a' - 'A');
+}
+
+char * string = "DE63BEEF";
+
+uint8_t chartohex (char ch)
+{
+    if (ch >= '0' && ch <= '9') return ch - '0';
+    if (ch >= 'A' && ch <= 'F') return ch - 'A' + 10;
+    if (ch >= 'a' && ch <= 'f') return ch - 'a' + 10;
+    return 0;
+}
+
+uint32_t atoh (char * str)
+{
+    uint32_t result = 0;
+    
+    if (str[0] == '0')
+        if (str[1] == 'x' || str[1] == 'X')
+            str += 2;
+    
+    while(*str)
+        result = (result << 4) + chartohex(*str++);
+    
+    return result;
+}
+
+uint8_t getparams (char * source, char delim, char ** buffer, const uint8_t size)
+{
+	uint8_t i = 0;
+	if (*source) buffer[i++] = source;
+	while(*source++)
+		if (*source == delim)
+		{
+			buffer[i++] = source + 1;
+			*source = 0; //terminate string
+			if (i == size) break;
+		}
+	buffer[i] = 0; //terminate buffer
+	return i;
 }
