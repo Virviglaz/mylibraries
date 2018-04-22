@@ -54,8 +54,8 @@ DB_ErrorTypeDef DB_StoreData   (const char * Tag,	void * Data, uint16_t DataSize
 	if (DataType == DB_32b) DataSize *= sizeof(uint32_t);
 
 	/* Save data size */
-	*(uint16_t*)((uint8_t*)db + pointer) = DataSize;
-	pointer += sizeof(uint16_t);
+	*((uint8_t*)db + pointer++) = (uint8_t)DataSize;
+	*((uint8_t*)db + pointer++) = DataSize >> 8;
 
 	/* Copy data to db */
 	memcpy((uint8_t*)db + pointer, (uint8_t*)Data, DataSize);
@@ -111,8 +111,8 @@ uint16_t DB_ReadData (const char * Tag, void * Data, void * db)
 	DataType = *((DB_DataTypeDef*)db + pointer++);
 	
 	/* Read data size */
-	size = *(uint16_t*)((uint8_t*)db + pointer);
-	pointer += sizeof(uint16_t);
+	size = *((uint8_t*)db + pointer++);
+	size += *((uint8_t*)db + pointer++) << 8;
 	
 	/* Copy data to buffer */
 	memcpy(Data, (char*)db + pointer, size);
@@ -168,7 +168,8 @@ uint16_t DB_GetEntrySize (const char * Tag, void * db)
 	DataType = *((DB_DataTypeDef*)db + pointer++);
 	
 	/* Read data size */
-	size = *(uint16_t*)((uint8_t*)db + pointer);
+	size = *((uint8_t*)db + pointer++);
+	size += *((uint8_t*)db + pointer++) << 8;
 
 	if (DataType == DB_16b) size /= sizeof(uint16_t);;
 	if (DataType == DB_32b) size /= sizeof(uint32_t);;
@@ -270,10 +271,13 @@ static uint32_t DB_FindEntryPointer (const char * Tag, uint16_t * TagsFound, voi
 		/* Calculate offset to next tag */
 		tag_size = strlen((char*)db + pointer);
 		pointer += tag_size + 2;
-		entry_size = *(uint16_t*)((uint8_t*)db + pointer);
-		
+
+		/* Update entry size */
+		entry_size = *((uint8_t*)db + pointer++);
+		entry_size |= *((uint8_t*)db + pointer++) << 8;
+
 		/* Shift pointer to next tag */
-		pointer += sizeof(uint16_t) + entry_size;
+		pointer += entry_size;
 	}while (tag_size && pointer < dbsize);
 	
 	return 0;
