@@ -312,7 +312,7 @@ uint8_t getparams (char * source, char delim, char ** buffer, const uint8_t size
 		if (*source == delim)
 		{
 			buffer[i++] = source + 1;
-			*source = 0; //terminate string
+			*source++ = 0; //terminate string
 			if (i == size) break;
 		}
 	buffer[i] = 0; //terminate buffer
