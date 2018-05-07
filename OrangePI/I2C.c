@@ -21,7 +21,7 @@ I2C_ErrorTypeDef I2C_Read (uint8_t addr, uint8_t * reg, uint8_t reglen, uint8_t 
 		return NOACCESS;
 	
 	if (write(i2c_handler, reg, reglen) != reglen)
-		return READERROR;
+		return WRITEERROR;
 	
 	if (read(i2c_handler, buf, size) != size)
 		return READERROR;
@@ -37,10 +37,10 @@ I2C_ErrorTypeDef I2C_Write (uint8_t addr, uint8_t * reg, uint8_t reglen, uint8_t
 		return NOACCESS;
 	
 	if (write(i2c_handler, reg, reglen) != reglen)
-		return READERROR;
+		return WRITEERROR;
 	
 	if (write(i2c_handler, buf, size) != size)
-		return READERROR;
+		return WRITEERROR;
 	
 	return SUCCESS;
 }
