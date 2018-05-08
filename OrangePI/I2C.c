@@ -1,46 +1,49 @@
 #include "I2C.h"
 
-static int i2c_handler = 0;
-
-I2C_ErrorTypeDef I2C_Init (const char * driver)
+I2C_ErrorTypeDef I2C_Read (char * driver, uint8_t addr, uint8_t * reg, uint8_t reglen, uint8_t * buf, uint16_t size)
 {
+	I2C_ErrorTypeDef result = READERROR;
+
+	int handler;
+	
 	if (driver == NULL) return NODRIVER;
 	
-	if (i2c_handler) return ALREADYOPENED;
+	handler = open(driver, O_RDWR);
 	
-	if ((i2c_handler = open(driver, O_RDWR)) < 0) return OPENFAILED;
+	if (ioctl(handler, I2C_SLAVE, addr) > 0)
+	{
+		if (write(handler, reg, reglen) == reglen)
+			if (read(handler, buf, size) == size)
+				result = SUCCESS;
+	}
+	else
+		result = NOTFOUND;
+
+	close(handler);
 	
-	return SUCCESS;
+	return result;
 }
 
-I2C_ErrorTypeDef I2C_Read (uint8_t addr, uint8_t * reg, uint8_t reglen, uint8_t * buf, uint16_t size)
+I2C_ErrorTypeDef I2C_Write (char * driver, uint8_t addr, uint8_t * reg, uint8_t reglen, uint8_t * buf, uint16_t size)
 {
-	if (i2c_handler == 0) return NODRIVER;
-	
-	if (ioctl(i2c_handler, I2C_SLAVE, addr) < 0)
-		return NOACCESS;
-	
-	if (write(i2c_handler, reg, reglen) != reglen)
-		return WRITEERROR;
-	
-	if (read(i2c_handler, buf, size) != size)
-		return READERROR;
-	
-	return SUCCESS;
-}
+	I2C_ErrorTypeDef result = WRITEERROR;
 
-I2C_ErrorTypeDef I2C_Write (uint8_t addr, uint8_t * reg, uint8_t reglen, uint8_t * buf, uint16_t size)
-{
-	if (i2c_handler == 0) return NODRIVER;
+	int handler;
 	
-	if (ioctl(i2c_handler, I2C_SLAVE, addr) < 0)
-		return NOACCESS;
+	if (driver == NULL) return NODRIVER;
 	
-	if (write(i2c_handler, reg, reglen) != reglen)
-		return WRITEERROR;
+	handler = open(driver, O_RDWR);
 	
-	if (write(i2c_handler, buf, size) != size)
-		return WRITEERROR;
+	if (ioctl(handler, I2C_SLAVE, addr) > 0)
+	{
+		if (write(handler, reg, reglen) == reglen)
+			if (write(handler, buf, size) == size)
+				result = SUCCESS;
+	}
+	else
+		result = NOTFOUND;
+
+	close(handler);
 	
-	return SUCCESS;
+	return result;
 }
