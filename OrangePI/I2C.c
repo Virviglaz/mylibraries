@@ -38,7 +38,7 @@ I2C_ErrorTypeDef I2C_Write (char * driver, uint8_t addr, uint8_t * reg, uint8_t 
 	
 	if (handler < 0) return WRONGDRIVER;
 
-	if (ioctl(handler, I2C_SLAVE, addr) > 0)
+	if (ioctl(handler, I2C_SLAVE, addr) >= 0)
 	{
 		if (write(handler, reg, reglen) == reglen)
 			if (write(handler, buf, size) == size)
