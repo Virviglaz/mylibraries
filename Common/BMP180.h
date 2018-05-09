@@ -2,9 +2,9 @@
 #define BMP180_H
 
 #include <stdint.h>
-#include <math.h>
 
-/* Registers Deginition */
+
+/* Registers Definition */
 #define AC1_Reg		0xAA
 #define AC2_Reg 	0xAC
 #define AC3_Reg 	0xAE
