@@ -1,4 +1,5 @@
 #include "BMP180.h"
+#include <math.h>
 
 /* Internal variables and functions */
 long UT;
