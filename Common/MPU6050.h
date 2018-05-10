@@ -207,4 +207,11 @@ uint8_t MPU6050_Init (MPU6050_StructTypeDef * MPU6050_Struct);
 uint8_t MPU6050_GetResult (MPU6050_StructTypeDef * MPU6050_Struct);
 void MPU6050_CalibrateZero (MPU6050_StructTypeDef * MPU6050_Struct);
 
+static const struct
+{
+	uint8_t (* Init) (MPU6050_StructTypeDef * MPU6050_Struct);
+	uint8_t (* GetResult) (MPU6050_StructTypeDef * MPU6050_Struct);
+	void (* CalibrateZero) (MPU6050_StructTypeDef * MPU6050_Struct);
+}MPU6050 = {MPU6050_Init, MPU6050_GetResult, MPU6050_CalibrateZero};
+
 #endif
