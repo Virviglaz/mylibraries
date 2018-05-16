@@ -1,6 +1,9 @@
 #ifndef _NRF24L01_H_
 #define _NRF24L01_H_
 
+#include <stdint.h>
+#include <stdbool.h>
+
 #define Config_Reg_Reset_Value	        0x0E
 #define Max_Adress_Len 			5		//maximum Bytes in Data Adress, typ. 5
 #define Payload_send_delay		50000	//maximum delay in cycles for data send ready in case of error
@@ -158,39 +161,39 @@ typedef struct
 	nRF_Pipes_ACK_Enable_TypeDef            nRF_Pipes_ACK_Enable;
 	nRF_Pipes_Enable_TypeDef                nRF_Pipes_Enable;
 	nRF_AddressLen_TypeDef                  nRF_AddressLen;
-	char                                    nRF_Channel;
+	uint8_t                                    nRF_Channel;
 	nRF_TX_Power_TypeDef                    nRF_TX_Power;   
 	nRF_Data_Rate_TypeDef                   nRF_Data_Rate;
-	char *                                  nRF_RX_Adress_Pipe0;
-	char *                                  nRF_RX_Adress_Pipe1;
-	char                                    nRF_RX_Adress_Pipe2;
-	char                                    nRF_RX_Adress_Pipe3;
-	char                                    nRF_RX_Adress_Pipe4;
-	char                                    nRF_RX_Adress_Pipe5;
-	char *                                  nRF_TX_Adress;
-	char                                    nRF_Payload_Size_Pipe0;
-	char                                    nRF_Payload_Size_Pipe1;
-	char                                    nRF_Payload_Size_Pipe2;
-	char                                    nRF_Payload_Size_Pipe3;
-	char                                    nRF_Payload_Size_Pipe4;
-	char                                    nRF_Payload_Size_Pipe5;
-	char                                    nRF_Auto_Retransmit_Delay;
-	char                                    nRF_Auto_Retransmit_Count;
+	uint8_t *                                  nRF_RX_Adress_Pipe0;
+	uint8_t *                                  nRF_RX_Adress_Pipe1;
+	uint8_t                                    nRF_RX_Adress_Pipe2;
+	uint8_t                                    nRF_RX_Adress_Pipe3;
+	uint8_t                                    nRF_RX_Adress_Pipe4;
+	uint8_t                                    nRF_RX_Adress_Pipe5;
+	uint8_t *                                  nRF_TX_Adress;
+	uint8_t                                    nRF_Payload_Size_Pipe0;
+	uint8_t                                    nRF_Payload_Size_Pipe1;
+	uint8_t                                    nRF_Payload_Size_Pipe2;
+	uint8_t                                    nRF_Payload_Size_Pipe3;
+	uint8_t                                    nRF_Payload_Size_Pipe4;
+	uint8_t                                    nRF_Payload_Size_Pipe5;
+	uint8_t                                    nRF_Auto_Retransmit_Delay;
+	uint8_t                                    nRF_Auto_Retransmit_Count;
 
 	/* Functions */
-        void (*IO_CE_Func ) (char IO_State);
-        char (*IO_IRQ_Func) (void);
+        void (*IO_CE_Func ) (uint8_t IO_State);
+        uint8_t (*IO_IRQ_Func) (void);
 
-	char (*WriteReg)(char reg, char * buf, char size);
-	char (*ReadReg) (char reg, char * buf, char size);  
+	uint8_t (*WriteReg)(uint8_t reg, uint8_t * buf, uint8_t size);
+	uint8_t (*ReadReg) (uint8_t reg, uint8_t * buf, uint8_t size);  
 }RF_InitTypeDef;
 
 typedef struct
 {
         nRF_ERROR_TypeDef (*Init)            (RF_InitTypeDef * InitStruct);
-        nRF_ERROR_TypeDef (*SendPayload)        (char * data, char size);
-        nRF_ERROR_TypeDef (*SendPayloadACK)     (char * data, char size);
-        nRF_ERROR_TypeDef (*Receive_Data)       (char * data, char size);
+        nRF_ERROR_TypeDef (*SendPayload)        (uint8_t * data, uint8_t size, bool RX_Enable);
+        nRF_ERROR_TypeDef (*SendPayloadACK)     (uint8_t * data, uint8_t size, bool RX_Enable);
+        nRF_ERROR_TypeDef (*Receive_Data)       (uint8_t * data, uint8_t size);
         nRF_ERROR_TypeDef (*Sleep)      (void);
         nRF_ERROR_TypeDef (*WakeUp)     (void);    
 }RF_ClassTypeDef;
@@ -203,28 +206,28 @@ typedef struct
 #define ANT_DISABLE             RF_InitStruct->IO_CE_Func (0)
 
 nRF_ERROR_TypeDef RF_Init(RF_InitTypeDef * InitStruct);
-nRF_ERROR_TypeDef RF_SendPayload (char * data, char size, char RX_Enable);
-nRF_ERROR_TypeDef RF_SendPayloadACK (char * data, char size, char RX_Enable);
-nRF_ERROR_TypeDef RF_Receive_Data(char * data, char size);
-nRF_ERROR_TypeDef RF_ChangeFreqChannel (char channel);
+nRF_ERROR_TypeDef RF_SendPayload (uint8_t * data, uint8_t size, bool RX_Enable);
+nRF_ERROR_TypeDef RF_SendPayloadACK (uint8_t * data, uint8_t size, bool RX_Enable);
+nRF_ERROR_TypeDef RF_Receive_Data(uint8_t * data, uint8_t size);
+nRF_ERROR_TypeDef RF_ChangeFreqChannel (uint8_t channel);
 nRF_ERROR_TypeDef RF_Sleep (void);
 nRF_ERROR_TypeDef RF_WakeUp (void);
 RF_InitTypeDef * RF_InitStructGet (void);
-unsigned short RF_GetChannelFreqInMHz (void);
-unsigned char RF_Switch_RX_TX (nRF_Mode_TypeDef Mode);
+uint16_t RF_GetChannelFreqInMHz (void);
+uint8_t RF_Switch_RX_TX (nRF_Mode_TypeDef Mode);
 
 static const struct
 {
   nRF_ERROR_TypeDef (* Init) (RF_InitTypeDef * InitStruct);
-  nRF_ERROR_TypeDef (* SendPayload) (char * data, char size, char RX_Enable);
-  nRF_ERROR_TypeDef (* SendPayloadACK) (char * data, char size, char RX_Enable);
-  nRF_ERROR_TypeDef (* Receive_Data) (char * data, char size);
-  nRF_ERROR_TypeDef (* ChangeFreqChannel) (char channel);
+  nRF_ERROR_TypeDef (* SendPayload) (uint8_t * data, uint8_t size, bool RX_Enable);
+  nRF_ERROR_TypeDef (* SendPayloadACK) (uint8_t * data, uint8_t size, bool RX_Enable);
+  nRF_ERROR_TypeDef (* Receive_Data) (uint8_t * data, uint8_t size);
+  nRF_ERROR_TypeDef (* ChangeFreqChannel) (uint8_t channel);
   nRF_ERROR_TypeDef (* Sleep) (void);
   nRF_ERROR_TypeDef (* WakeUp) (void);
   RF_InitTypeDef * (* InitStructGet) (void);
-  unsigned char (* Switch_RX_TX) (nRF_Mode_TypeDef Mode);
-  unsigned short (* GetChannelFreqInMHz) (void);
+  uint8_t (* Switch_RX_TX) (nRF_Mode_TypeDef Mode);
+  uint16_t (* GetChannelFreqInMHz) (void);
 }nRF24L01 = { RF_Init, RF_SendPayload, RF_SendPayloadACK, RF_Receive_Data, RF_ChangeFreqChannel, RF_Sleep, RF_WakeUp, RF_InitStructGet, RF_Switch_RX_TX, RF_GetChannelFreqInMHz };
 
 #endif

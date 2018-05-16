@@ -1,7 +1,6 @@
 #ifndef STM8_GPIO_H
 #define STM8_GPIO_H
 
-#define _STDINT
 #include "stm8s_gpio.h"
 
 #define PA0			GPIOA, GPIO_PIN_0
