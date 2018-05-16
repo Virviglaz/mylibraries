@@ -1,7 +1,6 @@
 #ifndef STM8S_DELAYS_H
 #define STM8S_DELAYS_H
 
-#define _STDINT
 #include "stm8s.h"
 
 typedef enum
