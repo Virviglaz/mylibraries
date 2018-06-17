@@ -239,6 +239,13 @@ uint16_t DB_GetAmountOfTags (void * db)
 	return Tags;
 }
 
+char * DB_ExplainError (DB_ErrorTypeDef err)
+{
+	const char * DB_Error[] = {"Success", "Wrong CRC", "Tag not found", "Tag exist",
+		"No CRC function", "Wrong format", "DB empty"};
+	return (char*)DB_Error[err];
+}
+
 static void DB_UpdateSizeAndCRC (uint32_t size, void * db)
 {
 	/* Update db size */
