@@ -71,8 +71,12 @@ typedef struct
   void (* start) (ads1115_multconf_t channel);
   int16_t (* read) (void);
   bool (* busy) (void);
-  bool usedefaultconfig;
-  bool initfinished;
+  uint8_t interface_error;
+  uint16_t config_value;
+}ads1115_t;
+
+typedef struct
+{
   ads1115_multconf_t analog_multiplexer_conf;
   ads1115_multconf_t channel;
   ads1115_gain_t gain;
@@ -82,10 +86,9 @@ typedef struct
   ads1115_comparator_polarity_t comp_polarity;
   bool latching_comparator;
   ads1115_comparator_queue_t comparator_queue;
-  uint8_t interface_error;
-  uint16_t config_value;
-}ads1115_t;
+}adc1115_conf_t;
 
 ads1115_t * ads1115_init (ads1115_t * driver);
+uint16_t adc1115_config (adc1115_conf_t * config);
 
 #endif
