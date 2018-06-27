@@ -7,10 +7,9 @@
 #define HI_TRES  3
 
 ads1115_t * local_driver = NULL;
-static void adcdefaultinit (void);
-static void adcstart (ads1115_multconf_t channel);
-static int16_t adcread (void);
-static bool adcbusy (void);
+static void start (ads1115_multconf_t channel);
+static int16_t read (void);
+static bool busy (void);
 
 ads1115_t * ads1115_init (ads1115_t * driver)
 {  
@@ -18,64 +17,45 @@ ads1115_t * ads1115_init (ads1115_t * driver)
     local_driver = driver;
   else //just return assigned before driver
     return local_driver;
-  
-  if (local_driver->initfinished) //used for fast reassign if many drivers used
-    return local_driver;
-  
-  local_driver->initfinished = true;
-  
+ 
   //assign functions
-  driver->read = adcread;
-  driver->busy = adcbusy;
-  driver->start = adcstart;
+  driver->read = read;
+  driver->busy = busy;
+  driver->start = start;
   
-  if (driver->usedefaultconfig) //init with default settings
-    adcdefaultinit();
-  
-  driver->config_value = driver->latching_comparator ? (1 << 2) : 0;
-  driver->config_value = driver->comparator_queue;
-  driver->config_value |= driver->comp_polarity << 3;
-  driver->config_value |= driver->comparator << 4;
-  driver->config_value |= driver->sample_rate << 5;
-  driver->config_value |= driver->mode << 8;
-  driver->config_value |= driver->gain << 9;
-  driver->config_value |= driver->analog_multiplexer_conf << 12;
-  driver->interface_error = driver->write_func(CONF_REG, (uint8_t*)&driver->config_value, 2);
-  
+  //default configuration
+  driver->config_value = 0x8583; 
+
   return local_driver;
 }
 
-static void adcdefaultinit (void)
+uint16_t adc1115_config (adc1115_conf_t * config)
 {
-  if (local_driver == NULL) return;
-  
-  local_driver->analog_multiplexer_conf = AINP_AIN0andAINN_GND;
-  local_driver->gain = FSR_1_024V;
-  local_driver->mode = Single_shot_mode;
-  local_driver->sample_rate = Rate_8_SPS;
-  local_driver->comparator = traditional_comparator;
-  local_driver->comp_polarity = active_low;
-  local_driver->comparator_queue = Assert_after_one_conversion;
-  local_driver->latching_comparator = false;
-  local_driver->initfinished = false;
+  uint16_t res = config->latching_comparator ? (1 << 2) : 0;
+  res |= config->comparator_queue;
+  res |= config->comp_polarity << 3;
+  res |= config->comparator << 4;
+  res |= config->sample_rate << 5;
+  res |= config->mode << 8;
+  res |= config->gain << 9;
+  res |= config->analog_multiplexer_conf << 12;
+
+  local_driver->interface_error = local_driver->write_func(CONF_REG, (uint8_t*)&res, 2);
+  return res;
 }
 
-static void adcstart (ads1115_multconf_t channel)
+static void start (ads1115_multconf_t channel)
 {
-  if (local_driver->channel != channel)
-  {
-    local_driver->channel = channel;
-    local_driver->initfinished = false;
-    local_driver->usedefaultconfig = false;
-    ads1115_init(local_driver);
-  }
+  local_driver->config_value &= ~0x7000; //analog multiplexer default value
   
-  local_driver->config_value |= 0x8000;
+  //start conversion bit 15 and analog multiplexer switch
+  local_driver->config_value |= 0x8000 | (channel << 12);
+  
+  //configure adc using interface function
   local_driver->interface_error = local_driver->write_func(CONF_REG, (uint8_t*)&local_driver->config_value, 2);
-  local_driver->config_value &= ~0x8000;
 }
 
-static bool adcbusy (void)
+static bool busy (void)
 {
   uint16_t res;
   
@@ -84,7 +64,7 @@ static bool adcbusy (void)
   return res & 0x8000 ? false : true;
 }
 
-static int16_t adcread (void)
+static int16_t read (void)
 {
   int16_t res;
   
