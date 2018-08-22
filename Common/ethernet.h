@@ -3,25 +3,15 @@
 
 #include <stdint.h>
 
-typedef struct 
-{
-	uint16_t (* packetReceive) (uint8_t* buf, uint16_t buflen);
-	void (* packetSend)(uint8_t* buf, uint16_t buflen);
-	uint8_t ipaddr[4];
-	uint8_t * mac_address;
-	uint8_t * frame_buffer;
-	uint16_t frame_buffer_size;
-}ethernet_t;
-
-typedef struct eth_frame
+typedef struct
 {
   uint8_t addr_dest[6];
   uint8_t addr_src[6];
   uint16_t type;
   uint8_t data[];
-}frame_ptr;
+}eth_frame_t;
 
-typedef struct arp_msg
+typedef struct
 {
   uint16_t net_tp;
   uint16_t proto_tp;
@@ -32,9 +22,10 @@ typedef struct arp_msg
   uint8_t ipaddr_src[4];
   uint8_t macaddr_dst[6];
   uint8_t ipaddr_dst[4];
-} arp_msg_ptr;
+}arp_pkt_t;
 
-typedef struct ip_pkt{
+typedef struct
+{
 	uint8_t verlen;//версия протокола и длина заголовка
 	uint8_t ts;//тип севриса
 	uint16_t len;//длина
@@ -46,18 +37,43 @@ typedef struct ip_pkt{
 	uint8_t ipaddr_src[4];//IP-адрес отправителя
 	uint8_t ipaddr_dst[4];//IP-адрес получателя
 	uint8_t data[];//данные
-} ip_pkt_ptr;
+}ip_pkt_t;
 
-typedef struct icmp_pkt{
+typedef struct
+{
 	uint8_t msg_tp;//тип севриса
 	uint8_t msg_cd;//код сообщения
 	uint16_t cs;//контрольная сумма заголовка
 	uint16_t id;//идентификатор пакета
 	uint16_t num;//номер пакета
 	uint8_t data[];//данные
-} icmp_pkt_ptr;
+}icmp_pkt_t;
+
+/* UDP package */
+typedef struct
+{
+	uint16_t source_port;
+	uint16_t dest_port;
+	uint16_t len;
+	uint16_t crc16;
+	uint8_t data[];
+}udp_paket_t;
+
+
+typedef struct 
+{
+	uint16_t (* packetReceive) (uint8_t* buf, uint16_t buflen);
+	void (* packetSend) (uint8_t* buf, uint16_t buflen);
+	uint8_t ipaddr[4];
+	uint8_t * mac_address;
+	uint8_t * frame_buffer;
+	uint16_t frame_buffer_size;
+	void (* udp_handler) (udp_paket_t * udp_packet);
+	//void (* tcp_handler) (uint8_t* buf, uint16_t buflen);	
+}ethernet_t;
 
 /* Public fuctions prototypes */
 ethernet_t * ethernet_Init (ethernet_t * this);
 void net_poll(void);
+void udp_send (udp_paket_t * udp_packet);
 #endif

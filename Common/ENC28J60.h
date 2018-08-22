@@ -7,7 +7,6 @@ typedef struct
 {
   uint8_t (* write_func) (uint8_t reg, uint8_t * buf, uint16_t size);
   uint8_t (* read_func) (uint8_t reg, uint8_t * buf, uint16_t size);
-	void (* delay_func) (uint16_t ms);
 	uint8_t * mac_address;
 }enc28j60_t;
 
