@@ -182,7 +182,6 @@ enc28j60_t * enc28j60_Init (enc28j60_t * this)
 	if (!enc28j60) return 0;
 	
 	enc28j60_writeOp(ENC28J60_SOFT_RESET, 0, ENC28J60_SOFT_RESET);
-	enc28j60->delay_func(500);
 	while(!enc28j60_readOp(ENC28J60_READ_CTRL_REG, ESTAT) & ESTAT_CLKRDY){}
 	
 	enc28j60_writeReg(ERXST, RXSTART_INIT);
