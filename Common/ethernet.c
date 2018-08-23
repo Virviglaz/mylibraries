@@ -127,7 +127,9 @@ static uint8_t icmp_read(eth_frame_t *frame, uint16_t len)
 	uint8_t res = 0;
 	ip_pkt_t *ip_pkt = (void*)frame->data;
 	icmp_pkt_t *icmp_pkt = (void*)(ip_pkt->data);
-	if((len >= sizeof(icmp_pkt_t)) && (icmp_pkt->msg_tp == ICMP_REQ))
+	if (len < sizeof(icmp_pkt_t)) return 0;
+	
+	if (icmp_pkt->msg_tp == ICMP_REQ) //answer for incoming ping
 	{
 		icmp_pkt->msg_tp = ICMP_REPLY;
 		icmp_pkt->cs = 0;
@@ -135,6 +137,47 @@ static uint8_t icmp_read(eth_frame_t *frame, uint16_t len)
 		ip_send(frame, len + sizeof(ip_pkt_t));
 	}
 	return res;
+}
+
+uint8_t * get_mac (uint8_t * ip_address, uint32_t timeout)
+{
+	uint32_t counter = 0;
+	eth_frame_t * frame = (void*)ethernet->frame_buffer;
+	
+	arp_pkt_t * arp_pkt = (void*)frame->data;
+	arp_pkt->net_tp = 0x0100;
+	arp_pkt->proto_tp = 0x0008;
+	arp_pkt->macaddr_len = 6;
+	arp_pkt->ipaddr_len = 4;
+	arp_pkt->op = 0x0100;
+	memcpy(arp_pkt->macaddr_src, ethernet->mac_address, 6);
+	memcpy(arp_pkt->ipaddr_src, ethernet->ipaddr, 4);
+	memset(arp_pkt->macaddr_dst, 0x00, 6);
+	memcpy(arp_pkt->ipaddr_dst, ip_address, 4);
+
+	memcpy(frame->addr_src, ethernet->mac_address, 6);
+	memset(frame->addr_dest, 0xFF, 6);
+	frame->type = ETH_ARP;
+	ethernet->packetSend((void*)frame, sizeof(arp_pkt_t) + sizeof(eth_frame_t));
+
+	while(counter++ < timeout)
+		if (ethernet->packetReceive(ethernet->frame_buffer, ethernet->frame_buffer_size) > 0)
+			if (arp_pkt->op == 0x0200) return arp_pkt->macaddr_dst;
+	
+	return 0;
+}
+
+uint32_t ping (uint8_t * ip_address, uint32_t timeout)
+{
+//	uint32_t res = 0;
+	//eth_frame_t * frame = (void*)ethernet->frame_buffer;
+	return 0;
+	/*
+	memcpy(frame->addr_dest, ip_address, 4);
+	memcpy(frame->addr_src, ethernet->ipaddr, 4);
+	frame->type = ETH_IP;
+	ip_pkt_t *ip_pkt = (void*)frame->data;
+	*/
 }
 
 static udp_paket_t * udp_receive (uint8_t * buf, uint16_t len)
@@ -153,7 +196,7 @@ void udp_send (udp_paket_t * udp_packet)
 {
 	eth_frame_t * frame = (void*)ethernet->frame_buffer;
 	ip_pkt_t *ip_pkt = (void*)frame->data;
-	uint16_t port, len = udp_packet->len + 28;
+	uint16_t port, len = udp_packet->len + sizeof(ip_pkt_t) + sizeof(udp_paket_t);
 	
 	ip_pkt->prt = IP_UDP;
 	ip_pkt->verlen = 0x45;
@@ -164,12 +207,12 @@ void udp_send (udp_paket_t * udp_packet)
 	
 	udp_packet->source_port = be16toword(udp_packet->source_port);
 	udp_packet->dest_port = be16toword(udp_packet->dest_port);
-	udp_packet->len = be16toword(udp_packet->len + 8);
+	udp_packet->len = be16toword(udp_packet->len + sizeof(udp_paket_t));
 	udp_packet->crc16 = 0;
-	//udp_packet->crc16 = checksum((void*)udp_packet, len + 8); CRC disable
+	//udp_packet->crc16 = checksum((void*)udp_packet, len + sizeof(udp_paket_t)); CRC disabled
 
 	if (ip_pkt->data != (void*)udp_packet)
-		memcpy(ip_pkt->data, (void*)udp_packet, udp_packet->len + 8);
+		memcpy(ip_pkt->data, (void*)udp_packet, udp_packet->len + sizeof(udp_paket_t));
 	
 	ip_send(frame, len);
 }

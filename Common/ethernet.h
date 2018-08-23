@@ -59,6 +59,22 @@ typedef struct
 	uint8_t data[];
 }udp_paket_t;
 
+/* TCP package */
+typedef struct
+{
+	uint16_t source_port;
+	uint16_t dest_port;
+	uint32_t seq_num;
+	uint32_t ack_num;
+	uint8_t header_len;
+	uint8_t flags;
+	uint16_t window_size;
+	uint16_t crc16;
+	uint16_t priority;
+	uint32_t options;
+	uint8_t data[];
+}tcp_packet_t;
+
 
 typedef struct 
 {
@@ -75,5 +91,7 @@ typedef struct
 /* Public fuctions prototypes */
 ethernet_t * ethernet_Init (ethernet_t * this);
 void net_poll(void);
+uint8_t * get_mac (uint8_t * ip_address, uint32_t timeout);
+uint32_t ping (uint8_t * ip_address, uint32_t timeout);
 void udp_send (udp_paket_t * udp_packet);
 #endif
