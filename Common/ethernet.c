@@ -26,7 +26,7 @@ static uint8_t ip_send(eth_frame_t *frame, uint16_t len);
 static uint8_t ip_read(eth_frame_t *frame, uint16_t len);
 static uint8_t icmp_read(eth_frame_t *frame, uint16_t len);
 static uint16_t checksum(uint8_t *ptr, uint16_t len);
-static udp_paket_t * udp_receive (uint8_t * buf, uint16_t size);
+static udp_paket_t * udp_receive (uint8_t * buf, uint16_t len);
 
 /* Public fuctions */
 ethernet_t * ethernet_Init (ethernet_t * this)
@@ -137,13 +137,14 @@ static uint8_t icmp_read(eth_frame_t *frame, uint16_t len)
 	return res;
 }
 
-static udp_paket_t * udp_receive (uint8_t * buf, uint16_t size)
+static udp_paket_t * udp_receive (uint8_t * buf, uint16_t len)
 {
 	udp_paket_t* res = (void*)buf;
 
 	res->source_port = be16toword(res->source_port);
 	res->dest_port = be16toword(res->dest_port);
 	res->len = be16toword(res->len) - 8;
+	res->data[res->len] = 0; //null terminate
 	
 	return res;
 }
@@ -151,11 +152,26 @@ static udp_paket_t * udp_receive (uint8_t * buf, uint16_t size)
 void udp_send (udp_paket_t * udp_packet)
 {
 	eth_frame_t * frame = (void*)ethernet->frame_buffer;
+	ip_pkt_t *ip_pkt = (void*)frame->data;
+	uint16_t port, len = udp_packet->len + 28;
+	
+	ip_pkt->prt = IP_UDP;
+	ip_pkt->verlen = 0x45;
+	
+	port = udp_packet->source_port;
+	udp_packet->source_port = udp_packet->dest_port;
+	udp_packet->dest_port = port;
+	
 	udp_packet->source_port = be16toword(udp_packet->source_port);
 	udp_packet->dest_port = be16toword(udp_packet->dest_port);
-	//udp_packet->len = be16toword(udp_packet->len + sizeof(udp_paket_t));
-	udp_packet->crc16 = checksum((void*)udp_packet, sizeof(udp_paket_t));
-	ip_send(frame, udp_packet->len);
+	udp_packet->len = be16toword(udp_packet->len + 8);
+	udp_packet->crc16 = 0;
+	//udp_packet->crc16 = checksum((void*)udp_packet, len + 8); CRC disable
+
+	if (ip_pkt->data != (void*)udp_packet)
+		memcpy(ip_pkt->data, (void*)udp_packet, udp_packet->len + 8);
+	
+	ip_send(frame, len);
 }
 
 static uint16_t checksum(uint8_t *ptr, uint16_t len)
