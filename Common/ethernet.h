@@ -57,7 +57,7 @@ typedef struct
 	uint16_t len;
 	uint16_t crc16;
 	uint8_t data[];
-}udp_paket_t;
+}udp_packet_t;
 
 /* TCP package */
 typedef struct
@@ -75,7 +75,6 @@ typedef struct
 	uint8_t data[];
 }tcp_packet_t;
 
-
 typedef struct 
 {
 	uint16_t (* packetReceive) (uint8_t* buf, uint16_t buflen);
@@ -84,8 +83,8 @@ typedef struct
 	uint8_t * mac_address;
 	uint8_t * frame_buffer;
 	uint16_t frame_buffer_size;
-	void (* udp_handler) (udp_paket_t * udp_packet);
-	//void (* tcp_handler) (uint8_t* buf, uint16_t buflen);	
+	void (* udp_handler) (udp_packet_t * udp_packet);
+	void (* tcp_handler) (tcp_packet_t* tcp_packet);	
 }ethernet_t;
 
 /* Public fuctions prototypes */
@@ -93,5 +92,5 @@ ethernet_t * ethernet_Init (ethernet_t * this);
 void net_poll(void);
 uint8_t * get_mac (uint8_t * ip_address, uint32_t timeout);
 uint32_t ping (uint8_t * ip_address, uint32_t timeout);
-void udp_send (udp_paket_t * udp_packet);
+void udp_send (udp_packet_t * udp_packet);
 #endif
