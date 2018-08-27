@@ -120,7 +120,9 @@ static uint8_t ip_read(eth_frame_t *frame, uint16_t len)
 	ip_pkt_t *ip_pkt = (void*)frame->data;
 	if((ip_pkt->verlen == 0x45) && (!memcmp(ip_pkt->ipaddr_dst, ethernet->ipaddr, 4)))
 	{
-		len = be16toword(ip_pkt->len) - sizeof(ip_pkt_t);
+		len = be16toword(ip_pkt->len);
+		frame->data[len] = 0;
+		len -= sizeof(ip_pkt_t);
 		switch (ip_pkt->prt)
 		{
 			case IP_ICMP:	icmp_read(frame, len); break;
@@ -318,18 +320,18 @@ void udp_send (udp_packet_t * udp_packet)
 	ip_send(frame, len);
 }
 
-void tcp_send (char * data)
+void tcp_send (char * data, uint16_t len)
 {
 	eth_frame_t * frame = (void*)ethernet->frame_buffer;
 	ip_pkt_t *ip_pkt = (void*)frame->data;
 	volatile tcp_pkt_t* tcp_pkt = (void*)ip_pkt->data;
 	char * buf = (void*)tcp_pkt;
-	uint16_t data_len = strlen(data);
 	uint8_t tcp_header_len = (tcp_pkt->header_len >> 4) * 4;
 	
+	if (len == 0) len = strlen(data);
 	buf += tcp_header_len;
 
-	ip_pkt->len = be16toword(data_len + tcp_header_len + sizeof(ip_pkt_t));
+	ip_pkt->len = be16toword(len + tcp_header_len + sizeof(ip_pkt_t));
 	ip_pkt->prt = IP_TCP;
 	ip_pkt->cs = 0;
 	ip_pkt->cs = crc16((void*)ip_pkt, sizeof(ip_pkt_t));
@@ -337,10 +339,10 @@ void tcp_send (char * data)
 	if (data != buf)
 		strcpy(buf, data);
 	
-	tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + data_len);	
+	tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + len);	
 	tcp_pkt->crc16 = tcp_crc16(ip_pkt);
 	
-	eth_send((void*)frame, sizeof(ip_pkt_t) + tcp_header_len + data_len);
+	eth_send((void*)frame, sizeof(ip_pkt_t) + tcp_header_len + len);
 }
 
 static uint16_t crc16(uint16_t *buf, uint16_t len)
