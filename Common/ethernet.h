@@ -9,7 +9,7 @@ typedef struct
   uint8_t addr_src[6];
   uint16_t type;
   uint8_t data[];
-}eth_frame_t;
+}eth_frame_t; //14 bytes
 
 typedef struct
 {
@@ -37,7 +37,7 @@ typedef struct
 	uint8_t ipaddr_src[4];//IP-адрес отправителя
 	uint8_t ipaddr_dst[4];//IP-адрес получателя
 	uint8_t data[];//данные
-}ip_pkt_t;
+}ip_pkt_t; //20 bytes
 
 typedef struct
 {
@@ -47,7 +47,7 @@ typedef struct
 	uint16_t id;//идентификатор пакета
 	uint16_t num;//номер пакета
 	uint8_t data[];//данные
-}icmp_pkt_t;
+}icmp_pkt_t; //8 bytes
 
 /* UDP package */
 typedef struct
@@ -57,7 +57,7 @@ typedef struct
 	uint16_t len;
 	uint16_t crc16;
 	uint8_t data[];
-}udp_packet_t;
+}udp_packet_t; //8 bytes
 
 /* TCP package */
 typedef struct
@@ -73,7 +73,16 @@ typedef struct
 	uint16_t priority;
 	uint32_t options;
 	uint8_t data[];
-}tcp_packet_t;
+}tcp_packet_t; //24 bytes
+
+typedef struct
+{
+	uint32_t ipaddr_src;
+	uint32_t ipaddr_dst;
+	uint8_t prt;
+	uint8_t zero;
+	uint16_t len;
+}tcp_pseudo_header_t; //12 bytes
 
 typedef struct 
 {
