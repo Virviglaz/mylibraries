@@ -271,7 +271,7 @@ static char * tcp_receive (uint8_t * buf, uint16_t len)
 	
 	len += sizeof(ip_pkt_t);
 	
-	if (tcp_pkt->flags & TCP_FIN) //FIN
+	if (tcp_pkt->flags & TCP_FIN) //FIN & ACK (CLOSE CONNECTION)
 	{
 		tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + 1);
 		tcp_pkt->flags = TCP_FIN | TCP_ACK;
@@ -325,22 +325,22 @@ void tcp_send (char * data)
 	volatile tcp_pkt_t* tcp_pkt = (void*)ip_pkt->data;
 	char * buf = (void*)tcp_pkt;
 	uint16_t data_len = strlen(data);
-	uint8_t header_len = (tcp_pkt->header_len >> 4) * 4;
-	//volatile uint32_t seq;
+	uint8_t tcp_header_len = (tcp_pkt->header_len >> 4) * 4;
 	
-	buf += (tcp_pkt->header_len >> 4) * 4;
-	
-	//seq = tcp_pkt->seq_num;
-	//tcp_pkt->seq_num = tcp_pkt->ack_num;
-	//tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + data_len/*+ header_len + sizeof(ip_pkt_t)*/);
-	tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + data_len);
-	
-	tcp_pkt->crc16 = tcp_crc16(ip_pkt);	
+	buf += tcp_header_len;
 
+	ip_pkt->len = be16toword(data_len + tcp_header_len + sizeof(ip_pkt_t));
+	ip_pkt->prt = IP_TCP;
+	ip_pkt->cs = 0;
+	ip_pkt->cs = crc16((void*)ip_pkt, sizeof(ip_pkt_t));
+	
 	if (data != buf)
 		strcpy(buf, data);
 	
-	eth_send((void*)frame, sizeof(ip_pkt_t) + header_len + data_len);
+	tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + data_len);	
+	tcp_pkt->crc16 = tcp_crc16(ip_pkt);
+	
+	eth_send((void*)frame, sizeof(ip_pkt_t) + tcp_header_len + data_len);
 }
 
 static uint16_t crc16(uint16_t *buf, uint16_t len)
@@ -364,10 +364,10 @@ static uint16_t crc16(uint16_t *buf, uint16_t len)
 static uint16_t tcp_crc16 (ip_pkt_t* ip_pkt)
 {
 	uint32_t sum = 0;
-	uint16_t len;
-	uint8_t i;
+	uint16_t i;
 	tcp_pseudo_header_t tcp_pseudo_header;
 	uint16_t * ptr = (void*)&tcp_pseudo_header;
+	tcp_pkt_t* tcp_pkt = (void*)ip_pkt->data;
 	
 	/* pseudo prepare */
 	tcp_pseudo_header.ipaddr_dst = ip_pkt->ipaddr_dst[2] << 24 | ip_pkt->ipaddr_dst[3] << 16 | ip_pkt->ipaddr_dst[0] << 8 | ip_pkt->ipaddr_dst[1];
@@ -385,15 +385,10 @@ static uint16_t tcp_crc16 (ip_pkt_t* ip_pkt)
 
 	/* TCP header */
 	ptr = (void*)ip_pkt->data; 
-	tcp_pkt_t* tcp_pkt = (void*)ip_pkt->data;
 	tcp_pkt->crc16 = 0;
-	len = (tcp_pkt->header_len >> 4) * 4;
-	
-	for (i = 0; i < len; i += sizeof(uint16_t))
-	{
-		uint16_t value = *ptr++;
-		sum += value;
-	}
+
+	for (i = 0; i < tcp_pseudo_header.len; i += sizeof(uint16_t))	
+		sum += *ptr++;
 	
 	sum = (sum >> 16) + (sum & 0xffff);
 	sum += sum >> 16;
