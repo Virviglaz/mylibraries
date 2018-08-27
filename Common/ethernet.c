@@ -1,6 +1,6 @@
 #include "ethernet.h"
 #include <string.h>
-#include <stdio.h>
+//#include <stdio.h>
 
 #define be16toword(a) ((((a) >> 8) & 0xff) | (((a) << 8) & 0xff00))
 #define ETH_ARP be16toword(0x0806)
@@ -21,6 +21,7 @@
 /* Local driver */
 ethernet_t * ethernet;
 uint16_t id = 0;
+uint32_t seq;
 
 /* Local functions */
 static void eth_send(eth_frame_t *frame, uint16_t len);
@@ -34,6 +35,7 @@ static uint16_t crc16(uint16_t *buf, uint16_t len);
 static uint16_t tcp_crc16 (ip_pkt_t* ip_pkt);
 static udp_packet_t * udp_receive (uint8_t * buf, uint16_t len);
 static tcp_packet_t * tcp_receive (uint8_t * buf, uint16_t len);
+static uint32_t swap32 (uint32_t num);
 
 /* Public fuctions */
 ethernet_t * ethernet_Init (ethernet_t * this)
@@ -258,11 +260,14 @@ static tcp_packet_t * tcp_receive (uint8_t * buf, uint16_t len)
 	uint16_t port = tcp_packet->dest_port;
 	tcp_packet->dest_port = tcp_packet->source_port;
 	tcp_packet->source_port = port;
-
-	printf("ACK num = %u\nSeq num = %u\n", tcp_packet->ack_num, tcp_packet->seq_num);
 	
-	if (tcp_packet->flags & TCP_SYN) //SYN
-	{		
+	seq = tcp_packet->seq_num;
+	tcp_packet->seq_num = tcp_packet->ack_num;
+	tcp_packet->ack_num = seq;
+	
+	if (tcp_packet->flags & TCP_SYN) //SYN & ACK (HANDSHAKE)
+	{
+		tcp_packet->ack_num = swap32(swap32(tcp_packet->ack_num) + 1);
 		tcp_packet->flags = TCP_SYN | TCP_ACK;
 		tcp_packet->crc16 = tcp_crc16(ip_pkt);
 
@@ -270,15 +275,8 @@ static tcp_packet_t * tcp_receive (uint8_t * buf, uint16_t len)
 		eth_send((void*)frame, len);
 		return 0;
 	}
-	return 0;
 	
-	/*tcp_packet->source_port = be16toword(tcp_packet->source_port);
-	tcp_packet->dest_port = be16toword(tcp_packet->dest_port);
-	tcp_packet->header_len = (tcp_packet->header_len & 0xF0) >> 4;
-	tcp_packet->window_size = be16toword(tcp_packet->window_size);
-	tcp_packet->crc16 = be16toword(tcp_packet->crc16);
-	
-	return tcp_packet;*/
+	return (void*)tcp_packet;
 }
 
 void udp_send (udp_packet_t * udp_packet)
@@ -362,3 +360,11 @@ static uint16_t tcp_crc16 (ip_pkt_t* ip_pkt)
 
 	return ~sum;
 }	
+
+static uint32_t swap32 (uint32_t num)
+{
+ return ((num>>24)&0xff) | // move byte 3 to byte 0
+                    ((num<<8)&0xff0000) | // move byte 1 to byte 2
+                    ((num>>8)&0xff00) | // move byte 2 to byte 1
+                    ((num<<24)&0xff000000); // byte 0 to byte 3
+}
