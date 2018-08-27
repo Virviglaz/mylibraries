@@ -71,9 +71,7 @@ typedef struct
 	uint16_t window_size;
 	uint16_t crc16;
 	uint16_t priority;
-	uint32_t options;
-	uint8_t data[];
-}tcp_packet_t; //24 bytes
+}tcp_pkt_t; //24 bytes
 
 typedef struct
 {
@@ -93,7 +91,7 @@ typedef struct
 	uint8_t * frame_buffer;
 	uint16_t frame_buffer_size;
 	void (* udp_handler) (udp_packet_t * udp_packet);
-	void (* tcp_handler) (tcp_packet_t* tcp_packet);	
+	void (* tcp_handler) (char* buf);	
 }ethernet_t;
 
 /* Public fuctions prototypes */
@@ -102,4 +100,5 @@ void net_poll(void);
 uint8_t * get_mac (uint8_t * ip_address, uint32_t timeout);
 uint32_t ping (uint8_t * ip_address, uint32_t timeout);
 void udp_send (udp_packet_t * udp_packet);
+void tcp_send (char * data);
 #endif
