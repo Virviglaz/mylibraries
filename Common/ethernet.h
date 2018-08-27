@@ -100,5 +100,5 @@ void net_poll(void);
 uint8_t * get_mac (uint8_t * ip_address, uint32_t timeout);
 uint32_t ping (uint8_t * ip_address, uint32_t timeout);
 void udp_send (udp_packet_t * udp_packet);
-void tcp_send (char * data);
+void tcp_send (char * data, uint16_t len);
 #endif
