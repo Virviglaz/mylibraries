@@ -1,6 +1,6 @@
 #include "ethernet.h"
 #include <string.h>
-//#include <stdio.h>
+#include <stdio.h>
 
 #define be16toword(a) ((((a) >> 8) & 0xff) | (((a) << 8) & 0xff00))
 #define ETH_ARP be16toword(0x0806)
@@ -18,6 +18,8 @@
 #define TCP_SYN			2
 #define TCP_PSH			8
 #define TCP_ACK			16
+#define TELNET			23
+#define HTTP				80
 
 /* Local driver */
 ethernet_t * ethernet;
@@ -34,7 +36,7 @@ static uint8_t icmp_read(eth_frame_t *frame, uint16_t len);
 static uint16_t crc16(uint16_t *buf, uint16_t len);
 static uint16_t tcp_crc16 (ip_pkt_t* ip_pkt);
 static udp_packet_t * udp_receive (uint8_t * buf, uint16_t len);
-static char * tcp_receive (uint8_t * buf, uint16_t len);
+static void tcp_receive (uint8_t * buf, uint16_t len);
 static uint32_t swap32 (uint32_t num);
 
 /* Public fuctions */
@@ -126,7 +128,7 @@ static uint8_t ip_read(eth_frame_t *frame, uint16_t len)
 		switch (ip_pkt->prt)
 		{
 			case IP_ICMP:	icmp_read(frame, len); break;
-			case IP_TCP:	if (ethernet->tcp_handler) ethernet->tcp_handler(tcp_receive(ip_pkt->data, ip_pkt->len)); break;
+			case IP_TCP:	if (ethernet->tcp_handler) tcp_receive(ip_pkt->data, ip_pkt->len); break;
 			case IP_UDP:	if (ethernet->udp_handler) ethernet->udp_handler(udp_receive(ip_pkt->data, ip_pkt->len)); break;
 		}
 	}
@@ -242,7 +244,7 @@ static udp_packet_t * udp_receive (uint8_t * buf, uint16_t len)
 	return res;
 }
 
-static char * tcp_receive (uint8_t * buf, uint16_t len)
+static void tcp_receive (uint8_t * buf, uint16_t len)
 {
 	eth_frame_t *frame = (void*)ethernet->frame_buffer;		//ethernet frame
 	ip_pkt_t* ip_pkt = (void*)frame->data;								//ip packet
@@ -250,50 +252,52 @@ static char * tcp_receive (uint8_t * buf, uint16_t len)
 	uint32_t seq;
 	char * data;
 		
-	/* IP prepare */
+	/* IP */
 	memcpy(ip_pkt->ipaddr_dst, ip_pkt->ipaddr_src, 4);
 	memcpy(ip_pkt->ipaddr_src, ethernet->ipaddr, 4);	
 	
-	len = (tcp_pkt->header_len >> 4) * 4;
+	/* DATA SHIFT */
+	len = (tcp_pkt->header_len >> 4) * 4; //TCP header len
 	data = (void*)tcp_pkt;
 	data += len;
-	
-	ip_pkt->len = be16toword(len + sizeof(ip_pkt_t));
-	ip_pkt->prt = IP_TCP;
-	ip_pkt->cs = 0;
-	ip_pkt->cs = crc16((void*)ip_pkt, sizeof(ip_pkt_t));
-	
+
+	/* PORT */
 	uint16_t port = tcp_pkt->dest_port;
 	tcp_pkt->dest_port = tcp_pkt->source_port;
 	tcp_pkt->source_port = port;
 	
+	/* ACK & SEQ */
 	seq = tcp_pkt->seq_num;
 	tcp_pkt->seq_num = tcp_pkt->ack_num;
 	tcp_pkt->ack_num = seq;
 	
-	len += sizeof(ip_pkt_t);
-	
-	if (tcp_pkt->flags & TCP_FIN) //FIN & ACK (CLOSE CONNECTION)
+	if (tcp_pkt->flags & (TCP_FIN | TCP_SYN)) // HANDSHAKE & CLOSE CONNECTION
 	{
+		ip_pkt->len = be16toword(len + sizeof(ip_pkt_t));//TPC_len + IP_20
+		ip_pkt->prt = IP_TCP;
+		ip_pkt->cs = 0;
+		ip_pkt->cs = crc16((void*)ip_pkt, sizeof(ip_pkt_t));
+		
 		tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + 1);
-		tcp_pkt->flags = TCP_FIN | TCP_ACK;
+		tcp_pkt->flags = tcp_pkt->flags & TCP_SYN ? TCP_SYN | TCP_ACK : TCP_FIN | TCP_ACK;
 		tcp_pkt->crc16 = tcp_crc16(ip_pkt);
 		
-		eth_send((void*)frame, len);
-		return 0;
+		eth_send((void*)frame, len + sizeof(ip_pkt_t));
+		return;		
 	}
 	
-	if (tcp_pkt->flags & TCP_SYN) //SYN & ACK (HANDSHAKE)
-	{
-		tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + 1);
-		tcp_pkt->flags = TCP_SYN | TCP_ACK;
-		tcp_pkt->crc16 = tcp_crc16(ip_pkt);
+	len = be16toword(ip_pkt->len) - (tcp_pkt->header_len >> 4) * 4 - sizeof(ip_pkt_t);
+	
+	if ((tcp_pkt->flags & TCP_PSH) == 0 || len == 0) return; //no data
 
-		eth_send((void*)frame, len);
-		return 0;
+	/* Handlers should be here */
+	switch(be16toword(tcp_pkt->source_port))
+	{
+		case TELNET: if (ethernet->telnet_handler) tcp_send(ethernet->telnet_handler(data), 0); return;
+		case HTTP: if (ethernet->http_handler) tcp_send(data, ethernet->http_handler(data, len)); return;
 	}
 	
-	return tcp_pkt->flags & TCP_PSH ? data : 0;
+	if (ethernet->tcp_handler) ethernet->tcp_handler(data, len); //undefined protocol
 }
 
 void udp_send (udp_packet_t * udp_packet)
@@ -330,14 +334,17 @@ void tcp_send (char * data, uint16_t len)
 	
 	if (len == 0) len = strlen(data);
 	buf += tcp_header_len;
-
+	if (data != buf)
+		memcpy(buf, data, len);
+	while(len % 2) len++;
+	data[len] = 0;
+	
 	ip_pkt->len = be16toword(len + tcp_header_len + sizeof(ip_pkt_t));
 	ip_pkt->prt = IP_TCP;
 	ip_pkt->cs = 0;
 	ip_pkt->cs = crc16((void*)ip_pkt, sizeof(ip_pkt_t));
 	
-	if (data != buf)
-		strcpy(buf, data);
+	printf("Sending string len: %u\n%s\n", len, data);
 	
 	tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + len);	
 	tcp_pkt->crc16 = tcp_crc16(ip_pkt);
@@ -345,7 +352,8 @@ void tcp_send (char * data, uint16_t len)
 	eth_send((void*)frame, sizeof(ip_pkt_t) + tcp_header_len + len);
 }
 
-static uint16_t crc16(uint16_t *buf, uint16_t len)
+
+static uint16_t crc16(uint16_t * buf, uint16_t len)
 {
     uint32_t sum = 0;
     while (len > 1)

@@ -91,7 +91,9 @@ typedef struct
 	uint8_t * frame_buffer;
 	uint16_t frame_buffer_size;
 	void (* udp_handler) (udp_packet_t * udp_packet);
-	void (* tcp_handler) (char* buf);	
+	void (* tcp_handler) (char* buf, uint16_t len);
+	char * (* telnet_handler) (char* buf);
+	uint16_t (* http_handler) (char * buf, uint16_t len);
 }ethernet_t;
 
 /* Public fuctions prototypes */
