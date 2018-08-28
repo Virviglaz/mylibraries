@@ -1,6 +1,6 @@
 #include "ethernet.h"
 #include <string.h>
-#include <stdio.h>
+//#include <stdio.h>
 
 #define be16toword(a) ((((a) >> 8) & 0xff) | (((a) << 8) & 0xff00))
 #define ETH_ARP be16toword(0x0806)
@@ -68,7 +68,6 @@ static void eth_read(eth_frame_t *frame, uint16_t len)
 			ip_read(frame, len - sizeof(ip_pkt_t));
 	}
 }
-
 
 static void eth_send(eth_frame_t *frame, uint16_t len)
 {
@@ -260,7 +259,7 @@ static void tcp_receive (uint8_t * buf, uint16_t len)
 	len = (tcp_pkt->header_len >> 4) * 4; //TCP header len
 	data = (void*)tcp_pkt;
 	data += len;
-
+	
 	/* PORT */
 	uint16_t port = tcp_pkt->dest_port;
 	tcp_pkt->dest_port = tcp_pkt->source_port;
@@ -271,15 +270,17 @@ static void tcp_receive (uint8_t * buf, uint16_t len)
 	tcp_pkt->seq_num = tcp_pkt->ack_num;
 	tcp_pkt->ack_num = seq;
 	
-	if (tcp_pkt->flags & (TCP_FIN | TCP_SYN)) // HANDSHAKE & CLOSE CONNECTION
+	if ((tcp_pkt->flags & TCP_PSH) == 0) // HANDSHAKE & CLOSE CONNECTION
 	{
 		ip_pkt->len = be16toword(len + sizeof(ip_pkt_t));//TPC_len + IP_20
 		ip_pkt->prt = IP_TCP;
 		ip_pkt->cs = 0;
 		ip_pkt->cs = crc16((void*)ip_pkt, sizeof(ip_pkt_t));
 		
-		tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + 1);
-		tcp_pkt->flags = tcp_pkt->flags & TCP_SYN ? TCP_SYN | TCP_ACK : TCP_FIN | TCP_ACK;
+		if (tcp_pkt->flags != TCP_ACK)
+			tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + 1);
+		//tcp_pkt->flags = tcp_pkt->flags & TCP_SYN ? TCP_SYN | TCP_ACK : TCP_FIN | TCP_ACK;
+		if (tcp_pkt->flags & TCP_SYN) tcp_pkt->flags |= TCP_ACK;
 		tcp_pkt->crc16 = tcp_crc16(ip_pkt);
 		
 		eth_send((void*)frame, len + sizeof(ip_pkt_t));
@@ -287,8 +288,6 @@ static void tcp_receive (uint8_t * buf, uint16_t len)
 	}
 	
 	len = be16toword(ip_pkt->len) - (tcp_pkt->header_len >> 4) * 4 - sizeof(ip_pkt_t);
-	
-	if ((tcp_pkt->flags & TCP_PSH) == 0 || len == 0) return; //no data
 
 	/* Handlers should be here */
 	switch(be16toword(tcp_pkt->source_port))
@@ -296,7 +295,7 @@ static void tcp_receive (uint8_t * buf, uint16_t len)
 		case TELNET: if (ethernet->telnet_handler) tcp_send(ethernet->telnet_handler(data), 0); return;
 		case HTTP: if (ethernet->http_handler) tcp_send(data, ethernet->http_handler(data, len)); return;
 	}
-	
+
 	if (ethernet->tcp_handler) ethernet->tcp_handler(data, len); //undefined protocol
 }
 
@@ -344,9 +343,8 @@ void tcp_send (char * data, uint16_t len)
 	ip_pkt->cs = 0;
 	ip_pkt->cs = crc16((void*)ip_pkt, sizeof(ip_pkt_t));
 	
-	printf("Sending string len: %u\n%s\n", len, data);
-	
-	tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + len);	
+	if (be16toword(tcp_pkt->source_port) != TELNET)
+		tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + len);	
 	tcp_pkt->crc16 = tcp_crc16(ip_pkt);
 	
 	eth_send((void*)frame, sizeof(ip_pkt_t) + tcp_header_len + len);
