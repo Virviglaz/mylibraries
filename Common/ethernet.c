@@ -1,6 +1,6 @@
 #include "ethernet.h"
 #include <string.h>
-//#include <stdio.h>
+#include <stdio.h>
 
 #define be16toword(a) ((((a) >> 8) & 0xff) | (((a) << 8) & 0xff00))
 #define ETH_ARP be16toword(0x0806)
@@ -30,12 +30,12 @@ static void eth_send(eth_frame_t *frame, uint16_t len);
 static void eth_read(eth_frame_t *frame, uint16_t len);
 static uint8_t arp_read(eth_frame_t *frame, uint16_t len);
 static void arp_send(eth_frame_t *frame);
-static uint8_t ip_send(eth_frame_t *frame, uint16_t len);
+static uint8_t ip_send(eth_frame_t *frame, uint16_t len, uint8_t prt);
 static uint8_t ip_read(eth_frame_t *frame, uint16_t len);
 static uint8_t icmp_read(eth_frame_t *frame, uint16_t len);
 static uint16_t crc16(uint16_t *buf, uint16_t len);
 static uint16_t tcp_crc16 (ip_pkt_t* ip_pkt);
-static udp_packet_t * udp_receive (uint8_t * buf, uint16_t len);
+static void udp_receive (uint8_t * buf, uint16_t len);
 static void tcp_receive (uint8_t * buf, uint16_t len);
 static uint32_t swap32 (uint32_t num);
 
@@ -98,7 +98,7 @@ static void arp_send(eth_frame_t *frame)
 	eth_send(frame, sizeof(arp_pkt_t));
 }
 
-static uint8_t ip_send(eth_frame_t *frame, uint16_t len)
+static uint8_t ip_send(eth_frame_t *frame, uint16_t len, uint8_t prt)
 {
 	uint8_t res = 0;
 	ip_pkt_t *ip_pkt = (void*)frame->data;
@@ -106,6 +106,7 @@ static uint8_t ip_send(eth_frame_t *frame, uint16_t len)
 	ip_pkt->len = be16toword(len);
 	ip_pkt->fl_frg_of = 0;
 	ip_pkt->ttl = 128;
+	ip_pkt->prt = prt;
 	ip_pkt->cs = 0;
 	memcpy(ip_pkt->ipaddr_dst, ip_pkt->ipaddr_src, 4);
 	memcpy(ip_pkt->ipaddr_src, ethernet->ipaddr, 4);
@@ -128,7 +129,7 @@ static uint8_t ip_read(eth_frame_t *frame, uint16_t len)
 		{
 			case IP_ICMP:	icmp_read(frame, len); break;
 			case IP_TCP:	if (ethernet->tcp_handler) tcp_receive(ip_pkt->data, ip_pkt->len); break;
-			case IP_UDP:	if (ethernet->udp_handler) ethernet->udp_handler(udp_receive(ip_pkt->data, ip_pkt->len)); break;
+			case IP_UDP:	if (ethernet->udp_handler) udp_receive(ip_pkt->data, ip_pkt->len); break;
 		}
 	}
 	return res;
@@ -146,7 +147,7 @@ static uint8_t icmp_read(eth_frame_t *frame, uint16_t len)
 		icmp_pkt->msg_tp = ICMP_REPLY;
 		icmp_pkt->cs = 0;
 		icmp_pkt->cs = crc16((void*)icmp_pkt, len);
-		ip_send(frame, len + sizeof(ip_pkt_t));
+		ip_send(frame, len + sizeof(ip_pkt_t), IP_ICMP);
 	}
 	return res;
 }
@@ -231,23 +232,21 @@ uint32_t ping (uint8_t * ip_address, uint32_t timeout)
 	return 0;
 }
 
-static udp_packet_t * udp_receive (uint8_t * buf, uint16_t len)
+static void udp_receive (uint8_t * buf, uint16_t len)
 {
-	udp_packet_t* res = (void*)buf;
-
-	res->source_port = be16toword(res->source_port);
-	res->dest_port = be16toword(res->dest_port);
-	res->len = be16toword(res->len) - sizeof(udp_packet_t);
-	res->data[res->len] = 0; //null terminate
+	udp_pkt_t * udp_pkt = (void*)buf;
 	
-	return res;
+	len = be16toword(udp_pkt->len) - sizeof(udp_pkt_t);
+	udp_pkt->data[len] = 0; //null terminate
+	
+	if (ethernet->udp_handler) ethernet->udp_handler((void*)udp_pkt->data, len);
 }
 
 static void tcp_receive (uint8_t * buf, uint16_t len)
 {
-	eth_frame_t *frame = (void*)ethernet->frame_buffer;		//ethernet frame
-	ip_pkt_t* ip_pkt = (void*)frame->data;								//ip packet
-	volatile tcp_pkt_t* tcp_pkt = (void*)ip_pkt->data;
+	eth_frame_t * frame = (void*)ethernet->frame_buffer;		//ethernet frame
+	ip_pkt_t * ip_pkt = (void*)frame->data;								//ip packet
+	volatile tcp_pkt_t * tcp_pkt = (void*)ip_pkt->data;
 	uint32_t seq;
 	char * data;
 		
@@ -279,8 +278,8 @@ static void tcp_receive (uint8_t * buf, uint16_t len)
 		
 		if (tcp_pkt->flags != TCP_ACK)
 			tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + 1);
-		//tcp_pkt->flags = tcp_pkt->flags & TCP_SYN ? TCP_SYN | TCP_ACK : TCP_FIN | TCP_ACK;
 		if (tcp_pkt->flags & TCP_SYN) tcp_pkt->flags |= TCP_ACK;
+		tcp_pkt->crc16 = 0;
 		tcp_pkt->crc16 = tcp_crc16(ip_pkt);
 		
 		eth_send((void*)frame, len + sizeof(ip_pkt_t));
@@ -299,35 +298,36 @@ static void tcp_receive (uint8_t * buf, uint16_t len)
 	if (ethernet->tcp_handler) ethernet->tcp_handler(data, len); //undefined protocol
 }
 
-void udp_send (udp_packet_t * udp_packet)
+void udp_send (char * data, uint16_t len)
 {
 	eth_frame_t * frame = (void*)ethernet->frame_buffer;
-	ip_pkt_t *ip_pkt = (void*)frame->data;
-	uint16_t port, len = udp_packet->len + sizeof(ip_pkt_t) + sizeof(udp_packet_t);
-	
-	ip_pkt->prt = IP_UDP;
-	ip_pkt->verlen = 0x45;
-	
-	port = udp_packet->source_port;
-	udp_packet->source_port = udp_packet->dest_port;
-	udp_packet->dest_port = port;
-	
-	udp_packet->source_port = be16toword(udp_packet->source_port);
-	udp_packet->dest_port = be16toword(udp_packet->dest_port);
-	udp_packet->len = be16toword(udp_packet->len + sizeof(udp_packet_t));
-	udp_packet->crc16 = 0;
+	ip_pkt_t * ip_pkt = (void*)frame->data;
+	udp_pkt_t * udp_pkt = (void*)ip_pkt->data;
+	uint16_t port;
+	if (len == 0) len = strlen(data);
+	while(len % 2) len++;
+	data[len] = 0;
 
-	if (ip_pkt->data != (void*)udp_packet)
-		memcpy(ip_pkt->data, (void*)udp_packet, udp_packet->len + sizeof(udp_packet_t));
+	/* UDP */
+	port = udp_pkt->source_port;
+	udp_pkt->source_port = udp_pkt->dest_port;
+	udp_pkt->dest_port = port;
+
+	udp_pkt->len = be16toword(len + sizeof(udp_pkt_t));
+	udp_pkt->crc16 = 0;
+	//udp_pkt->crc16 = be16toword(tcp_crc16(ip_pkt));
+
+	if (udp_pkt->data != (void*)data)
+		memcpy(udp_pkt->data, (void*)data, len);
 	
-	ip_send(frame, len);
+	ip_send(frame, len + sizeof(udp_pkt_t) + sizeof(ip_pkt_t), IP_UDP);
 }
 
 void tcp_send (char * data, uint16_t len)
 {
 	eth_frame_t * frame = (void*)ethernet->frame_buffer;
-	ip_pkt_t *ip_pkt = (void*)frame->data;
-	volatile tcp_pkt_t* tcp_pkt = (void*)ip_pkt->data;
+	ip_pkt_t * ip_pkt = (void*)frame->data;
+	tcp_pkt_t* tcp_pkt = (void*)ip_pkt->data;
 	char * buf = (void*)tcp_pkt;
 	uint8_t tcp_header_len = (tcp_pkt->header_len >> 4) * 4;
 	
@@ -344,12 +344,66 @@ void tcp_send (char * data, uint16_t len)
 	ip_pkt->cs = crc16((void*)ip_pkt, sizeof(ip_pkt_t));
 	
 	if (be16toword(tcp_pkt->source_port) != TELNET)
-		tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + len);	
+		tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + len);
+	tcp_pkt->crc16 = 0;
 	tcp_pkt->crc16 = tcp_crc16(ip_pkt);
 	
 	eth_send((void*)frame, sizeof(ip_pkt_t) + tcp_header_len + len);
 }
 
+uint8_t * dns (uint8_t * dns_ip, char * url, uint32_t timeout)
+{
+	eth_frame_t * frame = (void*)ethernet->frame_buffer;
+	ip_pkt_t * ip_pkt = (void*)frame->data;
+	udp_pkt_t * udp_pkt = (void*)ip_pkt->data;
+	dns_pkt_t * dns_pkt = (void*)udp_pkt->data;
+	char * dns_query = (void*)dns_pkt->dns_query;
+	char * domen;
+	static uint16_t id = 0;
+	uint32_t counter = 0;
+	if (url == 0) return 0;
+	uint8_t url_len = strlen(url);
+	if (url_len == 0 || strchr(url, '.') == 0) return 0;
+	
+	/* DNS */
+	memset(dns_pkt, 0, sizeof(dns_pkt_t));
+	dns_pkt->id = ++id;
+	dns_pkt->flags = 0x0001; //standart query
+	dns_pkt->qd_count = 0x0100;
+
+	/* DNS QUERY */
+	domen = strchr(url, '.');
+	*domen++ = 0;
+	*dns_query++ = strlen(url);
+	strcpy(dns_query, url);
+	dns_query += strlen(url);
+	*dns_query++ = strlen(domen);
+	strcpy(dns_query, domen);
+	dns_query += strlen(domen);
+	*dns_query++ = 0;
+	*dns_query++ = 0; //QT TYPE
+	*dns_query++ = 1;
+	*dns_query++ = 0;	//QT CLASS
+	*dns_query++ = 1;
+	
+	/* UDP */
+	udp_pkt->source_port = 53; //will become destanation port
+	udp_pkt->crc16 = 0;
+	udp_pkt->len = sizeof(dns_pkt_t) + sizeof(udp_pkt_t) + strlen(url) + strlen(domen) + 7;
+	
+	printf("Sending UPD: %u bytes\n", udp_pkt->len);
+	//udp_send(udp_pkt);
+	
+	while(counter++ < timeout)
+		if (ethernet->packetReceive(ethernet->frame_buffer, ethernet->frame_buffer_size) > 0)
+			if (dns_pkt->id == id)
+			{
+				printf("Recevied!\n");
+			}
+		
+	
+	return 0;
+}
 
 static uint16_t crc16(uint16_t * buf, uint16_t len)
 {
@@ -375,7 +429,6 @@ static uint16_t tcp_crc16 (ip_pkt_t* ip_pkt)
 	uint16_t i;
 	tcp_pseudo_header_t tcp_pseudo_header;
 	uint16_t * ptr = (void*)&tcp_pseudo_header;
-	tcp_pkt_t* tcp_pkt = (void*)ip_pkt->data;
 	
 	/* pseudo prepare */
 	tcp_pseudo_header.ipaddr_dst = ip_pkt->ipaddr_dst[2] << 24 | ip_pkt->ipaddr_dst[3] << 16 | ip_pkt->ipaddr_dst[0] << 8 | ip_pkt->ipaddr_dst[1];
@@ -391,9 +444,7 @@ static uint16_t tcp_crc16 (ip_pkt_t* ip_pkt)
 		sum += be16toword(value);
 	}
 
-	/* TCP header */
 	ptr = (void*)ip_pkt->data; 
-	tcp_pkt->crc16 = 0;
 
 	for (i = 0; i < tcp_pseudo_header.len; i += sizeof(uint16_t))	
 		sum += *ptr++;
