@@ -57,7 +57,7 @@ typedef struct
 	uint16_t len;
 	uint16_t crc16;
 	uint8_t data[];
-}udp_packet_t; //8 bytes
+}udp_pkt_t; //8 bytes
 
 /* TCP package */
 typedef struct
@@ -90,17 +90,29 @@ typedef struct
 	uint8_t * mac_address;
 	uint8_t * frame_buffer;
 	uint16_t frame_buffer_size;
-	void (* udp_handler) (udp_packet_t * udp_packet);
-	void (* tcp_handler) (char* buf, uint16_t len);
+	void (* udp_handler) (char * buf, uint16_t len);
+	void (* tcp_handler) (char * buf, uint16_t len);
 	char * (* telnet_handler) (char* buf);
 	uint16_t (* http_handler) (char * buf, uint16_t len);
 }ethernet_t;
+
+typedef struct
+{
+	uint16_t id;
+	uint16_t flags;
+	uint16_t qd_count;
+	uint16_t ad_count;
+	uint16_t ns_count;
+	uint16_t ar_count;
+	uint8_t dns_query[];
+}dns_pkt_t;
 
 /* Public fuctions prototypes */
 ethernet_t * ethernet_Init (ethernet_t * this);
 void net_poll(void);
 uint8_t * get_mac (uint8_t * ip_address, uint32_t timeout);
 uint32_t ping (uint8_t * ip_address, uint32_t timeout);
-void udp_send (udp_packet_t * udp_packet);
+void udp_send (char * data, uint16_t len);
 void tcp_send (char * data, uint16_t len);
+uint8_t * dns (uint8_t * dns_ip, char * url, uint32_t timeout);
 #endif
