@@ -103,6 +103,8 @@ static uint8_t ip_send(eth_frame_t *frame, uint16_t len, uint8_t prt)
 	uint8_t res = 0;
 	ip_pkt_t *ip_pkt = (void*)frame->data;
 	//fullfill header of IP package
+	ip_pkt->verlen = 0x45;
+	ip_pkt->ts = 0;
 	ip_pkt->len = be16toword(len);
 	ip_pkt->fl_frg_of = 0;
 	ip_pkt->ttl = 128;
@@ -197,33 +199,21 @@ uint32_t ping (uint8_t * ip_address, uint32_t timeout)
 	if (dest_address == 0) return 0;
 	
 	/* prepare ethernet frame */
-	memcpy(frame->addr_dest, dest_address, 6);	
-	memcpy(frame->addr_src, ethernet->mac_address, 6);	
 	frame->type = ETH_IP;
 	
-	/* ip */
-	ip_pkt->verlen = 0x45;
-	ip_pkt->ts = 0x00;
-	ip_pkt->len = be16toword(sizeof(icmp_pkt) + sizeof(ip_pkt_t) + payload_len + 4);
-	ip_pkt->id = ++id;
-	ip_pkt->fl_frg_of = 0x0000;
-	ip_pkt->ttl = 128;
-	ip_pkt->prt = IP_ICMP;
-	ip_pkt->cs = 0;
-	memcpy(ip_pkt->ipaddr_src, ethernet->ipaddr, 4);
-	memcpy(ip_pkt->ipaddr_dst, ip_address, 4);
-	ip_pkt->cs = crc16((void*)ip_pkt, sizeof(ip_pkt_t));
+	memcpy(frame->addr_src, dest_address, 6);
+	memcpy(ip_pkt->ipaddr_src, ip_address, 4);
 	
 	/* icmp */
 	icmp_pkt->msg_tp = ICMP_REQ;
 	icmp_pkt->msg_cd = 0x00;
 	icmp_pkt->cs = 0;
-	icmp_pkt->id = id;
+	icmp_pkt->id = ++id;
 	icmp_pkt->num = id;
 	memcpy(icmp_pkt->data, (void*)payload, payload_len);
 	icmp_pkt->cs = crc16((void*)icmp_pkt, sizeof(icmp_pkt_t) + payload_len);
 	
-	ethernet->packetSend((void*)frame, sizeof(icmp_pkt) + sizeof(ip_pkt_t) + sizeof(eth_frame_t) + payload_len + 4);
+	ip_send(frame, sizeof(icmp_pkt) + sizeof(ip_pkt_t) + payload_len + 4, IP_ICMP);
 	
 	while(counter++ < timeout)
 		if (ethernet->packetReceive(ethernet->frame_buffer, ethernet->frame_buffer_size) > 0)
@@ -250,10 +240,6 @@ static void tcp_receive (uint8_t * buf, uint16_t len)
 	uint32_t seq;
 	char * data;
 		
-	/* IP */
-	memcpy(ip_pkt->ipaddr_dst, ip_pkt->ipaddr_src, 4);
-	memcpy(ip_pkt->ipaddr_src, ethernet->ipaddr, 4);	
-	
 	/* DATA SHIFT */
 	len = (tcp_pkt->header_len >> 4) * 4; //TCP header len
 	data = (void*)tcp_pkt;
@@ -271,18 +257,13 @@ static void tcp_receive (uint8_t * buf, uint16_t len)
 	
 	if ((tcp_pkt->flags & TCP_PSH) == 0) // HANDSHAKE & CLOSE CONNECTION
 	{
-		ip_pkt->len = be16toword(len + sizeof(ip_pkt_t));//TPC_len + IP_20
-		ip_pkt->prt = IP_TCP;
-		ip_pkt->cs = 0;
-		ip_pkt->cs = crc16((void*)ip_pkt, sizeof(ip_pkt_t));
-		
 		if (tcp_pkt->flags != TCP_ACK)
 			tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + 1);
 		if (tcp_pkt->flags & TCP_SYN) tcp_pkt->flags |= TCP_ACK;
 		tcp_pkt->crc16 = 0;
 		tcp_pkt->crc16 = tcp_crc16(ip_pkt);
 		
-		eth_send((void*)frame, len + sizeof(ip_pkt_t));
+		ip_send(frame, len + sizeof(ip_pkt_t), IP_TCP);
 		return;		
 	}
 	
@@ -339,16 +320,13 @@ void tcp_send (char * data, uint16_t len)
 	data[len] = 0;
 	
 	ip_pkt->len = be16toword(len + tcp_header_len + sizeof(ip_pkt_t));
-	ip_pkt->prt = IP_TCP;
-	ip_pkt->cs = 0;
-	ip_pkt->cs = crc16((void*)ip_pkt, sizeof(ip_pkt_t));
 	
 	if (be16toword(tcp_pkt->source_port) != TELNET)
 		tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + len);
 	tcp_pkt->crc16 = 0;
 	tcp_pkt->crc16 = tcp_crc16(ip_pkt);
 	
-	eth_send((void*)frame, sizeof(ip_pkt_t) + tcp_header_len + len);
+	ip_send(frame, sizeof(ip_pkt_t) + tcp_header_len + len, IP_TCP);
 }
 
 uint8_t * dns (uint8_t * dns_ip, char * url, uint32_t timeout)
