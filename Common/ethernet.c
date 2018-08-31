@@ -1,6 +1,6 @@
 #include "ethernet.h"
 #include <string.h>
-#include <stdio.h>
+//#include <stdio.h>
 
 #define be16toword(a) ((((a) >> 8) & 0xff) | (((a) << 8) & 0xff00))
 #define ETH_ARP be16toword(0x0806)
@@ -38,6 +38,8 @@ static uint16_t tcp_crc16 (ip_pkt_t* ip_pkt);
 static void udp_receive (uint8_t * buf, uint16_t len);
 static void tcp_receive (uint8_t * buf, uint16_t len);
 static uint32_t swap32 (uint32_t num);
+static uint8_t dns_query_prep (char * dst, char * path);
+static uint8_t * dns_query_parse (uint8_t * data);
 
 /* Public fuctions */
 ethernet_t * ethernet_Init (ethernet_t * this)
@@ -335,29 +337,33 @@ uint8_t * dns (uint8_t * dns_ip, char * url, uint32_t timeout)
 	ip_pkt_t * ip_pkt = (void*)frame->data;
 	udp_pkt_t * udp_pkt = (void*)ip_pkt->data;
 	dns_pkt_t * dns_pkt = (void*)udp_pkt->data;
+	uint8_t * addr_src;
 	char * dns_query = (void*)dns_pkt->dns_query;
-	char * domen;
-	static uint16_t id = 0;
+	char * prt = dns_query;
+	static uint16_t id = 0xAAAA;
 	uint32_t counter = 0;
 	if (url == 0) return 0;
 	uint8_t url_len = strlen(url);
 	if (url_len == 0 || strchr(url, '.') == 0) return 0;
 	
+	/* PHY */
+	addr_src = get_mac(dns_ip, timeout);
+	frame->type = ETH_IP;
+	if (addr_src == 0) return 0;
+	memcpy(frame->addr_src, addr_src, 6);
+	
+	/* IP */
+	memcpy(ip_pkt->ipaddr_src, dns_ip, 4);
+	ip_pkt->id = ++id;
+	
 	/* DNS */
 	memset(dns_pkt, 0, sizeof(dns_pkt_t));
-	dns_pkt->id = ++id;
+	dns_pkt->id = id;
 	dns_pkt->flags = 0x0001; //standart query
 	dns_pkt->qd_count = 0x0100;
 
 	/* DNS QUERY */
-	domen = strchr(url, '.');
-	*domen++ = 0;
-	*dns_query++ = strlen(url);
-	strcpy(dns_query, url);
-	dns_query += strlen(url);
-	*dns_query++ = strlen(domen);
-	strcpy(dns_query, domen);
-	dns_query += strlen(domen);
+	dns_query += dns_query_prep(dns_query, url);
 	*dns_query++ = 0;
 	*dns_query++ = 0; //QT TYPE
 	*dns_query++ = 1;
@@ -365,21 +371,18 @@ uint8_t * dns (uint8_t * dns_ip, char * url, uint32_t timeout)
 	*dns_query++ = 1;
 	
 	/* UDP */
-	udp_pkt->source_port = 53; //will become destanation port
+	udp_pkt->source_port = be16toword(53);
+	udp_pkt->dest_port = be16toword(53);
 	udp_pkt->crc16 = 0;
-	udp_pkt->len = sizeof(dns_pkt_t) + sizeof(udp_pkt_t) + strlen(url) + strlen(domen) + 7;
-	
-	printf("Sending UPD: %u bytes\n", udp_pkt->len);
-	//udp_send(udp_pkt);
+	udp_pkt->len = sizeof(dns_pkt_t) + sizeof(udp_pkt_t) + strlen(url) + (dns_query - prt) ;
+		
+	udp_send((void*)udp_pkt->data, udp_pkt->len);
 	
 	while(counter++ < timeout)
 		if (ethernet->packetReceive(ethernet->frame_buffer, ethernet->frame_buffer_size) > 0)
-			if (dns_pkt->id == id)
-			{
-				printf("Recevied!\n");
-			}
-		
-	
+			if (id == dns_pkt->id)
+				return dns_query_parse((void*)dns_pkt);
+				
 	return 0;
 }
 
@@ -439,4 +442,33 @@ static uint32_t swap32 (uint32_t num)
                     ((num<<8)&0xff0000) | // move byte 1 to byte 2
                     ((num>>8)&0xff00) | // move byte 2 to byte 1
                     ((num<<24)&0xff000000); // byte 0 to byte 3
+}
+
+static uint8_t dns_query_prep (char * dst, char * path)
+{
+		const char delim[2] = ".";
+    char *token = strtok(path, delim), *ptr = dst;
+    
+    while(token)
+    {
+        *dst++ = strlen(token);
+        strcpy(dst, token);
+        dst += strlen(token);
+        token = strtok(NULL, delim);
+    }
+
+    return dst - ptr;
+}
+
+static uint8_t * dns_query_parse (uint8_t * data)
+{
+    dns_pkt_t * dns_pkt = (void*)data;
+    uint8_t * ptr = dns_pkt->dns_query;
+    
+    if (be16toword(dns_pkt->qd_count) != 1) return 0; //only one question supported
+    
+    while(*ptr++){} // search for end of question
+    ptr += 2 + 14; //CLASS = 0x0001, NAME 2, TYPE 2, CLASS 2, TIME 4, LEN 2
+    
+    return ptr;
 }
