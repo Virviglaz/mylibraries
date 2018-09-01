@@ -107,6 +107,25 @@ typedef struct
 	uint8_t dns_query[];
 }dns_pkt_t;
 
+typedef struct
+{
+	char * url;
+	uint8_t dst_mac[6];
+	uint8_t dst_ip[4];
+	uint8_t gateway_ip[4];
+	uint16_t source_port;
+	uint16_t dest_port;
+}socket_t;
+
+typedef enum
+{
+	SOCKET_SUCCESS,
+	SOCKET_POINTER_NULL,
+	SOCKET_DNS_ERROR,
+	SOCKET_URL_NULL,
+	SOCKET_MAC_ERROR,
+}socket_err_t;
+
 /* Public fuctions prototypes */
 ethernet_t * ethernet_Init (ethernet_t * this);
 void net_poll(void);
@@ -115,4 +134,6 @@ uint32_t ping (uint8_t * ip_address, uint32_t timeout);
 void udp_send (char * data, uint16_t len);
 void tcp_send (char * data, uint16_t len);
 uint8_t * dns (uint8_t * dns_ip, char * url, uint32_t timeout);
+socket_err_t set_socket (socket_t * socket, uint32_t timeout);
+void get_socket (socket_t * socket);
 #endif
