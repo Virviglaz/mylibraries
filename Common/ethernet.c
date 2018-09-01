@@ -181,7 +181,7 @@ uint8_t * get_mac (uint8_t * ip_address, uint32_t timeout)
 		if (ethernet->packetReceive(ethernet->frame_buffer, ethernet->frame_buffer_size) > 0)
 			if (arp_pkt->op == 0x0200) return arp_pkt->macaddr_src;
 	
-	return 0;
+	return NULL;
 }
 
 uint32_t ping (uint8_t * ip_address, uint32_t timeout)
@@ -198,7 +198,7 @@ uint32_t ping (uint8_t * ip_address, uint32_t timeout)
 	
 	/* get phisical address */
 	uint8_t * dest_address = get_mac(ip_address, timeout);
-	if (dest_address == 0) return 0;
+	if (dest_address == NULL) return 0;
 	
 	/* prepare ethernet frame */
 	frame->type = ETH_IP;
@@ -342,14 +342,14 @@ uint8_t * dns (uint8_t * dns_ip, char * url, uint32_t timeout)
 	char * prt = dns_query;
 	static uint16_t id = 0xAAAA;
 	uint32_t counter = 0;
-	if (url == 0) return 0;
+	if (url == NULL) return 0;
 	uint8_t url_len = strlen(url);
 	if (url_len == 0 || strchr(url, '.') == 0) return 0;
 	
 	/* PHY */
 	addr_src = get_mac(dns_ip, timeout);
 	frame->type = ETH_IP;
-	if (addr_src == 0) return 0;
+	if (addr_src == NULL) return 0;
 	memcpy(frame->addr_src, addr_src, 6);
 	
 	/* IP */
@@ -384,6 +384,53 @@ uint8_t * dns (uint8_t * dns_ip, char * url, uint32_t timeout)
 				return dns_query_parse((void*)dns_pkt);
 				
 	return 0;
+}
+
+socket_err_t set_socket (socket_t * socket, uint32_t timeout)
+{	
+	if (socket == NULL) return SOCKET_POINTER_NULL;
+
+	eth_frame_t * frame = (void*)ethernet->frame_buffer;
+	ip_pkt_t * ip_pkt = (void*)frame->data;
+	tcp_pkt_t * tcp_pkt = (void*)ip_pkt->data;
+	void * ptr;
+	
+	if (socket->dst_ip[0] == 0)  //obtain ip via dns
+	{
+		if (socket->url == NULL) return SOCKET_URL_NULL;
+		ptr = dns(socket->gateway_ip, socket->url, timeout);
+		if (ptr == NULL) return SOCKET_DNS_ERROR;
+		
+		memcpy(socket->dst_ip, ptr, 4);
+	}
+	
+	if (socket->dst_mac[0] == 0)
+	{
+		ptr = get_mac(socket->dst_ip, timeout);
+		if (ptr == NULL) return SOCKET_MAC_ERROR;
+		memcpy(socket->dst_mac, ptr, 6); //MAC
+	}
+	
+	memcpy(frame->addr_dest, socket->dst_mac, 6); //MAC
+	memcpy(ip_pkt->ipaddr_dst, socket->dst_ip, 4); //IP
+	
+	tcp_pkt->dest_port = be16toword(socket->dest_port);
+	tcp_pkt->source_port = be16toword(socket->source_port);
+
+	return SOCKET_SUCCESS;
+}
+
+void get_socket (socket_t * socket)
+{
+	eth_frame_t * frame = (void*)ethernet->frame_buffer;
+	ip_pkt_t * ip_pkt = (void*)frame->data;
+	tcp_pkt_t * tcp_pkt = (void*)ip_pkt->data;
+	
+	memcpy(socket->dst_mac, frame->addr_src, 6);
+	memcpy(socket->dst_ip, ip_pkt->ipaddr_src, 4);
+	
+	socket->dest_port = be16toword(tcp_pkt->dest_port);
+	socket->source_port = be16toword(tcp_pkt->source_port);
 }
 
 static uint16_t crc16(uint16_t * buf, uint16_t len)
@@ -465,7 +512,7 @@ static uint8_t * dns_query_parse (uint8_t * data)
     dns_pkt_t * dns_pkt = (void*)data;
     uint8_t * ptr = dns_pkt->dns_query;
     
-    if (be16toword(dns_pkt->qd_count) != 1) return 0; //only one question supported
+    if (be16toword(dns_pkt->qd_count) != 1) return NULL; //only one question supported
     
     while(*ptr++){} // search for end of question
     ptr += 2 + 14; //CLASS = 0x0001, NAME 2, TYPE 2, CLASS 2, TIME 4, LEN 2
