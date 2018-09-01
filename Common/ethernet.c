@@ -184,7 +184,7 @@ uint8_t * get_mac (uint8_t * ip_address, uint32_t timeout)
 	return NULL;
 }
 
-uint32_t ping (uint8_t * ip_address, uint32_t timeout)
+uint32_t ping (uint8_t * ip_address, uint8_t * ip_gateway, uint32_t timeout)
 {
 	const uint8_t payload[] = "Ping remote address.";
 	uint8_t payload_len = strlen((void*)payload);
@@ -197,7 +197,7 @@ uint32_t ping (uint8_t * ip_address, uint32_t timeout)
 	icmp_pkt_t *icmp_pkt = (void*)ip_pkt->data;
 	
 	/* get phisical address */
-	uint8_t * dest_address = get_mac(ip_address, timeout);
+	uint8_t * dest_address = get_mac(ip_gateway, timeout);
 	if (dest_address == NULL) return 0;
 	
 	/* prepare ethernet frame */
@@ -406,7 +406,7 @@ socket_err_t set_socket (socket_t * socket, uint32_t timeout)
 	
 	if (socket->dst_mac[0] == 0)
 	{
-		ptr = get_mac(socket->dst_ip, timeout);
+		ptr = get_mac(socket->gateway_ip, timeout);
 		if (ptr == NULL) return SOCKET_MAC_ERROR;
 		memcpy(socket->dst_mac, ptr, 6); //MAC
 	}
