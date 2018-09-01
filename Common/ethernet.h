@@ -130,7 +130,7 @@ typedef enum
 ethernet_t * ethernet_Init (ethernet_t * this);
 void net_poll(void);
 uint8_t * get_mac (uint8_t * ip_address, uint32_t timeout);
-uint32_t ping (uint8_t * ip_address, uint32_t timeout);
+uint32_t ping (uint8_t * ip_address, uint8_t * ip_gateway, uint32_t timeout);
 void udp_send (char * data, uint16_t len);
 void tcp_send (char * data, uint16_t len);
 uint8_t * dns (uint8_t * dns_ip, char * url, uint32_t timeout);
