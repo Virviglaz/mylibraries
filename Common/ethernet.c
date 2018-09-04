@@ -1,6 +1,6 @@
 #include "ethernet.h"
 #include <string.h>
-//#include <stdio.h>
+#include <stdio.h>
 
 #define be16toword(a) ((((a) >> 8) & 0xff) | (((a) << 8) & 0xff00))
 #define ETH_ARP be16toword(0x0806)
@@ -23,28 +23,47 @@
 
 /* Local driver */
 ethernet_t * ethernet;
+
+/* Local pointer */
+eth_frame_t * eth_frame;
+arp_pkt_t * arp_pkt;
+ip_pkt_t * ip_pkt;
+icmp_pkt_t * icmp_pkt;
+udp_pkt_t * udp_pkt;
+tcp_pkt_t * tcp_pkt;
+
 uint16_t id = 0;
 
 /* Local functions */
-static void eth_send(eth_frame_t *frame, uint16_t len);
-static void eth_read(eth_frame_t *frame, uint16_t len);
-static uint8_t arp_read(eth_frame_t *frame, uint16_t len);
-static void arp_send(eth_frame_t *frame);
-static uint8_t ip_send(eth_frame_t *frame, uint16_t len, uint8_t prt);
-static uint8_t ip_read(eth_frame_t *frame, uint16_t len);
-static uint8_t icmp_read(eth_frame_t *frame, uint16_t len);
+static void eth_send(uint16_t len);
+static void eth_read(uint16_t len);
+static uint8_t arp_read(uint16_t len);
+static void arp_send(void);
+static uint8_t ip_send(uint16_t len, uint8_t prt);
+static uint8_t ip_read(uint16_t len);
+static uint8_t icmp_read(uint16_t len);
 static uint16_t crc16(uint16_t *buf, uint16_t len);
-static uint16_t tcp_crc16 (ip_pkt_t* ip_pkt);
-static void udp_receive (uint8_t * buf, uint16_t len);
-static void tcp_receive (uint8_t * buf, uint16_t len);
+static uint16_t tcp_crc16 (void);
+static void udp_receive (void);
+static void tcp_receive (void);
 static uint32_t swap32 (uint32_t num);
 static uint8_t dns_query_prep (char * dst, char * path);
 static uint8_t * dns_query_parse (uint8_t * data);
+static uint8_t equal_to_zero (uint8_t * src, uint8_t len);
 
 /* Public fuctions */
 ethernet_t * ethernet_Init (ethernet_t * this)
 {
-	if (this) ethernet = this;
+	if (this) 
+	{
+		ethernet = this;
+		eth_frame = (void*)ethernet->frame_buffer;
+		arp_pkt = (void*)eth_frame->data;
+		ip_pkt = (void*)eth_frame->data;
+		icmp_pkt = (void*)ip_pkt->data;
+		udp_pkt = (void*)ip_pkt->data;
+		tcp_pkt = (void*)ip_pkt->data;
+	}
 	
 	return ethernet;
 }
@@ -52,58 +71,64 @@ ethernet_t * ethernet_Init (ethernet_t * this)
 void net_poll(void)
 {
 	uint16_t len;
-	eth_frame_t *frame = (void*)ethernet->frame_buffer;
 	
 	while((len = ethernet->packetReceive(ethernet->frame_buffer, ethernet->frame_buffer_size)) > 0)
-		eth_read(frame, len);
+		eth_read(len);
 }
 
-static void eth_read(eth_frame_t *frame, uint16_t len)
+static void eth_read(uint16_t len)
 {
 	if(len > sizeof(eth_frame_t))
 	{
-		if(frame->type == ETH_ARP)
-			if(arp_read(frame, len - sizeof(eth_frame_t)))
-				arp_send(frame);			
+		memcpy(ethernet->socket->dst_mac, eth_frame->addr_src, 6);
 		
-		if(frame->type == ETH_IP)	
-			ip_read(frame, len - sizeof(ip_pkt_t));
+		if(eth_frame->type == ETH_ARP)
+			if(arp_read(len - sizeof(eth_frame_t)))
+			{
+				memcpy(ethernet->socket->dst_ip, arp_pkt->ipaddr_src, 4);				
+				arp_send();
+			}
+		
+		if(eth_frame->type == ETH_IP)	
+		{
+			memcpy(ethernet->socket->dst_ip, ip_pkt->ipaddr_src, 4);
+			ip_read(len - sizeof(ip_pkt_t));
+		}
 	}
 }
 
-static void eth_send(eth_frame_t *frame, uint16_t len)
+static void eth_send(uint16_t len)
 {
-	memcpy(frame->addr_dest, frame->addr_src, 6);
-	memcpy(frame->addr_src, ethernet->mac_address, 6);
-	ethernet->packetSend((void*)frame, len + sizeof(eth_frame_t));
+	memcpy(eth_frame->addr_dest, ethernet->socket->dst_mac, 6);
+	memcpy(eth_frame->addr_src, ethernet->mac_address, 6);
+	
+	ethernet->packetSend((void*)eth_frame, len + sizeof(eth_frame_t));
 }
 
-static uint8_t arp_read(eth_frame_t *frame, uint16_t len)
+static uint8_t arp_read(uint16_t len)
 {
 	uint8_t res = 0;
-	arp_pkt_t *msg = (void*)frame->data;
 	if(len > sizeof(arp_pkt_t))
-		if((msg->net_tp == ARP_ETH) && (msg->proto_tp == ARP_IP))
-			if((msg->op == ARP_REQUEST) && (!memcmp(msg->ipaddr_dst, ethernet->ipaddr, 4)))
+		if((arp_pkt->net_tp == ARP_ETH) && (arp_pkt->proto_tp == ARP_IP))
+			if((arp_pkt->op == ARP_REQUEST) && (!memcmp(arp_pkt->ipaddr_dst, ethernet->ipaddr, 4)))
 				res = 1;
 	return res;
 }
 
-static void arp_send(eth_frame_t *frame)
+static void arp_send(void)
 {
-	arp_pkt_t *msg=(void*)frame->data;
-	msg->op = ARP_REPLY;
-	memcpy(msg->macaddr_dst, msg->macaddr_src, 6);
-	memcpy(msg->macaddr_src, ethernet->mac_address, 6);
-	memcpy(msg->ipaddr_dst, msg->ipaddr_src, 4);
-	memcpy(msg->ipaddr_src, ethernet->ipaddr, 4);
-	eth_send(frame, sizeof(arp_pkt_t));
+	arp_pkt->op = ARP_REPLY;
+	memcpy(arp_pkt->macaddr_dst, ethernet->socket->dst_mac, 6);
+	memcpy(arp_pkt->macaddr_src, ethernet->mac_address, 6);
+	memcpy(arp_pkt->ipaddr_dst, ethernet->socket->dst_ip, 4);
+	memcpy(arp_pkt->ipaddr_src, ethernet->ipaddr, 4);
+	eth_send(sizeof(arp_pkt_t));
 }
 
-static uint8_t ip_send(eth_frame_t *frame, uint16_t len, uint8_t prt)
+static uint8_t ip_send(uint16_t len, uint8_t prt)
 {
 	uint8_t res = 0;
-	ip_pkt_t *ip_pkt = (void*)frame->data;
+
 	//fullfill header of IP package
 	ip_pkt->verlen = 0x45;
 	ip_pkt->ts = 0;
@@ -112,38 +137,37 @@ static uint8_t ip_send(eth_frame_t *frame, uint16_t len, uint8_t prt)
 	ip_pkt->ttl = 128;
 	ip_pkt->prt = prt;
 	ip_pkt->cs = 0;
-	memcpy(ip_pkt->ipaddr_dst, ip_pkt->ipaddr_src, 4);
+	memcpy(ip_pkt->ipaddr_dst, ethernet->socket->dst_ip, 4);
 	memcpy(ip_pkt->ipaddr_src, ethernet->ipaddr, 4);
 	ip_pkt->cs = crc16((void*)ip_pkt, sizeof(ip_pkt_t));
+	
 	//send frame
-	eth_send(frame, len);
+	eth_send(len);
 	return res;
 }
 
-static uint8_t ip_read(eth_frame_t *frame, uint16_t len)
+static uint8_t ip_read(uint16_t len)
 {
 	uint8_t res = 0;
-	ip_pkt_t *ip_pkt = (void*)frame->data;
 	if((ip_pkt->verlen == 0x45) && (!memcmp(ip_pkt->ipaddr_dst, ethernet->ipaddr, 4)))
 	{
 		len = be16toword(ip_pkt->len);
-		frame->data[len] = 0;
+		eth_frame->data[len] = 0;
 		len -= sizeof(ip_pkt_t);
 		switch (ip_pkt->prt)
 		{
-			case IP_ICMP:	icmp_read(frame, len); break;
-			case IP_TCP:	if (ethernet->tcp_handler) tcp_receive(ip_pkt->data, ip_pkt->len); break;
-			case IP_UDP:	if (ethernet->udp_handler) udp_receive(ip_pkt->data, ip_pkt->len); break;
+			case IP_ICMP:	icmp_read(len); break;
+			case IP_TCP:	tcp_receive(); break;
+			case IP_UDP:	udp_receive(); break;
 		}
 	}
 	return res;
 }
 
-static uint8_t icmp_read(eth_frame_t *frame, uint16_t len)
+static uint8_t icmp_read(uint16_t len)
 {
 	uint8_t res = 0;
-	ip_pkt_t *ip_pkt = (void*)frame->data;
-	icmp_pkt_t *icmp_pkt = (void*)(ip_pkt->data);
+
 	if (len < sizeof(icmp_pkt_t)) return 0;
 	
 	if (icmp_pkt->msg_tp == ICMP_REQ) //answer for incoming ping
@@ -151,7 +175,7 @@ static uint8_t icmp_read(eth_frame_t *frame, uint16_t len)
 		icmp_pkt->msg_tp = ICMP_REPLY;
 		icmp_pkt->cs = 0;
 		icmp_pkt->cs = crc16((void*)icmp_pkt, len);
-		ip_send(frame, len + sizeof(ip_pkt_t), IP_ICMP);
+		ip_send(len + sizeof(ip_pkt_t), IP_ICMP);
 	}
 	return res;
 }
@@ -159,9 +183,6 @@ static uint8_t icmp_read(eth_frame_t *frame, uint16_t len)
 uint8_t * get_mac (uint8_t * ip_address, uint32_t timeout)
 {
 	uint32_t counter = 0;
-	eth_frame_t * frame = (void*)ethernet->frame_buffer;
-	
-	arp_pkt_t * arp_pkt = (void*)frame->data;
 	arp_pkt->net_tp = 0x0100;
 	arp_pkt->proto_tp = 0x0008;
 	arp_pkt->macaddr_len = 6;
@@ -172,14 +193,14 @@ uint8_t * get_mac (uint8_t * ip_address, uint32_t timeout)
 	memset(arp_pkt->macaddr_dst, 0x00, 6);
 	memcpy(arp_pkt->ipaddr_dst, ip_address, 4);
 
-	memcpy(frame->addr_src, ethernet->mac_address, 6);
-	memset(frame->addr_dest, 0xFF, 6);
-	frame->type = ETH_ARP;
-	ethernet->packetSend((void*)frame, sizeof(arp_pkt_t) + sizeof(eth_frame_t));
+	memcpy(eth_frame->addr_src, ethernet->mac_address, 6);
+	memset(eth_frame->addr_dest, 0xFF, 6);
+	eth_frame->type = ETH_ARP;
+	ethernet->packetSend((void*)eth_frame, sizeof(arp_pkt_t) + sizeof(eth_frame_t));
 
 	while(counter++ < timeout)
 		if (ethernet->packetReceive(ethernet->frame_buffer, ethernet->frame_buffer_size) > 0)
-			if (arp_pkt->op == 0x0200) return arp_pkt->macaddr_src;
+			if (memcmp(arp_pkt->ipaddr_dst, ethernet->ipaddr, 4) == 0) return arp_pkt->macaddr_src;
 	
 	return NULL;
 }
@@ -191,20 +212,15 @@ uint32_t ping (uint8_t * ip_address, uint8_t * ip_gateway, uint32_t timeout)
 	uint32_t counter = 0;
 	while(payload_len % 4) payload_len--;
 	
-	/* icmp -> ip -> ethernet */
-	eth_frame_t * frame = (void*)ethernet->frame_buffer;
-	ip_pkt_t *ip_pkt = (void*)frame->data;
-	icmp_pkt_t *icmp_pkt = (void*)ip_pkt->data;
-	
 	/* get phisical address */
 	uint8_t * dest_address = get_mac(ip_gateway, timeout);
 	if (dest_address == NULL) return 0;
 	
 	/* prepare ethernet frame */
-	frame->type = ETH_IP;
+	eth_frame->type = ETH_IP;
 	
-	memcpy(frame->addr_src, dest_address, 6);
-	memcpy(ip_pkt->ipaddr_src, ip_address, 4);
+	memcpy(ethernet->socket->dst_mac, dest_address, 6);
+	memcpy(ethernet->socket->dst_ip, ip_address, 4);
 	
 	/* icmp */
 	icmp_pkt->msg_tp = ICMP_REQ;
@@ -215,40 +231,32 @@ uint32_t ping (uint8_t * ip_address, uint8_t * ip_gateway, uint32_t timeout)
 	memcpy(icmp_pkt->data, (void*)payload, payload_len);
 	icmp_pkt->cs = crc16((void*)icmp_pkt, sizeof(icmp_pkt_t) + payload_len);
 	
-	ip_send(frame, sizeof(icmp_pkt) + sizeof(ip_pkt_t) + payload_len + 4, IP_ICMP);
+	ip_send(sizeof(icmp_pkt) + sizeof(ip_pkt_t) + payload_len + 4, IP_ICMP);
 	
 	while(counter++ < timeout)
 		if (ethernet->packetReceive(ethernet->frame_buffer, ethernet->frame_buffer_size) > 0)
-			if (icmp_pkt->msg_tp == ICMP_REPLY) return counter;
+			if (memcmp(ip_pkt->ipaddr_dst, ethernet->ipaddr, 4) == 0) return counter;
 		
 	return 0;
 }
 
-static void udp_receive (uint8_t * buf, uint16_t len)
+static void udp_receive (void)
 {
-	udp_pkt_t * udp_pkt = (void*)buf;
-	
-	len = be16toword(udp_pkt->len) - sizeof(udp_pkt_t);
+	uint16_t len = be16toword(udp_pkt->len) - sizeof(udp_pkt_t);
 	udp_pkt->data[len] = 0; //null terminate
 	
 	if (ethernet->udp_handler) ethernet->udp_handler((void*)udp_pkt->data, len);
 }
 
-static void tcp_receive (uint8_t * buf, uint16_t len)
+static void tcp_receive (void)
 {
-	eth_frame_t * frame = (void*)ethernet->frame_buffer;		//ethernet frame
-	ip_pkt_t * ip_pkt = (void*)frame->data;								//ip packet
-	volatile tcp_pkt_t * tcp_pkt = (void*)ip_pkt->data;
-	uint32_t seq;
+	volatile uint32_t seq;
 	char * data;
-		
-	/* DATA SHIFT */
-	len = (tcp_pkt->header_len >> 4) * 4; //TCP header len
-	data = (void*)tcp_pkt;
-	data += len;
+	uint16_t port, len;
+	uint8_t tcp_header_len = (tcp_pkt->header_len >> 4) * 4;
 	
 	/* PORT */
-	uint16_t port = tcp_pkt->dest_port;
+	port = tcp_pkt->dest_port;
 	tcp_pkt->dest_port = tcp_pkt->source_port;
 	tcp_pkt->source_port = port;
 	
@@ -263,19 +271,23 @@ static void tcp_receive (uint8_t * buf, uint16_t len)
 			tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + 1);
 		if (tcp_pkt->flags & TCP_SYN) tcp_pkt->flags |= TCP_ACK;
 		tcp_pkt->crc16 = 0;
-		tcp_pkt->crc16 = tcp_crc16(ip_pkt);
+		tcp_pkt->crc16 = tcp_crc16();
 		
-		ip_send(frame, len + sizeof(ip_pkt_t), IP_TCP);
+		ip_send(tcp_header_len + sizeof(ip_pkt_t), IP_TCP);
 		return;		
 	}
 	
-	len = be16toword(ip_pkt->len) - (tcp_pkt->header_len >> 4) * 4 - sizeof(ip_pkt_t);
-
+	len = be16toword(ip_pkt->len) - tcp_header_len - sizeof(ip_pkt_t);
+	
+	/* DATA SHIFT */
+	data = (void*)tcp_pkt;
+	data += tcp_header_len;
+	
 	/* Handlers should be here */
 	switch(be16toword(tcp_pkt->source_port))
 	{
-		case TELNET: if (ethernet->telnet_handler) tcp_send(ethernet->telnet_handler(data), 0); return;
-		case HTTP: if (ethernet->http_handler) tcp_send(data, ethernet->http_handler(data, len)); return;
+		case TELNET: if (ethernet->telnet_handler) tcp_send(ethernet->telnet_handler(data), 0, 0, 0); return;
+		case HTTP: if (ethernet->http_handler) tcp_send(data, ethernet->http_handler(data, len), 0, 0); return;
 	}
 
 	if (ethernet->tcp_handler) ethernet->tcp_handler(data, len); //undefined protocol
@@ -283,13 +295,9 @@ static void tcp_receive (uint8_t * buf, uint16_t len)
 
 void udp_send (char * data, uint16_t len)
 {
-	eth_frame_t * frame = (void*)ethernet->frame_buffer;
-	ip_pkt_t * ip_pkt = (void*)frame->data;
-	udp_pkt_t * udp_pkt = (void*)ip_pkt->data;
 	uint16_t port;
 	if (len == 0) len = strlen(data);
 	while(len % 2) len++;
-	data[len] = 0;
 
 	/* UDP */
 	port = udp_pkt->source_port;
@@ -303,39 +311,102 @@ void udp_send (char * data, uint16_t len)
 	if (udp_pkt->data != (void*)data)
 		memcpy(udp_pkt->data, (void*)data, len);
 	
-	ip_send(frame, len + sizeof(udp_pkt_t) + sizeof(ip_pkt_t), IP_UDP);
+	ip_send(len + sizeof(udp_pkt_t) + sizeof(ip_pkt_t), IP_UDP);
 }
 
-void tcp_send (char * data, uint16_t len)
+uint8_t tcp_send (char * data, uint16_t len, uint8_t flags, uint32_t timeout)
 {
-	eth_frame_t * frame = (void*)ethernet->frame_buffer;
-	ip_pkt_t * ip_pkt = (void*)frame->data;
-	tcp_pkt_t* tcp_pkt = (void*)ip_pkt->data;
 	char * buf = (void*)tcp_pkt;
 	uint8_t tcp_header_len = (tcp_pkt->header_len >> 4) * 4;
+	uint32_t counter = 0;
 	
-	if (len == 0) len = strlen(data);
-	buf += tcp_header_len;
-	if (data != buf)
-		memcpy(buf, data, len);
-	while(len % 2) len++;
-	data[len] = 0;
+	if (flags == 0) //PUSH request
+	{
+		if (len == 0) len = strlen(data);
+		buf += tcp_header_len;
+		if (data != buf)
+			memcpy(buf, data, len);
+		while(len % 2) len++;
+		data[len] = 0;
+	}
+	else //SYN & FIN
+	{
+		len = 0;
+		tcp_pkt->flags = flags;
+	}
 	
 	ip_pkt->len = be16toword(len + tcp_header_len + sizeof(ip_pkt_t));
 	
 	if (be16toword(tcp_pkt->source_port) != TELNET)
 		tcp_pkt->ack_num = swap32(swap32(tcp_pkt->ack_num) + len);
 	tcp_pkt->crc16 = 0;
-	tcp_pkt->crc16 = tcp_crc16(ip_pkt);
+	tcp_pkt->crc16 = tcp_crc16();
 	
-	ip_send(frame, sizeof(ip_pkt_t) + tcp_header_len + len, IP_TCP);
+	ip_send(sizeof(ip_pkt_t) + tcp_header_len + len, IP_TCP);
+	
+	if (flags)
+	{
+		while(++counter < timeout && ethernet->packetReceive(ethernet->frame_buffer, ethernet->frame_buffer_size) == 0){}
+		tcp_receive();
+		return tcp_pkt->flags & TCP_ACK;
+	}
+		
+	return 0;
+}
+
+uint8_t tcp_request (uint8_t * data, uint16_t len, uint32_t timeout)
+{
+	uint8_t tcp_header_len = 20;
+	volatile uint8_t atmp = 3;
+	uint32_t counter = 0;
+	
+	if (equal_to_zero(ethernet->socket->dst_ip, 4) == 0) //obtain IP if needed
+	{
+		uint8_t * dst_ip= dns(ethernet->socket->gateway_ip, ethernet->socket->url, timeout);
+		if (dst_ip == NULL)	return 0;
+		memcpy(ethernet->socket->dst_ip, dst_ip, 4);
+	}
+	
+	if (equal_to_zero(ethernet->socket->dst_mac, 6) == 0) //obtain MAC if needed
+	{
+		uint8_t * dst_mac = get_mac(ethernet->socket->dst_ip, timeout);
+		if (dst_mac == NULL) return 0;
+		memcpy(ethernet->socket->dst_mac, dst_mac, 6);
+	}
+	
+	/* ETHERNET */
+	eth_frame->type = ARP_IP;
+	
+	/* IP */
+	ip_pkt->prt = IP_TCP;
+	ip_pkt->len = be16toword(sizeof(ip_pkt_t) + tcp_header_len);
+	memcpy(ip_pkt->ipaddr_dst, ethernet->socket->dst_ip, 4);
+	memcpy(ip_pkt->ipaddr_src, ethernet->ipaddr, 4);
+	
+	/* TCP */
+	tcp_pkt->source_port = be16toword(ethernet->socket->source_port);
+	tcp_pkt->dest_port = be16toword(ethernet->socket->dest_port);
+	tcp_pkt->header_len = (tcp_header_len / 4) << 4;
+	tcp_pkt->flags = TCP_SYN;
+	tcp_pkt->window_size = 0x0020;
+	tcp_pkt->priority = 0;
+	while(atmp--)
+	{
+		tcp_pkt->seq_num = 0;
+		tcp_pkt->ack_num = 0;
+		tcp_pkt->crc16 = 0;
+		tcp_pkt->crc16 = tcp_crc16();
+
+		ip_send(sizeof(ip_pkt_t) + tcp_header_len, IP_TCP); //SYN
+		
+		while(++counter < timeout && ethernet->packetReceive(ethernet->frame_buffer, ethernet->frame_buffer_size) == 0){}
+			if (tcp_pkt->flags & TCP_ACK) return 1;
+	}
+	return 0;
 }
 
 uint8_t * dns (uint8_t * dns_ip, char * url, uint32_t timeout)
 {
-	eth_frame_t * frame = (void*)ethernet->frame_buffer;
-	ip_pkt_t * ip_pkt = (void*)frame->data;
-	udp_pkt_t * udp_pkt = (void*)ip_pkt->data;
 	dns_pkt_t * dns_pkt = (void*)udp_pkt->data;
 	uint8_t * addr_src;
 	char * dns_query = (void*)dns_pkt->dns_query;
@@ -348,12 +419,12 @@ uint8_t * dns (uint8_t * dns_ip, char * url, uint32_t timeout)
 	
 	/* PHY */
 	addr_src = get_mac(dns_ip, timeout);
-	frame->type = ETH_IP;
+	eth_frame->type = ETH_IP;
 	if (addr_src == NULL) return 0;
-	memcpy(frame->addr_src, addr_src, 6);
+	memcpy(ethernet->socket->dst_mac, addr_src, 6);
 	
 	/* IP */
-	memcpy(ip_pkt->ipaddr_src, dns_ip, 4);
+	memcpy(ethernet->socket->dst_ip, dns_ip, 4);
 	ip_pkt->id = ++id;
 	
 	/* DNS */
@@ -386,53 +457,6 @@ uint8_t * dns (uint8_t * dns_ip, char * url, uint32_t timeout)
 	return 0;
 }
 
-socket_err_t set_socket (socket_t * socket, uint32_t timeout)
-{	
-	if (socket == NULL) return SOCKET_POINTER_NULL;
-
-	eth_frame_t * frame = (void*)ethernet->frame_buffer;
-	ip_pkt_t * ip_pkt = (void*)frame->data;
-	tcp_pkt_t * tcp_pkt = (void*)ip_pkt->data;
-	void * ptr;
-	
-	if (socket->dst_ip[0] == 0)  //obtain ip via dns
-	{
-		if (socket->url == NULL) return SOCKET_URL_NULL;
-		ptr = dns(socket->gateway_ip, socket->url, timeout);
-		if (ptr == NULL) return SOCKET_DNS_ERROR;
-		
-		memcpy(socket->dst_ip, ptr, 4);
-	}
-	
-	if (socket->dst_mac[0] == 0)
-	{
-		ptr = get_mac(socket->gateway_ip, timeout);
-		if (ptr == NULL) return SOCKET_MAC_ERROR;
-		memcpy(socket->dst_mac, ptr, 6); //MAC
-	}
-	
-	memcpy(frame->addr_dest, socket->dst_mac, 6); //MAC
-	memcpy(ip_pkt->ipaddr_dst, socket->dst_ip, 4); //IP
-	
-	tcp_pkt->dest_port = be16toword(socket->dest_port);
-	tcp_pkt->source_port = be16toword(socket->source_port);
-
-	return SOCKET_SUCCESS;
-}
-
-void get_socket (socket_t * socket)
-{
-	eth_frame_t * frame = (void*)ethernet->frame_buffer;
-	ip_pkt_t * ip_pkt = (void*)frame->data;
-	tcp_pkt_t * tcp_pkt = (void*)ip_pkt->data;
-	
-	memcpy(socket->dst_mac, frame->addr_src, 6);
-	memcpy(socket->dst_ip, ip_pkt->ipaddr_src, 4);
-	
-	socket->dest_port = be16toword(tcp_pkt->dest_port);
-	socket->source_port = be16toword(tcp_pkt->source_port);
-}
-
 static uint16_t crc16(uint16_t * buf, uint16_t len)
 {
     uint32_t sum = 0;
@@ -451,7 +475,7 @@ static uint16_t crc16(uint16_t * buf, uint16_t len)
     return ~sum;
 }
 
-static uint16_t tcp_crc16 (ip_pkt_t* ip_pkt)
+static uint16_t tcp_crc16 (void)
 {
 	uint32_t sum = 0;
 	uint16_t i;
@@ -518,4 +542,11 @@ static uint8_t * dns_query_parse (uint8_t * data)
     ptr += 2 + 14; //CLASS = 0x0001, NAME 2, TYPE 2, CLASS 2, TIME 4, LEN 2
     
     return ptr;
+}
+
+static uint8_t equal_to_zero (uint8_t * src, uint8_t len) //return 0 if all values == 0
+{
+	while(len--)
+		if (*src++) return 1;
+	return 0;
 }
