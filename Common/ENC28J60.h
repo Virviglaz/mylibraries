@@ -11,7 +11,8 @@ typedef struct
 }enc28j60_t;
 
 /* Public fuctions prototypes */
-enc28j60_t * enc28j60_Init (enc28j60_t * this);
+enc28j60_t * enc28j60_Init (enc28j60_t * driver);
 uint16_t enc28j60_packetReceive(uint8_t* buf, uint16_t buflen);
 void enc28j60_packetSend(uint8_t* buf, uint16_t buflen);
+uint8_t enc28j60_numPacketsRx (void);
 #endif

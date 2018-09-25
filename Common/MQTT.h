@@ -5,22 +5,40 @@
 
 typedef enum
 {
-	RESERVED,		//Зарезервирован
-	CONNECT,		//Запрос	клиента	на	подключение	к	серверу
-	CONNACK,		//Подтверждение	успешного	подключения
-	PUBLISH,		//Публикация	сообщения
-	PUBACK,			//Подтверждение	публикации
-	PUBREC,			//Публикация	получена
-	PUBREL,			//Разрешение	на	удаление	сообщения
-	PUBCOMP,		//Публикация	завершена
-	SUBSCRIBE,	//Запрос	на	подписку
-	SUBACK,			//Запрос	на	подписку	принят
-	UNSUBSCRIBE,//Запрос	на	отписку
-	UNSUBACK,		//Запрос	на	отписку	принят
-	PINGREQ,		//PING	запрос
-	PINGRESP,		//PING	ответ
-	DISCONNECT,	//Сообщение	об	отключении	от	сервера
-}mqtt_sendMessage_type_t;
+	MQTT_SUCCESS = 0,
+	MQTT_NOT_INIT,
+	MQTT_AUTH_ERROR,
+	MQTT_PING_FAIL,
+	MQTT_NO_MESSAGES,
+	MQTT_FORMAT_ERR,
+	MQTT_NO_MESSAGES_FOR_THIS_TOPIC,
+}mqtt_err_t;
+
+typedef struct
+{
+	uint8_t (* sendReceive) (uint8_t * buf, uint8_t len);
+	char * clientId, * username, * password;
+	uint8_t * buf;
+}mqtt_client_t;
+
+typedef enum
+{
+	RESERVED 	= 0x0,		//Зарезервирован
+	CONNECT		= 0x1,		//Запрос	клиента	на	подключение	к	серверу
+	CONNACK		= 0x2,		//Подтверждение	успешного	подключения
+	PUBLISH		= 0x3,		//Публикация	сообщения
+	PUBACK		= 0x4,		//Подтверждение	публикации
+	PUBREC		=	0x5,		//Публикация	получена
+	PUBREL		=	0x6,		//Разрешение	на	удаление	сообщения
+	PUBCOMP		=	0x7,		//Публикация	завершена
+	SUBSCRIBE	=	0x8,		//Запрос	на	подписку
+	SUBACK		=	0x9,		//Запрос	на	подписку	принят
+	UNSUBSCRIBE = 0xA,	//Запрос	на	отписку
+	UNSUBACK		= 0xB,	//Запрос	на	отписку	принят
+	PINGREQ			=	0xC,	//PING	запрос
+	PINGRESP		= 0xD,	//PING	ответ
+	DISCONNECT	= 0xE,	//Сообщение	об	отключении	от	сервера
+}sendMessageToServerMessage_type_t;
 
 typedef struct
 {
@@ -39,6 +57,11 @@ typedef struct
 	char data[];
 }mqtt_flex_header_t;
 
-uint8_t mqtt_connect (char * buf, char * clientId, char * username, char * password);
-uint8_t mqtt_sendMessage (char * buf, char * topic, char * message);
+mqtt_client_t * mqtt_init (mqtt_client_t * ptr);
+mqtt_err_t mqtt_connect (void);
+mqtt_err_t mqtt_ping (void);
+mqtt_err_t sendMessageToServerMessage (char * topic, char * message);
+mqtt_err_t mqtt_subscribe (char * topic);
+mqtt_err_t mqtt_checkMessages (char * topic, char * messageOut);
+mqtt_err_t mqtt_getMessages (char * topicOut, char * messageOut);
 #endif

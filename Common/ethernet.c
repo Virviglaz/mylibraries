@@ -1,6 +1,7 @@
 #include "ethernet.h"
 #include <string.h>
-#include <stdio.h>
+#include <stdlib.h>
+//#include <stdio.h>
 
 #define be16toword(a) ((((a) >> 8) & 0xff) | (((a) << 8) & 0xff00))
 #define ETH_ARP be16toword(0x0806)
@@ -210,11 +211,12 @@ uint32_t ping (uint8_t * ip_address, uint8_t * ip_gateway, uint32_t timeout)
 	const uint8_t payload[] = "Ping remote address.";
 	uint8_t payload_len = strlen((void*)payload);
 	uint32_t counter = 0;
-	while(payload_len % 4) payload_len--;
-	
+
 	/* get phisical address */
 	uint8_t * dest_address = get_mac(ip_gateway, timeout);
 	if (dest_address == NULL) return 0;
+	
+	while(payload_len % 4) payload_len--;
 	
 	/* prepare ethernet frame */
 	eth_frame->type = ETH_IP;
@@ -360,7 +362,7 @@ uint8_t tcp_request (uint8_t * data, uint16_t len, uint32_t timeout)
 	volatile uint8_t atmp = 3;
 	uint32_t counter = 0;
 	
-	if (equal_to_zero(ethernet->socket->dst_ip, 4) == 0) //obtain IP if needed
+	if (ethernet->socket->dst_ip[0] == 0) //obtain IP if needed
 	{
 		uint8_t * dst_ip= dns(ethernet->socket->gateway_ip, ethernet->socket->url, timeout);
 		if (dst_ip == NULL)	return 0;
@@ -384,23 +386,26 @@ uint8_t tcp_request (uint8_t * data, uint16_t len, uint32_t timeout)
 	memcpy(ip_pkt->ipaddr_src, ethernet->ipaddr, 4);
 	
 	/* TCP */
-	tcp_pkt->source_port = be16toword(ethernet->socket->source_port);
+	//tcp_pkt->source_port = be16toword(ethernet->socket->source_port);
+	tcp_pkt->source_port = (uint16_t)rand();
 	tcp_pkt->dest_port = be16toword(ethernet->socket->dest_port);
 	tcp_pkt->header_len = (tcp_header_len / 4) << 4;
 	tcp_pkt->flags = TCP_SYN;
 	tcp_pkt->window_size = 0x0020;
 	tcp_pkt->priority = 0;
+	
 	while(atmp--)
 	{
-		tcp_pkt->seq_num = 0;
 		tcp_pkt->ack_num = 0;
+		tcp_pkt->seq_num = rand();
 		tcp_pkt->crc16 = 0;
 		tcp_pkt->crc16 = tcp_crc16();
 
 		ip_send(sizeof(ip_pkt_t) + tcp_header_len, IP_TCP); //SYN
 		
 		while(++counter < timeout && ethernet->packetReceive(ethernet->frame_buffer, ethernet->frame_buffer_size) == 0){}
-			if (tcp_pkt->flags & TCP_ACK) return 1;
+			if (tcp_pkt->flags & TCP_ACK) 
+				return 1;
 	}
 	return 0;
 }
@@ -408,13 +413,13 @@ uint8_t tcp_request (uint8_t * data, uint16_t len, uint32_t timeout)
 uint8_t * dns (uint8_t * dns_ip, char * url, uint32_t timeout)
 {
 	dns_pkt_t * dns_pkt = (void*)udp_pkt->data;
-	uint8_t * addr_src;
+	uint8_t * addr_src, url_len;
 	char * dns_query = (void*)dns_pkt->dns_query;
 	char * prt = dns_query;
 	static uint16_t id = 0xAAAA;
 	uint32_t counter = 0;
 	if (url == NULL) return 0;
-	uint8_t url_len = strlen(url);
+	url_len = strlen(url);
 	if (url_len == 0 || strchr(url, '.') == 0) return 0;
 	
 	/* PHY */

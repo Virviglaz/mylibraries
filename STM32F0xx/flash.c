@@ -1,4 +1,5 @@
 #include "flash.h"
+#include "CRC.h"
 
 FLASH_Status FlashPagesErase (uint32_t Address, uint8_t Pages, const uint32_t PageSize)
 {
@@ -105,4 +106,37 @@ void Internal_Flash_Erase(uint32_t pageAddress)
 	FLASH->CR &= ~FLASH_CR_PER;
 	
 	FLASH_Lock();
+}
+
+bool isFlashAreaBlank (FlashArea_TypeDef * area)
+{
+	for (uint32_t i = area->StartAddress; i < (area->StartAddress + area->Size); i += sizeof(uint32_t))
+			if ( *(__IO uint32_t*)i != 0xFFFFFFFF) return false;
+		
+	return true;
+}
+
+uint32_t flashAreaCRC32 (FlashArea_TypeDef * area)
+{
+	return crc32((void*)area->StartAddress, area->Size);
+}
+
+void eraseFlashArea (FlashArea_TypeDef * area)
+{
+	FlashErase(area->StartAddress, area->Size, FLASH_PAGE_SIZE);
+}
+
+void writeFlashPage (FlashArea_TypeDef * area, uint16_t pageNum, uint8_t * data)
+{
+	Internal_Flash_Write8(area->StartAddress + pageNum * FLASH_PAGE_SIZE, FLASH_PAGE_SIZE, (char*)data);
+}
+
+void copyFlashArea (FlashArea_TypeDef * source, FlashArea_TypeDef * dest)
+{
+	if (source->Size != dest->Size) return; //size should be equal
+	
+	if (isFlashAreaBlank(dest) == false)
+		eraseFlashArea(dest);
+	
+	Internal_Flash_Write8(dest->StartAddress, source->Size, (void*)source->StartAddress);
 }

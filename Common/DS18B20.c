@@ -76,7 +76,7 @@ char DS18B20_Get_Conversion_Result (DS18B20_TypeDef * DS18B20)
 		inbuff[cnt] = DS18B20->One_Wire_Interface->ReadByte();
 
 	/* Check CRC */
-	Result = Crc8Dallas(DS18B20_STRATCHPAD_SIZE, inbuff);
+	Result = Crc8Dallas(inbuff, DS18B20_STRATCHPAD_SIZE);
 	if (!Result) 
 		{
 			/* Convert obtained data */
