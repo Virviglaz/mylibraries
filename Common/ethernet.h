@@ -32,7 +32,7 @@ typedef struct
   uint8_t ipaddr_src[4];
   uint8_t macaddr_dst[6];
   uint8_t ipaddr_dst[4];
-}arp_pkt_t;
+}arp_pkt_t; //26 bytes
 
 typedef struct
 {

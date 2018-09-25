@@ -22,14 +22,15 @@ typedef struct
 	void (*DelayFunc) (uint16_t ms);
 	void (*RamPrepare) (void);
 	void (*WriteRam) (uint16_t RGB);
+	uint8_t * Font;
 	uint16_t * Fontbuffer;
+	uint8_t FontXsize, FontYsize;
+	uint16_t Color, BackColor;
 }SSD1289_StructTypeDef;
 
-void SSD1289_Init (SSD1289_StructTypeDef * SSD1289_InitStruct);
-void SSD1289_SetCursor(uint16_t Xpos, uint16_t Ypos);
-void SSD1289_SetWindows (uint16_t xStart, uint16_t yStart, uint16_t xLong, uint16_t yLong);
-void SSD1289_Clear (uint16_t Color);
-void SSD1289_FillWindow (uint16_t StartX, uint16_t StartY, uint16_t SizeX, uint16_t SizeY, uint16_t Color);
+SSD1289_StructTypeDef *  SSD1289_Init (SSD1289_StructTypeDef * SSD1289_InitStruct);
+void SSD1289_Clear (void);
 void SSD1289_DrawPic (uint16_t StartX, uint16_t StartY, uint16_t SizeX, uint16_t SizeY, uint16_t * pic);
-uint16_t SSD1289_PrintText (uint16_t StartX, uint16_t StartY, uint8_t FontX, uint8_t FontY, char * font, char * buf, uint16_t Color, uint16_t BackColor);
+void SSD1289_PrintChar (uint16_t StartX, uint16_t StartY, char Ch);
+uint16_t SSD1289_PrintText (uint16_t StartX, uint16_t StartY, char * Text);
 #endif

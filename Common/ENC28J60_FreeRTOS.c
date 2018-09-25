@@ -1,4 +1,6 @@
 #include "ENC28J60.h"
+#include "FreeRTOS.h"
+#include "FreeRTOS_IP.h"
 
 /* Definitions */
 #define ADDR_MASK        0x1F
@@ -156,7 +158,7 @@
 //--------------------------------------------------
 
 /* Local driver */
-enc28j60_t * enc28j60;
+enc28j60_t * enc28j60 = NULL;
 
 /* Local functions prototypes */
 static void enc28j60_writeOp (uint8_t op, uint8_t address, uint8_t data);
@@ -173,11 +175,35 @@ static void enc28j60_writePhy(uint8_t addres, uint16_t data);
 uint8_t Enc28j60Bank;
 int gNextPacketPtr;
 
-/* Public fuctions */
-enc28j60_t * enc28j60_Init (enc28j60_t * driver)
+void vReleaseNetworkBufferAndDescriptor( xNetworkBufferDescriptor_t * const pxNetworkBuffer );
+
+/* FreeRTOS public API functions */
+BaseType_t xNetworkInterfaceInitialise( void ) 
 {
-	if (driver)
-		enc28j60 = driver;
+	return enc28j60 ? pdPASS : pdFAIL;
+}
+
+BaseType_t xNetworkInterfaceOutput( xNetworkBufferDescriptor_t * const pxDescriptor,
+                                    BaseType_t xReleaseAfterSend )
+{
+    enc28j60_packetSend(pxDescriptor->pucEthernetBuffer, pxDescriptor->xDataLength );
+    
+    /* Call the standard trace macro to log the send event. */
+    iptraceNETWORK_INTERFACE_TRANSMIT();
+
+    if( xReleaseAfterSend != pdFALSE )
+    {
+        vReleaseNetworkBufferAndDescriptor( pxDescriptor );
+    }
+
+    return pdTRUE;
+}
+
+/* Public fuctions */
+enc28j60_t * enc28j60_Init (enc28j60_t * this)
+{
+	if (this)
+		enc28j60 = this;
 	
 	if (!enc28j60) return 0;
 	
@@ -282,7 +308,7 @@ static void enc28j60_writePhy(uint8_t addres, uint16_t data)
   while(enc28j60_readRegByte(MISTAT)&MISTAT_BUSY){}
 }
 
-uint16_t enc28j60_packetReceive(uint8_t* buf, uint16_t buflen) //use 'buf = NULL' if need only amount of bytes received
+uint16_t enc28j60_packetReceive(uint8_t* buf, uint16_t buflen)
 {
 	uint16_t len = 0;
 	if(enc28j60_readRegByte(EPKTCNT) > 0)
@@ -294,13 +320,12 @@ uint16_t enc28j60_packetReceive(uint8_t* buf, uint16_t buflen) //use 'buf = NULL
 			uint16_t status;
 		} header;
 		enc28j60_writeReg(ERDPT, gNextPacketPtr);
-		enc28j60_readBuf(sizeof(header), (uint8_t*)&header);		
-		len = header.byteCount - 4;//remove the CRC count
-		if (!buf) return len;
+		enc28j60_readBuf(sizeof(header), (uint8_t*)&header);
 		gNextPacketPtr = header.nextPacket;
+		len = header.byteCount - 4;//remove the CRC count
 		if(len > buflen) len = buflen;
 		if((header.status & 0x80) == 0) len = 0;
-		else enc28j60_readBuf(len, buf);		
+		else enc28j60_readBuf(len, buf);
 		buf[len] = 0;
 		if(gNextPacketPtr - 1 > RXSTOP_INIT)
 			enc28j60_writeReg(ERXRDPT, RXSTOP_INIT);
@@ -327,9 +352,4 @@ void enc28j60_packetSend(uint8_t* buf, uint16_t buflen)
 	enc28j60_writeBuf(1, (uint8_t*)"\x00");
 	enc28j60_writeBuf(buflen, buf);
 	enc28j60_writeOp(ENC28J60_BIT_FIELD_SET, ECON1, ECON1_TXRTS);
-}
-
-uint8_t enc28j60_numPacketsRx (void)
-{
-	return enc28j60_readRegByte(EPKTCNT);
 }
