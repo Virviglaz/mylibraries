@@ -32,10 +32,10 @@ SSD1289_StructTypeDef * SSD1289_Init (SSD1289_StructTypeDef * SSD1289_InitStruct
 		return SSD1289; //only return pointer. Do not init
 
 	for (uint8_t cnt = 0; cnt < sizeof(GLCD_InitSequence) / sizeof(uint32_t); cnt++)
-	{		
 		SSD1289->WriteReg(GLCD_InitSequence[cnt].RegData[1], GLCD_InitSequence[cnt].RegData[0]);
-		if (SSD1289->DelayFunc) SSD1289->DelayFunc(10);	
-	}
+	
+	//Mirror X & Y
+	SSD1289->WriteReg(1, 0x293F | (SSD1289->Xmirror ? 0x4000 : 0) | (SSD1289->Ymirror ? 0x200 : 0));
 	
 	return SSD1289;
 }
@@ -55,13 +55,12 @@ void SSD1289_DrawPic (uint16_t StartX, uint16_t StartY, uint16_t SizeX, uint16_t
 
 void SSD1289_PrintChar (uint16_t StartX, uint16_t StartY, char Ch)
 {
-	uint16_t * fontbuf = SSD1289->Fontbuffer;
 	uint8_t x, y;
-	for (x = 0; x != SSD1289->FontXsize; x++)
-		for (y = 0; y != SSD1289->FontYsize; y++)
-			* fontbuf++ = (SSD1289->Font[Ch * SSD1289->FontXsize + x] & (1 << y)) ? SSD1289->Color : SSD1289->BackColor;
-
-	SSD1289_DrawPic(StartX, StartY, SSD1289->FontXsize, SSD1289->FontYsize, SSD1289->Fontbuffer);
+	SSD1289_SetWindows(StartX, StartY, SSD1289->FontStruct->FontXsize, SSD1289->FontStruct->FontYsize);
+	SSD1289->RamPrepare(); /* Prepare to write GRAM */	
+	for (x = 0; x != SSD1289->FontStruct->FontXsize; x++)
+		for (y = 0; y != SSD1289->FontStruct->FontYsize; y++)
+			SSD1289->WriteRam ((SSD1289->FontStruct->Font[Ch * SSD1289->FontStruct->FontXsize + x] & (1 << y)) ? SSD1289->Color : SSD1289->BackColor);
 }
 
 /* Private functions */
@@ -96,13 +95,13 @@ uint16_t SSD1289_PrintText (uint16_t StartX, uint16_t StartY, char * Text)
 		if (* Text == '\n')
 		{	
 			StartX = X;
-			StartY += SSD1289->FontYsize;
+			StartY += SSD1289->FontStruct->FontYsize;
 			Row += 1;
 		}
 		else
 		{
 			SSD1289_PrintChar(StartX, StartY, * Text);
-			StartX += SSD1289->FontXsize;			
+			StartX += SSD1289->FontStruct->FontXsize;			
 		}
 		Text++;
 	}

@@ -29,7 +29,7 @@ void PIN_OUT_PP (GPIO_TypeDef * GPIOx,u16 PINx)
 {
 	GPIO_InitTypeDef GPIO_InitStruct;
 	GPIO_InitStruct.GPIO_Pin=PINx;
-	GPIO_InitStruct.GPIO_Speed=GPIO_Speed_2MHz;
+	GPIO_InitStruct.GPIO_Speed=GPIO_Speed_50MHz;
 	GPIO_InitStruct.GPIO_Mode=GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOx, &GPIO_InitStruct);
 }
@@ -81,5 +81,11 @@ void PIN_OUT_AF_OD (GPIO_TypeDef * GPIOx,u16 PINx)
 	GPIO_InitStruct.GPIO_Pin=PINx;
 	GPIO_InitStruct.GPIO_Speed=GPIO_Speed_50MHz;
 	GPIO_InitStruct.GPIO_Mode=GPIO_Mode_AF_OD;
+	GPIO_Init(GPIOx, &GPIO_InitStruct);
+}
+
+void gpio_init (GPIO_TypeDef * GPIOx, u16 PINx, GPIOSpeed_TypeDef GPIO_Speed, GPIOMode_TypeDef GPIO_Mode)
+{
+	GPIO_InitTypeDef GPIO_InitStruct = { PINx, GPIO_Speed, GPIO_Mode };
 	GPIO_Init(GPIOx, &GPIO_InitStruct);
 }

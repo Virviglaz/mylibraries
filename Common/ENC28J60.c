@@ -153,6 +153,7 @@
 #define TXSTOP_INIT         0x11FF  // end of TX buffer
 //--------------------------------------------------
 #define MAX_FRAMELEN      1500
+#define MAX_RESET_ATMP		1000
 //--------------------------------------------------
 
 /* Local driver */
@@ -182,8 +183,11 @@ enc28j60_t * enc28j60_Init (enc28j60_t * driver)
 	if (!enc28j60) return 0;
 	
 	enc28j60_writeOp(ENC28J60_SOFT_RESET, 0, ENC28J60_SOFT_RESET);
-	while(!enc28j60_readOp(ENC28J60_READ_CTRL_REG, ESTAT) & ESTAT_CLKRDY){}
 	
+	uint32_t atmp = MAX_RESET_ATMP;
+	while(!enc28j60_readOp(ENC28J60_READ_CTRL_REG, ESTAT) & ESTAT_CLKRDY && --atmp){}
+	if (atmp == 0) return 0;
+		
 	enc28j60_writeReg(ERXST, RXSTART_INIT);
 	enc28j60_writeReg(ERXRDPT, RXSTART_INIT);
 	enc28j60_writeReg(ERXND, RXSTOP_INIT);
