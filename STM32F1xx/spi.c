@@ -1,95 +1,70 @@
 #include "spi.h"
 #include <stdio.h>
 
-u8 SPI_ReadByte(SPI_TypeDef* SPIx, u8 byte);	
-void SPI_Select (GPIO_TypeDef * GPIOx,u16 PINx);
-void SPI_Deselect (SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx, u16 PINx);
+static void Init_RCC (SPI_TypeDef * SPIx);
+static void Init_GPIO(SPI_TypeDef * SPIx);
 
-void SPI_Init_All (SPI_TypeDef * SPIx, u8 SPI_CLK_HIGH)
+void SPIxInitAll (SPI_TypeDef * SPIx, uint16_t Prescaler, bool isIdleCLK_High)
 {
 	Init_RCC(SPIx);
 	Init_GPIO(SPIx);
-	SPI_CLK_HIGH ? Init_SPI_CLKH(SPIx) : Init_SPI_CLKL(SPIx);
+	Init_SPI(SPIx, Prescaler, isIdleCLK_High);
 }
 
-/* Support old versions */
-void SPI_init_all (SPI_TypeDef * SPIx)
+static void Init_RCC (SPI_TypeDef * SPIx)
 {
-	Init_RCC(SPIx);
-	Init_GPIO(SPIx);
-	Init_SPI_CLKL(SPIx);
-}
-
-void Init_RCC (SPI_TypeDef* SPIx)
-{
-	if (SPIx == SPI1)
-		{
-			RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1,ENABLE);
-			RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_AFIO, ENABLE);
-		}
-	if (SPIx == SPI2)
-		{
-			RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI2,ENABLE);
-			RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_AFIO, ENABLE);
-		}
-	if (SPIx == SPI3){RCC_APB2PeriphClockCmd(RCC_APB1Periph_SPI3,ENABLE);}
-}
-
-void Init_GPIO(SPI_TypeDef * SPIx)
-{
-	GPIO_InitTypeDef GPIO_InitStruct;
 	if (SPIx == SPI1)
 	{
-		GPIO_InitStruct.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7;		 //alternative func for SPI
-		GPIO_InitStruct.GPIO_Mode = GPIO_Mode_AF_PP;
-		GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
-		GPIO_Init(GPIOA, &GPIO_InitStruct);
+		RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1,ENABLE);
+		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_AFIO, ENABLE);
 	}
+	
 	if (SPIx == SPI2)
 	{
-		GPIO_InitStruct.GPIO_Pin = GPIO_Pin_13|GPIO_Pin_14|GPIO_Pin_15;	 //alternative func for SPI
-		GPIO_InitStruct.GPIO_Mode = GPIO_Mode_AF_PP;
-		GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
-		GPIO_Init(GPIOB, &GPIO_InitStruct);
+		RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI2,ENABLE);
+		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_AFIO, ENABLE);
+	}
+	
+	if (SPIx == SPI3) //not supported yet
+	{
+		RCC_APB2PeriphClockCmd(RCC_APB1Periph_SPI3,ENABLE);
 	}
 }
 
-void Init_SPI_CLKL	(SPI_TypeDef * SPIx)
+static void Init_GPIO(SPI_TypeDef * SPIx)
 {
-	SPI_InitTypeDef SPI_InitStruct;
-	SPI_InitStruct.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
-	SPI_InitStruct.SPI_Mode = SPI_Mode_Master;
-	SPI_InitStruct.SPI_DataSize = SPI_DataSize_8b;
-	SPI_InitStruct.SPI_CPOL = SPI_CPOL_Low;
-	SPI_InitStruct.SPI_CPHA = SPI_CPHA_1Edge;
-	SPI_InitStruct.SPI_NSS = SPI_NSS_Soft;
-	SPI_InitStruct.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_256;
-	SPI_InitStruct.SPI_FirstBit = SPI_FirstBit_MSB;
-	SPI_InitStruct.SPI_CRCPolynomial = 7;
+	GPIO_InitTypeDef GPIO_InitStruct = {.GPIO_Mode = GPIO_Mode_AF_PP, .GPIO_Speed = GPIO_Speed_50MHz };
+	
+	if (SPIx == SPI1)	
+		GPIO_InitStruct.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7;		 //alternative func for SPI1
+
+	if (SPIx == SPI2)	
+		GPIO_InitStruct.GPIO_Pin = GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;	 //alternative func for SPI2
+
+	GPIO_Init(GPIOA, &GPIO_InitStruct);
+}
+
+void Init_SPI	(SPI_TypeDef * SPIx, uint16_t Prescaler, bool isIdleCLK_High)
+{
+	SPI_InitTypeDef SPI_InitStruct = 
+	{	
+		.SPI_Direction = SPI_Direction_2Lines_FullDuplex,
+		.SPI_Mode = SPI_Mode_Master,
+		.SPI_DataSize = SPI_DataSize_8b,
+		.SPI_CPOL = isIdleCLK_High ? SPI_CPOL_High :SPI_CPOL_Low,
+		.SPI_CPHA = isIdleCLK_High ? SPI_CPHA_2Edge : SPI_CPHA_1Edge,
+		.SPI_NSS = SPI_NSS_Soft,
+		.SPI_BaudRatePrescaler = Prescaler,
+		.SPI_FirstBit = SPI_FirstBit_MSB,
+		.SPI_CRCPolynomial = 7,
+	};
+	
 	SPI_Init(SPIx, &SPI_InitStruct);
-
 	SPI_Cmd(SPIx, ENABLE);
 }
 
 
-void Init_SPI_CLKH	(SPI_TypeDef * SPIx)
-{
-	SPI_InitTypeDef SPI_InitStruct;
-	SPI_InitStruct.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
-	SPI_InitStruct.SPI_Mode = SPI_Mode_Master;
-	SPI_InitStruct.SPI_DataSize = SPI_DataSize_8b;
-	SPI_InitStruct.SPI_CPOL = SPI_CPOL_High;
-	SPI_InitStruct.SPI_CPHA = SPI_CPHA_1Edge;
-	SPI_InitStruct.SPI_NSS = SPI_NSS_Soft;
-	SPI_InitStruct.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_2;
-	SPI_InitStruct.SPI_FirstBit = SPI_FirstBit_MSB;
-	SPI_InitStruct.SPI_CRCPolynomial = 7;
-	SPI_Init(SPIx, &SPI_InitStruct);
-
-	SPI_Cmd(SPIx, ENABLE);
-}
-
-u8 SPI_ReadByte(SPI_TypeDef * SPIx, u8 byte)
+__inline static u8 SPI_ReadByte(SPI_TypeDef * SPIx, u8 byte)
 {
 	u8 res;
 	
@@ -115,18 +90,20 @@ u8 SPI_ReadByte(SPI_TypeDef * SPIx, u8 byte)
   return res;
 }
 
-void SPI_Select (GPIO_TypeDef * GPIOx, u16 PINx)
+__inline static void SPI_Select (GPIO_TypeDef * GPIOx, u16 PINx)
 {
+	PIN_OFF(GPIOx, PINx);
+
 	#ifdef DEBUG_SPI
 		printf("SPI: CS low\n");
-	#endif
-	PIN_OFF(GPIOx, PINx);
+	#endif	
 }
 
-void SPI_Deselect (SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx,u16 PINx)
+__inline static void SPI_Deselect (SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx,u16 PINx)
 {
 	while (SPIx->SR & SPI_SR_BSY);
 	PIN_ON(GPIOx, PINx);
+	
 	#ifdef DEBUG_SPI
 		printf("SPI: CS high\n\n");
 	#endif
