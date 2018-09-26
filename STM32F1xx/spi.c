@@ -9,10 +9,7 @@ void SPI_Init_All (SPI_TypeDef * SPIx, u8 SPI_CLK_HIGH)
 {
 	Init_RCC(SPIx);
 	Init_GPIO(SPIx);
-	if (SPI_CLK_HIGH)
-		Init_SPI_CLKH(SPIx);
-	else
-		Init_SPI_CLKL(SPIx);
+	SPI_CLK_HIGH ? Init_SPI_CLKH(SPIx) : Init_SPI_CLKL(SPIx);
 }
 
 /* Support old versions */
@@ -43,13 +40,9 @@ void Init_GPIO(SPI_TypeDef * SPIx)
 	GPIO_InitTypeDef GPIO_InitStruct;
 	if (SPIx == SPI1)
 	{
-		GPIO_InitStruct.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_7;		 //alternative func for SPI
+		GPIO_InitStruct.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7;		 //alternative func for SPI
 		GPIO_InitStruct.GPIO_Mode = GPIO_Mode_AF_PP;
 		GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
-		GPIO_Init(GPIOA, &GPIO_InitStruct);
-		
-		GPIO_InitStruct.GPIO_Pin = GPIO_Pin_6;
-		GPIO_InitStruct.GPIO_Mode = GPIO_Mode_IPU;
 		GPIO_Init(GPIOA, &GPIO_InitStruct);
 	}
 	if (SPIx == SPI2)
@@ -68,9 +61,9 @@ void Init_SPI_CLKL	(SPI_TypeDef * SPIx)
 	SPI_InitStruct.SPI_Mode = SPI_Mode_Master;
 	SPI_InitStruct.SPI_DataSize = SPI_DataSize_8b;
 	SPI_InitStruct.SPI_CPOL = SPI_CPOL_Low;
-	SPI_InitStruct.SPI_CPHA = SPI_CPHA_2Edge;
+	SPI_InitStruct.SPI_CPHA = SPI_CPHA_1Edge;
 	SPI_InitStruct.SPI_NSS = SPI_NSS_Soft;
-	SPI_InitStruct.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_128;
+	SPI_InitStruct.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_256;
 	SPI_InitStruct.SPI_FirstBit = SPI_FirstBit_MSB;
 	SPI_InitStruct.SPI_CRCPolynomial = 7;
 	SPI_Init(SPIx, &SPI_InitStruct);

@@ -2,6 +2,7 @@
 #define SSD1289_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /* LCD color */
 #define White          0xFFFF
@@ -17,14 +18,18 @@
 
 typedef struct
 {
+	uint8_t FontXsize, FontYsize;
+	const uint8_t * Font;
+}Font_StructTypeDef;
+
+typedef struct
+{
 	void (*WriteReg) (uint8_t LCD_Reg, uint16_t LCD_RegValue);
 	uint16_t (*ReadReg) (uint8_t LCD_Reg);
-	void (*DelayFunc) (uint16_t ms);
 	void (*RamPrepare) (void);
 	void (*WriteRam) (uint16_t RGB);
-	uint8_t * Font;
-	uint16_t * Fontbuffer;
-	uint8_t FontXsize, FontYsize;
+	bool Xmirror, Ymirror;
+	Font_StructTypeDef * FontStruct;
 	uint16_t Color, BackColor;
 }SSD1289_StructTypeDef;
 

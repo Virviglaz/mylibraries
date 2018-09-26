@@ -113,3 +113,4 @@ void PIN_IN_PU (GPIO_TypeDef * GPIOx, u16 PINx);
 void PIN_IN_PD (GPIO_TypeDef * GPIOx, u16 PINx);
 void PIN_OUT_AF_PP (GPIO_TypeDef * GPIOx,u16 PINx);
 void PIN_OUT_AF_OD (GPIO_TypeDef * GPIOx,u16 PINx);
+void gpio_init (GPIO_TypeDef * GPIOx, u16 PINx, GPIOSpeed_TypeDef GPIO_Speed, GPIOMode_TypeDef GPIO_Mode);
