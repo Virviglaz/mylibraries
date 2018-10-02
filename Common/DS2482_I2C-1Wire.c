@@ -2,7 +2,7 @@
 
 OneWireErrorTypeDef DS2482_Init (DS2482_StructTypeDef * DS2482_InitStruct)
 {
-		char config = DS2482_InitStruct->Active_PullUp | DS2482_InitStruct->BusSpeed |
+		uint8_t config = DS2482_InitStruct->Active_PullUp | DS2482_InitStruct->BusSpeed |
 			DS2482_InitStruct->Strong_PullUp | (1 << 5);
 
 		// Reset chip
@@ -16,25 +16,26 @@ OneWireErrorTypeDef DS2482_Init (DS2482_StructTypeDef * DS2482_InitStruct)
 
 OneWireErrorTypeDef One_Wire_Reset (DS2482_StructTypeDef * DS2482_InitStruct)
 {
-	char value = DS2482_BusReset;
-	return (OneWireErrorTypeDef)DS2482_InitStruct->WriteWithFlagPooling(0, &value, 10, Status_1WB);
+	uint8_t value = DS2482_BusReset;
+	OneWireErrorTypeDef result = (OneWireErrorTypeDef)DS2482_InitStruct->WriteWithFlagPooling(0, &value, DS2482_InitStruct->ReadAttemps, Status_PPD); 
+	return result == One_Wire_Success ? One_Wire_Success : value & Status_PPD ? One_Wire_Success : One_Wire_Error_No_Echo;
 }
 
-OneWireErrorTypeDef One_Wire_WriteByte (DS2482_StructTypeDef * DS2482_InitStruct, char value)
+OneWireErrorTypeDef One_Wire_WriteByte (DS2482_StructTypeDef * DS2482_InitStruct, uint8_t value)
 {
 	return (OneWireErrorTypeDef)DS2482_InitStruct->WriteWithFlagPooling(DS2482_1WWB, &value, DS2482_InitStruct->ReadAttemps, Status_1WB);
 }
 
-char One_Wire_ReadByte (DS2482_StructTypeDef * DS2482_InitStruct)
+uint8_t One_Wire_ReadByte (DS2482_StructTypeDef * DS2482_InitStruct)
 {
-	const char data[2] = { DS2482_DataReg, DS2482_DataReg };
-	char res;
+	const uint8_t data[2] = { DS2482_DataReg, DS2482_DataReg };
+	uint8_t res;
 	
 	// read byte to DS2482 and wait while ready bit not set
 	DS2482_InitStruct->WriteWithFlagPooling(DS2482_1WRB, 0, DS2482_InitStruct->ReadAttemps, Status_1WB);
 	
 	// get readed value
-	DS2482_InitStruct->Read((char*)data, sizeof(data), &res, 1);
+	DS2482_InitStruct->Read((uint8_t*)data, sizeof(data), &res, 1);
 	
 	return res;
 }

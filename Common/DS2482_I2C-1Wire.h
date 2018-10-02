@@ -57,16 +57,16 @@ typedef struct
 	Active_PullUpTypeDef Active_PullUp;
 	Strong_PullUpTypeDef Strong_PullUp;
 	OneWireBusSpeedTypeDef BusSpeed;
-	char ReadAttemps; //10..100
+	uint8_t ReadAttemps; //10..100
 
 	/* I2C Interface Functions */
-	char (*Write)(char reg, char * buf, char size);
-	char (*Read) (char * reg, char regsize, char * buf, char size);
-	char (*WriteWithFlagPooling) (char reg, char * value, char attempts, char flagToPooling);
+	uint8_t (*Write)(uint8_t reg, uint8_t * buf, uint8_t size);
+	uint8_t (*Read) (uint8_t * reg, uint8_t regsize, uint8_t * buf, uint8_t size);
+	uint8_t (*WriteWithFlagPooling) (uint8_t reg, uint8_t * value, uint8_t attempts, uint8_t flagToPooling);
 }DS2482_StructTypeDef;
 
 OneWireErrorTypeDef DS2482_Init (DS2482_StructTypeDef * DS2482_InitStruct);
 OneWireErrorTypeDef One_Wire_Reset (DS2482_StructTypeDef * DS2482_InitStruct);
-OneWireErrorTypeDef One_Wire_WriteByte (DS2482_StructTypeDef * DS2482_InitStruct, char value);
-char One_Wire_ReadByte (DS2482_StructTypeDef * DS2482_InitStruct);
+OneWireErrorTypeDef One_Wire_WriteByte (DS2482_StructTypeDef * DS2482_InitStruct, uint8_t value);
+uint8_t One_Wire_ReadByte (DS2482_StructTypeDef * DS2482_InitStruct);
 #endif
