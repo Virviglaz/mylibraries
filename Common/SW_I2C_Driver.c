@@ -158,7 +158,7 @@ I2C_Result SW_I2C_RD_POOLING_ACK (uint8_t address, uint8_t reg, uint8_t * buf, u
 
 uint8_t SW_I2C_WriteWithFlagPooling (uint8_t address, uint8_t reg, uint8_t * value, uint8_t attempts, uint8_t flagToPooling)
 {
-	uint8_t res = I2C_SUCCESS, data;
+	uint8_t res = I2C_SUCCESS;
 
 	/* Check interface exist */
 	if (SW_I2C_Driver == 0) return I2C_INTERFACE_ERROR;
@@ -180,8 +180,8 @@ uint8_t SW_I2C_WriteWithFlagPooling (uint8_t address, uint8_t reg, uint8_t * val
 		
 		do //flag pooling
 		{
-			data = SW_I2C_Read(1);
-		}while(attempts-- && (data & flagToPooling));
+			* value = SW_I2C_Read(1);
+		}while(--attempts && ((* value & flagToPooling) == 0));
 		
 		SW_I2C_Read(0);
 	}
