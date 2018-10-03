@@ -30,18 +30,18 @@ typedef enum
 
 typedef struct
 {
-	char (*ResetFunc) (void);
-	char (*WriteByte) (char value);
-	char (*ReadByte) (void);
+	uint8_t (*ResetFunc) (void);
+	uint8_t (*WriteByte) (uint8_t value);
+	uint8_t (*ReadByte) (void);
 }One_Wire_InterfaceTypeDef;
 
 typedef struct
 {
 	One_Wire_InterfaceTypeDef * One_Wire_Interface;
-	unsigned char SN[8];
-	signed int Temp16;
-	signed char Th;
-	signed char Tl;
+	uint8_t SN[8];
+	int16_t Temp16;
+	int8_t Th;
+	int8_t Tl;
 	DS18B20_ResolutionTypeDef Resolution;
 }DS18B20_TypeDef;
 
@@ -51,11 +51,11 @@ typedef struct
 	float Temp;
 }DS18B20_single_TypeDef;
 
-char DS18B20_Configure (DS18B20_TypeDef * DS18B20);
-char DS18B20_Start_Conversion (DS18B20_TypeDef * DS18B20);
-char DS18B20_Get_Conversion_Result (DS18B20_TypeDef * DS18B20);
-char DS18B20_Start_Conversion_Skip_Rom (DS18B20_single_TypeDef * DS18B20);
-char DS18B20_Read_Skip_Rom (DS18B20_single_TypeDef * DS18B20);
+uint8_t DS18B20_Configure (DS18B20_TypeDef * DS18B20);
+uint8_t DS18B20_Start_Conversion (DS18B20_TypeDef * DS18B20);
+uint8_t DS18B20_Get_Conversion_Result (DS18B20_TypeDef * DS18B20);
+uint8_t DS18B20_Start_Conversion_Skip_Rom (DS18B20_single_TypeDef * DS18B20);
+uint8_t DS18B20_Read_Skip_Rom (DS18B20_single_TypeDef * DS18B20);
 float DS18B20_ConvertTemp (DS18B20_TypeDef * DS18B20);
 unsigned int DS18B20_GetConversionDelayValue (DS18B20_TypeDef * DS18B20);
 

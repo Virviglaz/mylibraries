@@ -304,11 +304,11 @@ uint32_t atoh (char * str)
     return result;
 }
 
-uint8_t getparams (char * source, char delim, char ** buffer, const uint8_t size)
+uint8_t getparams (char * source, char delim, char ** buffer, const uint8_t size, uint8_t maxSize)
 {
 	uint8_t i = 0;
 	if (*source) buffer[i++] = source;
-	while(*source++)
+	while(*source++ && --maxSize)
 		if (*source == delim)
 		{
 			buffer[i++] = source + 1;

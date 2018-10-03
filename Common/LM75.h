@@ -1,15 +1,17 @@
 #ifndef LM75_H
 #define LM75_H
 
+#include <stdint.h>
+
 typedef struct
 {
 	/* Variables */
 	float T;
-	char I2C_Adrs;
+	uint8_t I2C_Adrs;
 	
 	/* Functions */
-	char (*WriteReg)(char I2C_Adrs, char Reg, char Value);
-	char (*ReadReg) (char I2C_Adrs, char Reg, char * buf, char size);
+	uint8_t (*WriteReg)(uint8_t I2C_Adrs, uint8_t Reg, uint8_t Value);
+	uint8_t (*ReadReg) (uint8_t I2C_Adrs, uint8_t Reg, uint8_t * buf, uint8_t size);
 	
 }LM75_StructTypeDef;
 
@@ -29,12 +31,12 @@ typedef enum
 
 typedef struct
 {
-	char (* Power) 			(LM75_StructTypeDef * LM75_Struct, LM75_PowerTypeDef Enable);
-	char (* GetResult)	(LM75_StructTypeDef * LM75_Struct);
+	uint8_t (* Power) 			(LM75_StructTypeDef * LM75_Struct, LM75_PowerTypeDef Enable);
+	uint8_t (* GetResult)	(LM75_StructTypeDef * LM75_Struct);
 }LM75_ClassTypeDef;
 
-char LM75_PowerOn (LM75_StructTypeDef * LM75_Struct, LM75_PowerTypeDef Enable);
-char LM75_GetResult (LM75_StructTypeDef * LM75_Struct);
+uint8_t LM75_PowerOn (LM75_StructTypeDef * LM75_Struct, LM75_PowerTypeDef Enable);
+uint8_t LM75_GetResult (LM75_StructTypeDef * LM75_Struct);
 
 static const LM75_ClassTypeDef LM75 = {LM75_PowerOn, LM75_GetResult};
 #endif
