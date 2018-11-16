@@ -101,10 +101,9 @@ ILI9341_ID_t * ILI9341S_GetId (void)
 
 void ILI9341S_PrintChar (uint16_t StartX, uint16_t StartY, char Ch)
 {
-	uint8_t x, y;
 	ILI9341S_SetWindow(StartX, StartY, ILI9341->FontStruct->FontXsize, ILI9341->FontStruct->FontYsize);
-	for (x = 0; x != ILI9341->FontStruct->FontXsize; x++)
-		for (y = 0; y != ILI9341->FontStruct->FontYsize; y++)
+	for (uint8_t x = 0; x != ILI9341->FontStruct->FontXsize; x++)
+		for (uint8_t y = 0; y != ILI9341->FontStruct->FontYsize; y++)
 			ILI9341S_WriteData ((ILI9341->FontStruct->Font[Ch * ILI9341->FontStruct->FontXsize + x] & (1 << y)) ? ILI9341->Color : ILI9341->BackColor);
 }
 
@@ -137,15 +136,15 @@ void ILI9341S_Pixel (uint16_t x, uint16_t y, uint16_t color)
 
 void ILI9341S_vLine (uint16_t x0, uint16_t y0, uint16_t y1, uint16_t color)
 {
-	ILI9341S_SetWindow(x0, y0, 1, y1);
-	for (uint16_t i = 0; i < y1 - y0; i++)
+	int16_t dy = y1 > y0 ? y1 - y0 : y0 - y1;
+	ILI9341S_SetWindow(x0, y0, 1, dy);
+	for (int32_t i = 0; i < dy; i++)
 		ILI9341S_WriteData(color);
 }
 
 void ILI9341S_Circle(int16_t x0, int16_t y0, int16_t r, uint16_t color)
 {
-
-    int16_t x = -r, y = 0, err = 2-2 * r, e2;
+    int16_t x = -r, y = 0, err = 2 - 2 * r, e2;
     do {
         ILI9341S_Pixel(x0 - x, y0 + y, color);
         ILI9341S_Pixel(x0 + x, y0 + y, color);
