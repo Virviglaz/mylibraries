@@ -16,6 +16,11 @@ u16 PIN_SYG(GPIO_TypeDef * GPIOx, u16 PINx)
 	return GPIOx->IDR & PINx;
 }
 
+void PIN_SET(GPIO_TypeDef * GPIOx, u16 PINx, u8 State)
+{
+	State ? PIN_ON(GPIOx, PINx) : PIN_OFF(GPIOx, PINx);
+}
+
 void PIN_IN (GPIO_TypeDef * GPIOx,u16 PINx)
 {
 	GPIO_InitTypeDef GPIO_InitStruct;
