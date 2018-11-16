@@ -102,9 +102,16 @@
 #define PF14		GPIOF, GPIO_Pin_14
 #define PF15		GPIOF, GPIO_Pin_15
 
+typedef struct
+{
+	GPIO_TypeDef * GPIOx;
+	u16 PINx;
+}PIN_TypeDef;
+
 void PIN_ON(GPIO_TypeDef * GPIOx,u16 PINx);
 void PIN_OFF(GPIO_TypeDef * GPIOx,u16 PINx);
 u16 PIN_SYG(GPIO_TypeDef * GPIOx, u16 PINx);
+void PIN_SET(GPIO_TypeDef * GPIOx, u16 PINx, u8 State);
 void PIN_IN (GPIO_TypeDef * GPIOx,u16 PINx);
 void PIN_OUT_PP (GPIO_TypeDef * GPIOx,u16 PINx);
 void PIN_OUT_OD (GPIO_TypeDef * GPIOx,u16 PINx);
