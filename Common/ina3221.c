@@ -4,6 +4,8 @@
 
 // local driver pointer
 static int3221_t * ina3221 = 0; 
+static float convert_from_raw_data (int16_t raw_value);
+static int16_t convert_from_float (float value);
 
 /**
  * Install driver and initialize chip
@@ -12,10 +14,13 @@ static int3221_t * ina3221 = 0;
 int3221_t * INA3221_Init (int3221_t * driver)
 {
 	if (driver) ina3221 = driver;
-	
-	// reverse bytes order msb, lsb
+
+#ifdef ORDER_BIG_ENDIAN
+	uint8_t * config_value = (uint8_t*)&ina3221->config;
+#else	
 	uint8_t config_value[2] = { ((uint8_t*)&ina3221->config)[1], ((uint8_t*)&ina3221->config)[0] };
-		
+#endif		
+	
 	ina3221->wr(ina3221->i2c_address, INA3221_CONFIG_REG, (void*)&config_value, sizeof(uint16_t));
 	
 	return ina3221;
@@ -64,36 +69,90 @@ int3221_t * INA3221_StructInit (int3221_t * driver, float shunt_resistance)
 	return ina3221;
 }
 
+/**
+ * Reading bus voltage [V]
+ * Channel (0, 1 or 2) == INA3221_CHx
+ */
 float INA3221_ReadBusVoltage (uint8_t channel)
 {
 	const uint8_t channels[] = { INA3221_CH1_BUS_V, INA3221_CH2_BUS_V, INA3221_CH3_BUS_V };
 	
-	if (channel > 2) return 0;
-	
 	int16_t raw_value;
 	
-	ina3221->rd(ina3221->i2c_address, channels[channel], (void*)&raw_value, sizeof(uint16_t));
-	
-	raw_value = be16toword(raw_value);
-	
-	raw_value /= 8; //remove last 3 bits
-	
-	return (float)raw_value * 8 / 1000;
+	ina3221->rd(ina3221->i2c_address, channels[channel > 2 ? 0 : channel], (void*)&raw_value, sizeof(uint16_t));
+
+	return convert_from_raw_data(raw_value) * 8 / 1000;
 }
 
+/**
+ * Reading load current [A]
+ * Channel (0, 1 or 2) == INA3221_CHx
+ */
 float INA3221_ReadShuntCurrent (uint8_t channel)
 {
-	const uint8_t channels[] = { INA3221_CH1_SHUNT_V, INA3221_CH2_SHUNT_V, INA3221_CH3_SHUNT_V };
-	
-	if (channel > 2) return 0;
-	
+	const uint8_t channels[] = { INA3221_CH1_SHUNT_I, INA3221_CH2_SHUNT_I, INA3221_CH3_SHUNT_I };
+
 	int16_t raw_value;
 	
-	ina3221->rd(ina3221->i2c_address, channels[channel], (void*)&raw_value, sizeof(uint16_t));
+	ina3221->rd(ina3221->i2c_address, channels[channel > 2 ? 0 : channel], (void*)&raw_value, sizeof(uint16_t));
 	
-	raw_value = be16toword(raw_value);
+	return convert_from_raw_data(raw_value) * 40 / 1000000 / ina3221->shunt[channel];
+}
+
+/**
+ * Set critial-alert limit [A]
+ * Channel (0, 1 or 2) == INA3221_CHx
+ */
+void INA3221_SetCriticalAlertCurrent (float current, uint8_t channel)
+{
+	const uint8_t channels[] = { INA3221_CH1_CRIT_I, INA3221_CH2_CRIT_I, INA3221_CH3_CRIT_I };
 	
-	raw_value /= 8; //remove last 3 bits
+	int16_t raw_value = convert_from_float(current / 40 * 1000000 * ina3221->shunt[channel]);
 	
-	return (float)raw_value * 40 / 1000000 / ina3221->shunt[channel];
+	ina3221->wr(ina3221->i2c_address, channels[channel > 2 ? 0 : channel], (void*)&raw_value, sizeof(uint16_t));
+}
+
+/**
+ * Set warning-alert limit [A]
+ * Channel (0, 1 or 2) == INA3221_CHx
+ */
+void INA3221_SetWarningAlertCurrent (float current, uint8_t channel)
+{
+	const uint8_t channels[] = { INA3221_CH1_WARN_I, INA3221_CH2_WARN_I, INA3221_CH3_WARN_I };
+	
+	int16_t raw_value = convert_from_float(current / 40 * 1000000 * ina3221->shunt[channel]);
+	
+	ina3221->wr(ina3221->i2c_address, channels[channel > 2 ? 0 : channel], (void*)&raw_value, sizeof(uint16_t));
+}
+
+/**
+ * Set power valid limits [V]
+ */
+void INA3221_SetPowerValidLimits (float hi_lim, float lo_lim)
+{
+	int16_t raw_value = convert_from_float(hi_lim / 8 * 1000);
+	
+	ina3221->wr(ina3221->i2c_address, INA3221_POWER_UPPER_LIM, (void*)&raw_value, sizeof(uint16_t));
+	
+	raw_value = convert_from_float(lo_lim / 8 * 1000);
+	
+	ina3221->wr(ina3221->i2c_address, INA3221_POWER_LOWER_LIM, (void*)&raw_value, sizeof(uint16_t));
+}
+
+static float convert_from_raw_data (int16_t raw_value)
+{
+#ifdef ORDER_BIG_ENDIAN
+	return (float)(raw_value / 8);
+#else
+	return (float)(be16toword(raw_value) / 8);
+#endif
+}
+
+static int16_t convert_from_float (float value)
+{
+#ifdef ORDER_BIG_ENDIAN
+	return (int16_t)value * 8;
+#else
+	return be16toword((int16_t)value * 8);
+#endif	
 }
