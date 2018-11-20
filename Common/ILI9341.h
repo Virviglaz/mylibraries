@@ -122,10 +122,12 @@ typedef struct
 	Font_StructTypeDef * FontStruct;
 	
 	// text color
-	uint16_t Color, BackColor;	
+	uint16_t Color, BackColor;
+	
+	uint16_t width, height;
 }ILI9341_t;
 
-ILI9341_t * ILI9341_Init (ILI9341_t * driver);
+ILI9341_t * ILI9341_Init (ILI9341_t * driver, uint8_t orientation);
 void ILI9341S_SetWindow (uint16_t x, uint16_t y, uint16_t w, uint16_t h);
 void ILI9341S_Clear (uint16_t color);
 void ILI9341S_WriteData (uint16_t data);
@@ -134,6 +136,9 @@ void ILI9341S_PrintChar (uint16_t StartX, uint16_t StartY, char Ch);
 uint16_t ILI9341S_PrintText (uint16_t StartX, uint16_t StartY, const char * Text);
 void ILI9341S_Pixel (uint16_t x, uint16_t y, uint16_t color);
 void ILI9341S_vLine (uint16_t x0, uint16_t y0, uint16_t y1, uint16_t color);
+void ILI9341S_hLine (uint16_t x0, uint16_t y0, uint16_t x1, uint16_t color);
 void ILI9341S_Circle(int16_t x0, int16_t y0, int16_t r, uint16_t color);
 void ILI9341S_FillCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color);
+void ILI9341S_Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color);
+void ILI9341S_Picture (uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t * pic);
 #endif

@@ -6,6 +6,7 @@ struct fb_var_screeninfo vinfo; //can be used as public
 static int framebuffer = 0;
 static uint32_t screenSize;
 static uint32_t * imagebuffer;
+static Font_StructTypeDef * font = 0;
 
 static struct
 {
@@ -15,7 +16,7 @@ static struct
 } window = { .windowInit = false };
 
 
-const char * frameBufferInit (const char * io)
+const char * FrameBufferInit (const char * io)
 {
 	if (io == NULL) io = "/dev/fb0"; //default to main screen
 	
@@ -37,30 +38,30 @@ const char * frameBufferInit (const char * io)
 	return "OK";
 }
 
-void frameBufferDeInit (void)
+void FrameBufferDeInit (void)
 {
 	munmap(imagebuffer, screenSize);
 	close(framebuffer);
 }
 
-void ClearScreen (uint32_t Color)
+void ClearScreen (uint32_t color)
 {
 	for (uint32_t i = 0; i < (vinfo.xres * vinfo.yres); i++)
-		*(imagebuffer + i) = Color;
+		*(imagebuffer + i) = color;
 }
 
-void SetWindow (uint16_t StartX, uint16_t StartY, uint16_t SizeX, uint16_t SizeY)
+void SetWindow (uint16_t x0, uint16_t y0, uint16_t size_x, uint16_t size_y)
 {
 	window.windowInit = true;
-	window.ptr = imagebuffer + (StartX + vinfo.xres * StartY);
-	window.x_max = SizeX;
+	window.ptr = imagebuffer + (x0 + vinfo.xres * y0);
+	window.x_max = size_x;
 }
 
-void FillWindow (uint32_t Color)
+void FillWindow (uint32_t color)
 {
 	if (window.windowInit == false) return;
 
-	*window.ptr++ = Color;
+	*window.ptr++ = color;
 	window.x++;
 
 	if (window.x < window.x_max)
@@ -70,70 +71,122 @@ void FillWindow (uint32_t Color)
 	window.ptr += vinfo.xres - window.x_max;
 }
 
-void FlushWindow (uint16_t StartX, uint16_t StartY, uint16_t SizeX, uint16_t SizeY, uint32_t * color)
+void FlushWindow (uint16_t x0, uint16_t y0, uint16_t size_x, uint16_t size_y, uint32_t * color)
 {
-	SetWindow(StartX, StartY, SizeX, SizeY);
-	for (uint32_t i = 0; i < SizeX * SizeY; i++)
+	SetWindow(x0, y0, size_x, size_y);
+	for (uint32_t i = 0; i < size_x * size_y; i++)
 		FillWindow(color[i]);
 }
 
-void DrawPic32 (uint16_t StartX, uint16_t StartY, uint16_t SizeX, uint16_t SizeY, uint32_t * Pic)
+void DrawPic32 (uint16_t x0, uint16_t y0, uint16_t size_x, uint16_t size_y, uint32_t * pic)
 {
-	for (uint16_t y = 0; y < SizeY; y++)
-		for (uint16_t x = 0; x < SizeX; x++)
-			*(imagebuffer + (x + StartX + vinfo.xres * (StartY + y))) = *Pic++;
+	for (uint16_t y = 0; y < size_y; y++)
+		for (uint16_t x = 0; x < size_x; x++)
+			*(imagebuffer + (x + x0 + vinfo.xres * (y0 + y))) = *pic++;
 }
 
-void DrawPixel32 (uint16_t StartX, uint16_t StartY, uint32_t Color)
+void DrawPixel32 (uint16_t x0, uint16_t y0, uint32_t color)
 {
-	*(imagebuffer + (StartX + vinfo.xres * StartY )) = Color;
+	*(imagebuffer + (x0 + vinfo.xres * y0 )) = color;
 }
 
-void DrawHorizontalLine32 (uint16_t StartX, uint16_t StartY, uint16_t Len, uint32_t Color)
+void DrawHorizontalLine32 (uint16_t x0, uint16_t y0, uint16_t x1, uint32_t color)
 {
-	uint32_t * ptr = imagebuffer + (StartX + vinfo.xres * StartY);
-	while(Len--)
-		*ptr++ = Color;
+	uint16_t dx = x1 > x0 ? x1 - x0 : x0 - x1;
+	SetWindow(x0, y0, dx, 1);
+	while(dx--)
+			FillWindow(color);
 }
 
-void DrawFilledCircle32 (uint16_t StartX, uint16_t StartY, uint16_t R, uint32_t Color)
+void DrawVerticalLine32 (uint16_t x0, uint16_t y0, uint16_t y1, uint32_t color)
 {
-	int16_t x1, y1, yk = 0, sigma, delta, f;
-	x1 = 0;
-	y1 = R;
-	delta = 2 * (1 - R);
-	do
+	uint16_t dy = y1 > y0 ? y1 - y0 : y0 - y1;
+	SetWindow(x0, y0, 1, dy);
+	while(dy--)
+		FillWindow(color);
+}
+
+void DrawCircle32(int16_t x0, int16_t y0, int16_t r, uint32_t color)
+{
+    int16_t x = -r, y = 0, err = 2 - 2 * r, e2;
+    do {
+    	DrawPixel32(x0 - x, y0 + y, color);
+    	DrawPixel32(x0 + x, y0 + y, color);
+    	DrawPixel32(x0 + x, y0 - y, color);
+    	DrawPixel32(x0 - x, y0 - y, color);
+        e2 = err;
+        if (e2 <= y) {
+            err += ++y * 2 + 1;
+            if (-x == y && e2 <= x) e2 = 0;
+        }
+        if (e2 > x) err += ++x * 2 + 1;
+    } while (x <= 0);
+}
+
+void DrawFilledCircle32 (int16_t x0, int16_t y0, int16_t r, uint32_t color)
+{
+    int16_t x = -r, y = 0, err = 2 - 2 * r, e2;
+    do {
+    	DrawHorizontalLine32(x0 + x, y0 + y, x0 - x, color);
+    	DrawHorizontalLine32(x0 + x, y0 - y, x0 - x, color);
+        e2 = err;
+        if (e2 <= y) {
+            err += ++y * 2 + 1;
+            if (-x == y && e2 <= x) e2 = 0;
+        }
+        if (e2 > x) err += ++x * 2 + 1;
+    } while (x <= 0);
+}
+
+void GetScreenSize (uint16_t * width, uint16_t * height)
+{
+	*width = vinfo.xres;
+	*height = vinfo.yres;
+}
+
+void DrawCross (uint16_t x0, uint16_t y0, uint16_t size, uint32_t color)
+{
+	DrawHorizontalLine32(x0 - size, y0, x0 + size, color);
+	DrawVerticalLine32(x0, y0 - size, y0 + size, color);
+}
+
+Font_StructTypeDef * SetFont (Font_StructTypeDef * _font)
+{
+	if (_font) font = _font;
+	return font;
+}
+
+static void PrintChar (uint16_t x0, uint16_t y0, char ch)
+{
+	SetWindow(x0, y0, font->FontXsize, font->FontYsize);
+	for (uint8_t x = 0; x != font->FontXsize; x++)
+		for (uint8_t y = 0; y != font->FontYsize; y++)
+			FillWindow ((font->Font[ch * font->FontXsize + x] & (1 << y)) ? font->FontColor : font->BackColor);
+}
+
+uint16_t PrintText (uint16_t x0, uint16_t y0, const char * text)
+{
+	uint16_t x = x0, Row = 0;
+	while(* text)
 	{
-		DrawHorizontalLine32(StartX - x1, StartY + y1, x1 * 2, Color);
-		DrawHorizontalLine32(StartX - x1, StartY - y1, x1 * 2, Color);
-		f = 0;
-		if (y1 < yk) break;
-		if (delta < 0)
+		if (* text == '\n')
 		{
-		  sigma = 2 * (delta + y1) - 1;
-		  if (sigma <= 0)
-		  {
-			x1++;
-			delta += 2 * x1 + 1;
-			f = 1;
-		  }
+			x0 = x;
+			y0 += font->FontYsize;
+			Row += 1;
 		}
-		else if (delta > 0)
+		else
 		{
-		  sigma = 2 * (delta - x1) - 1;
-		  if (sigma > 0)
-		  {
-			y1--;
-			delta += 1 - 2 * y1;
-			f = 1;
-		  }
+			PrintChar(x0, y0, * text);
+			x0 += font->FontXsize;
 		}
-		if(!f)
-		{
-		  x1++;
-		  y1--;
-		  delta += 2 * (x1 - y1 - 1);
-		}
-	} while(1);
+		text++;
+	}
+	return Row;
 }
 
+void FrameBufferUpdate (void)
+{
+	vinfo.activate |= FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
+	ioctl(framebuffer, FBIOPUT_VSCREENINFO, &vinfo);
+}

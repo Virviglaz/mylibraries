@@ -14,10 +14,12 @@
 ILI9341_t * ILI9341 = 0;
 uint32_t byte_cnt = 0;
 
-ILI9341_t * ILI9341_Init (ILI9341_t * driver)
+ILI9341_t * ILI9341_Init (ILI9341_t * driver, uint8_t orientation)
 {
 	if (driver)
 		ILI9341 = driver;
+	
+	if (orientation > 4) orientation = 0;
 
 	const ILI9341_init_t initSeq[] = {
 		{ 0, ILI9341_SWRESET, 0 },
@@ -46,14 +48,28 @@ ILI9341_t * ILI9341_Init (ILI9341_t * driver)
 	};
 	
 	for (uint8_t i = 0; i != sizeof(initSeq) / sizeof(ILI9341_init_t); i++)	
-		ILI9341->wr_cmd(initSeq[i].cmd, (void*)&initSeq[i].args[0], initSeq[i].argc);
+		ILI9341->wr_cmd(initSeq[i].cmd, (void*)initSeq[i].args, initSeq[i].argc);
 
+	const uint8_t orientation_reg_value[] = { 0x48, 0x28, 0x88, 0xE8 };
+		ILI9341->wr_cmd(ILI9341_MADCTL, (void*)orientation_reg_value + orientation, 1);
+	
+	if (orientation == 0 || orientation == 2)
+	{
+		ILI9341->width = X_SIZE;
+		ILI9341->height = Y_SIZE;
+	}
+	else
+	{
+		ILI9341->width = Y_SIZE;
+		ILI9341->height = X_SIZE;
+	}
+	
 	return ILI9341;
 }
 
 void ILI9341S_Clear (uint16_t color)
 {
-	ILI9341S_SetWindow(0, 0, X_SIZE, Y_SIZE);
+	ILI9341S_SetWindow(0, 0, ILI9341->width, ILI9341->height);
 	for (uint32_t i = 0; i != X_SIZE * Y_SIZE; i++)
 		ILI9341S_WriteData(color);
 }
@@ -142,6 +158,14 @@ void ILI9341S_vLine (uint16_t x0, uint16_t y0, uint16_t y1, uint16_t color)
 		ILI9341S_WriteData(color);
 }
 
+void ILI9341S_hLine (uint16_t x0, uint16_t y0, uint16_t x1, uint16_t color)
+{
+	int16_t dx = x1 > x0 ? x1 - x0 : x0 - x1;
+	ILI9341S_SetWindow(x0, y0, dx, 1);
+	for (int32_t i = 0; i < dx; i++)
+		ILI9341S_WriteData(color);
+}
+
 void ILI9341S_Circle(int16_t x0, int16_t y0, int16_t r, uint16_t color)
 {
     int16_t x = -r, y = 0, err = 2 - 2 * r, e2;
@@ -173,3 +197,97 @@ void ILI9341S_FillCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color)
         if (e2 > x) err += ++x * 2 + 1;
     } while (x <= 0);
 }
+
+void ILI9341S_Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color)
+{
+    int16_t   dx = 0, dy = 0;
+    int16_t   dx_sym = 0, dy_sym = 0;
+    int16_t   dx_x2 = 0, dy_x2 = 0;
+    int16_t   di = 0;
+
+    dx = x1 - x0;
+    dy = y1 - y0;
+
+    if (dx == 0) {        /* vertical line */
+        if (y1 > y0) ILI9341S_vLine(x0, y0, y1, color);
+        else ILI9341S_vLine(x0, y1, y0, color);
+        return;
+    }
+
+    if (dx > 0) {
+        dx_sym = 1;
+    } else {
+        dx_sym = -1;
+    }
+    if (dy == 0) {        /* horizontal line */
+        if (x1 > x0) ILI9341S_hLine(x0, x1, y0, color);
+        else  ILI9341S_hLine(x1, x0, y0, color);
+        return;
+    }
+
+    if (dy > 0) {
+        dy_sym = 1;
+    } else {
+        dy_sym = -1;
+    }
+
+    dx = dx_sym * dx;
+    dy = dy_sym * dy;
+
+    dx_x2 = dx * 2;
+    dy_x2 = dy * 2;
+
+    if (dx >= dy) {
+        di = dy_x2 - dx;
+        while (x0 != x1) {
+
+            ILI9341S_Pixel(x0, y0, color);
+            x0 += dx_sym;
+            if (di<0) {
+                di += dy_x2;
+            } else {
+                di += dy_x2 - dx_x2;
+                y0 += dy_sym;
+            }
+        }
+        ILI9341S_Pixel(x0, y0, color);
+    } else {
+        di = dx_x2 - dy;
+        while (y0 != y1) {
+            ILI9341S_Pixel(x0, y0, color);
+            y0 += dy_sym;
+            if (di < 0) {
+                di += dx_x2;
+            } else {
+                di += dx_x2 - dy_x2;
+                x0 += dx_sym;
+            }
+        }
+        ILI9341S_Pixel(x0, y0, color);
+    }
+    return;
+}
+
+void ILI9341S_Picture (uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t * pic)
+{
+	uint32_t size = w * h;
+	ILI9341S_SetWindow(x, y, w, h);
+	while(size--)
+		ILI9341S_WriteData(*pic++);
+}
+
+/*static void lcd_write_cmd (uint8_t cmd, uint8_t * params, uint8_t plen)
+{
+	PIN_OFF(_LCD_DC);
+	SPI_WriteReg(LCD_SPI, _LCD_CS, cmd, 0, 0);
+	PIN_ON(_LCD_DC);
+	if (params)
+		SPI_WriteReg(LCD_SPI, _LCD_CS, params[0], params + 1, plen - 1);
+	PIN_ON(_LCD_DC);
+}
+
+static void lcd_write_data (uint16_t data)
+{
+	SPI_ReadByte(LCD_SPI, data >> 8);
+	SPI_ReadByte(LCD_SPI, data & 0xFF);
+}*/
