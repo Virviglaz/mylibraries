@@ -4,21 +4,25 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define INA3221_CH1							0x00
+#define INA3221_CH2							0x01
+#define INA3221_CH3							0x02
+
 #define INA3221_CONFIG_REG			0x00
-#define INA3221_CH1_SHUNT_V			0x01
+#define INA3221_CH1_SHUNT_I			0x01
 #define INA3221_CH1_BUS_V				0x02
-#define INA3221_CH2_SHUNT_V			0x03
+#define INA3221_CH2_SHUNT_I			0x03
 #define INA3221_CH2_BUS_V				0x04
-#define INA3221_CH3_SHUNT_V			0x05
+#define INA3221_CH3_SHUNT_I			0x05
 #define INA3221_CH3_BUS_V				0x06
-#define INA3221_CH1_CRIT_V			0x07
-#define INA3221_CH1_WARN_V			0x08
-#define INA3221_CH2_CRIT_V			0x09
-#define INA3221_CH2_WARN_V			0x0A
-#define INA3221_CH3_CRIT_V			0x0B
-#define INA3221_CH3_WARN_V			0x0C
-#define INA3221_SHUNT_V_SUM			0x0D
-#define INA3221_SHUNT_V_SUM_LIM	0x0E
+#define INA3221_CH1_CRIT_I			0x07
+#define INA3221_CH1_WARN_I			0x08
+#define INA3221_CH2_CRIT_I			0x09
+#define INA3221_CH2_WARN_I			0x0A
+#define INA3221_CH3_CRIT_I			0x0B
+#define INA3221_CH3_WARN_I			0x0C
+#define INA3221_SHUNT_I_SUM			0x0D
+#define INA3221_SHUNT_I_SUM_LIM	0x0E
 #define INA3221_MASK_ENABLE			0x0F
 #define INA3221_POWER_UPPER_LIM 0x10
 #define INA3221_POWER_LOWER_LIM	0x11
@@ -68,4 +72,23 @@ uint8_t INA3221_SearchOnBus (int3221_t * driver);
 int3221_t * INA3221_StructInit (int3221_t * driver, float shunt_resistance);
 float INA3221_ReadBusVoltage (uint8_t channel);
 float INA3221_ReadShuntCurrent (uint8_t channel);
+void INA3221_SetCriticalAlertCurrent (float current, uint8_t channel);
+void INA3221_SetWarningAlertCurrent (float current, uint8_t channel);
+void INA3221_SetPowerValidLimits (float hi_lim, float lo_lim);
+
+/**
+ * C++ analog class (use: INA3221.Init(&init_struct); )
+ */
+const struct
+{
+	int3221_t * (*Init) (int3221_t * driver);
+	uint8_t (*SearchOnBus) (int3221_t * driver);
+	int3221_t * (*StructInit) (int3221_t * driver, float shunt_resistance);
+	float (*ReadBusVoltage) (uint8_t channel);
+	float (*ReadShuntCurrent) (uint8_t channel);
+	void (*SetCriticalAlertCurrent) (float current, uint8_t channel);
+	void (*SetWarningAlertCurrent) (float current, uint8_t channel);
+	void (*SetPowerValidLimits) (float hi_lim, float lo_lim);
+}INA3221 = { INA3221_Init, INA3221_SearchOnBus, INA3221_StructInit, INA3221_ReadBusVoltage, \
+	INA3221_ReadShuntCurrent, INA3221_SetCriticalAlertCurrent, INA3221_SetWarningAlertCurrent, INA3221_SetPowerValidLimits };
 #endif //INA3221_H
