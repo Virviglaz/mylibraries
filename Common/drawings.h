@@ -20,6 +20,7 @@ typedef struct
 	void(*filled_circle)(int16_t x, int16_t y, int16_t r, COLOR_DEPTH color);
 	void (*cross)(uint16_t x0, uint16_t y0, uint16_t size, COLOR_DEPTH color);
 	uint16_t(*print)(uint16_t x0, uint16_t y0, const char * text);
+	uint16_t (*print_adv)(uint16_t x0, uint16_t y0, const char * text);
 }drawings_t;
 
 typedef struct
@@ -29,7 +30,22 @@ typedef struct
 	COLOR_DEPTH FontColor, BackColor;
 }font_t;
 
+typedef struct
+{
+	uint16_t FontXsize;
+	uint16_t Offset;
+}char_desc_t;
+
+typedef struct
+{
+	FONT_SIZE_T FontYsize;
+	uint8_t offset, space;
+	const uint16_t * char_desc;
+	const uint8_t * Font;
+	COLOR_DEPTH FontColor, BackColor;
+}adv_font_t;
+
 drawings_t * drawings_init(void(*set_window_func) (uint16_t, uint16_t, uint16_t, uint16_t),
-	void(*fill_window_func) (COLOR_DEPTH), font_t * font);
+	void(*fill_window_func) (COLOR_DEPTH), font_t * font, adv_font_t * adv_font);
 
 #endif // !DRAWINGS_H
