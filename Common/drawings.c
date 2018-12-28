@@ -144,25 +144,20 @@ static uint16_t print(uint16_t x0, uint16_t y0, const char * text)
 	return Row;
 }
 
-#include <stdio.h>
 static void print_adv_char(uint16_t x0, uint16_t y0, char ch, uint8_t width, uint16_t offset)
 {
 	SetWindow(x0, y0, width * 8, _adv_font->FontYsize);
 	for (FONT_SIZE_T y = 0; y < _adv_font->FontYsize; y++)
 	{
-		printf("W = %u, %c", width, ch);
 		uint8_t w = width, i = 0;
 		while(w--)
 		{
 			uint8_t c = _adv_font->Font[offset + width * y + i++];
-			printf(" 0x%2.2X", c);
 			for (uint8_t x = 0x80; x > 0; x >>= 1)
 				FillWindow((c & x) ? _adv_font->FontColor : _adv_font->BackColor);
 		}
-		printf("\n");
 	}
 }
-
 
 static uint16_t print_adv(uint16_t x0, uint16_t y0, const char * text)
 {
