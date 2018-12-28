@@ -4,6 +4,7 @@
 static void (*set_window) (uint16_t x0, uint16_t y0, uint16_t size_x, uint16_t size_y);
 static void (*fill_window) (COLOR_DEPTH color);
 static font_t *_font;
+static adv_font_t * _adv_font;
 
 /* Static functions */
 static void pixel(uint16_t x, uint16_t y, COLOR_DEPTH color);
@@ -14,10 +15,11 @@ static void circle(int16_t x, int16_t y, int16_t r, COLOR_DEPTH color);
 static void filled_circle(int16_t x, int16_t y, int16_t r, COLOR_DEPTH color);
 static void cross(uint16_t x0, uint16_t y0, uint16_t size, COLOR_DEPTH color);
 static uint16_t print(uint16_t x0, uint16_t y0, const char * text);
+static uint16_t print_adv(uint16_t x0, uint16_t y0, const char * text);
 
 /* Init drawing struct */
 drawings_t * drawings_init(void(*set_window_func) (uint16_t, uint16_t, uint16_t, uint16_t),
-	void(*fill_window_func) (COLOR_DEPTH), font_t * font)
+	void(*fill_window_func) (COLOR_DEPTH), font_t * font, adv_font_t * adv_font)
 {
 	static const drawings_t _drawings = {
 		.pixel = pixel,
@@ -28,11 +30,13 @@ drawings_t * drawings_init(void(*set_window_func) (uint16_t, uint16_t, uint16_t,
 		.filled_circle = filled_circle,
 		.cross = cross,
 		.print = print,
+		.print_adv = print_adv,
 	};
 
 	set_window = set_window_func;
 	fill_window = fill_window_func;
 	_font = font;
+	_adv_font = adv_font;
 
 	return (void*)&_drawings;
 }
@@ -140,3 +144,49 @@ static uint16_t print(uint16_t x0, uint16_t y0, const char * text)
 	return Row;
 }
 
+#include <stdio.h>
+static void print_adv_char(uint16_t x0, uint16_t y0, char ch, uint8_t width, uint16_t offset)
+{
+	SetWindow(x0, y0, width * 8, _adv_font->FontYsize);
+	for (FONT_SIZE_T y = 0; y < _adv_font->FontYsize; y++)
+	{
+		printf("W = %u, %c", width, ch);
+		uint8_t w = width, i = 0;
+		while(w--)
+		{
+			uint8_t c = _adv_font->Font[offset + width * y + i++];
+			printf(" 0x%2.2X", c);
+			for (uint8_t x = 0x80; x > 0; x >>= 1)
+				FillWindow((c & x) ? _adv_font->FontColor : _adv_font->BackColor);
+		}
+		printf("\n");
+	}
+}
+
+
+static uint16_t print_adv(uint16_t x0, uint16_t y0, const char * text)
+{
+	uint16_t x = x0, Row = 0;
+	while (*text)
+	{
+		if (*text == '\n')
+		{
+			x0 = x;
+			y0 += _adv_font->FontYsize;
+			Row += 1;
+		}
+		else
+		{
+			if (*text > _adv_font->offset)
+			{
+				char_desc_t * desc = _adv_font->char_desc + (*text - _adv_font->offset) * sizeof(uint16_t);
+				print_adv_char(x0, y0, *text, desc->FontXsize / 8 + (desc->FontXsize % 8 ? 1 : 0), desc->Offset);
+				x0 += desc->FontXsize;
+			}
+			else
+				x0 += _adv_font->space;
+		}
+		text++;
+	}
+	return Row;
+}
