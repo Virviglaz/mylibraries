@@ -2,6 +2,11 @@
 //  Font data for Magneto 16pt
 // 
 
+#include <stdint.h>
+
+const uint8_t magneto_16pt_YSIZE = 22;
+const uint8_t magneto_16pt_OFFSET = 33;
+
 // Character bitmaps for Magneto 16pt
 const char magneto_16ptBitmaps[] =
 {

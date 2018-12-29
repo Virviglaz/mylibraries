@@ -2,6 +2,10 @@
 //  Font data for Showcard Gothic 36pt
 // 
 #include <stdint.h>
+
+const uint8_t showcardGothic_36_Height = 56;
+const uint8_t showcardGothic_36_OFFSET = 33;
+
 // Character bitmaps for Showcard Gothic 36pt
 const char showcardGothic_36ptBitmaps[] =
 {
