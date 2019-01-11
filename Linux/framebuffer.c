@@ -6,6 +6,7 @@ struct fb_var_screeninfo vinfo; //can be used as public
 static int framebuffer = 0;
 static uint32_t screenSize;
 static uint32_t * imagebuffer;
+static uint32_t * bg_buffer = 0;
 static Font_StructTypeDef * font = 0;
 
 static struct
@@ -16,12 +17,17 @@ static struct
 } window = { .windowInit = false };
 
 
-const char * FrameBufferInit (const char * io)
+const char * FrameBufferInit (const char * io, uint8_t multiBuffer)
 {
 	if (io == NULL) io = "/dev/fb0"; //default to main screen
 	
 	if (framebuffer)
 		return "Already initialized!";
+
+	if (bg_buffer) {
+		free(bg_buffer);
+		bg_buffer = 0;
+	}
 				
 	framebuffer = open(io, O_RDWR);
 	
@@ -33,27 +39,44 @@ const char * FrameBufferInit (const char * io)
 
 	screenSize = vinfo.xres * vinfo.yres * vinfo.bits_per_pixel / 8;
 
+	bg_buffer = malloc(screenSize);
+
+	if (multiBuffer && multiBuffer <= 4)
+	{
+		vinfo.xres_virtual = vinfo.xres;
+		vinfo.yres_virtual = vinfo.yres * multiBuffer;
+		if (ioctl(framebuffer, FBIOPUT_VSCREENINFO, &vinfo) < 0)
+			return "Error set resolution";
+	}
+
 	imagebuffer = (void *)mmap(0, screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, framebuffer, 0);
 
 	return "OK";
 }
 
+void FrameBufferUpdate(void)
+{
+	memcpy(imagebuffer, bg_buffer, screenSize);
+}
+
 void FrameBufferDeInit (void)
 {
-	munmap(imagebuffer, screenSize);
+	munmap(bg_buffer, screenSize);
 	close(framebuffer);
+	free(bg_buffer);
+	bg_buffer = 0;
 }
 
 void ClearScreen (uint32_t color)
 {
 	for (uint32_t i = 0; i < (vinfo.xres * vinfo.yres); i++)
-		*(imagebuffer + i) = color;
+		*(bg_buffer + i) = color;
 }
 
 void SetWindow (uint16_t x0, uint16_t y0, uint16_t size_x, uint16_t size_y)
 {
 	window.windowInit = true;
-	window.ptr = imagebuffer + (x0 + vinfo.xres * y0);
+	window.ptr = bg_buffer + (x0 + vinfo.xres * y0);
 	window.x_max = size_x;
 }
 
@@ -82,12 +105,12 @@ void DrawPic32 (uint16_t x0, uint16_t y0, uint16_t size_x, uint16_t size_y, uint
 {
 	for (uint16_t y = 0; y < size_y; y++)
 		for (uint16_t x = 0; x < size_x; x++)
-			*(imagebuffer + (x + x0 + vinfo.xres * (y0 + y))) = *pic++;
+			*(bg_buffer + (x + x0 + vinfo.xres * (y0 + y))) = *pic++;
 }
 
 void DrawPixel32 (uint16_t x0, uint16_t y0, uint32_t color)
 {
-	*(imagebuffer + (x0 + vinfo.xres * y0 )) = color;
+	*(bg_buffer + (x0 + vinfo.xres * y0 )) = color;
 }
 
 void DrawHorizontalLine32 (uint16_t x0, uint16_t y0, uint16_t x1, uint32_t color)
@@ -185,8 +208,3 @@ uint16_t PrintText (uint16_t x0, uint16_t y0, const char * text)
 	return Row;
 }
 
-void FrameBufferUpdate (void)
-{
-	vinfo.activate |= FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
-	ioctl(framebuffer, FBIOPUT_VSCREENINFO, &vinfo);
-}
