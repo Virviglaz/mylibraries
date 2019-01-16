@@ -3,19 +3,19 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-static f_t rand_f (u_t layer, u_t num)
+static f_t rand_f (u_t layer, u_t neuron, u_t input)
 {
-	return (f_t)rand() / RAND_MAX;
+	return (f_t)rand() / RAND_MAX - 0.5;
 }
 
 static f_t simple_trigger_func(f_t in)
 {
-	return in >= 0.5 ? 1 : 0;
+#include <math.h>
+	return 1 / (1 + pow(2.718, -in));
 }
 
-static f_t(*weight_get_func)(u_t layer, u_t num) = rand_f;
-static f_t(*result_calc_func)(f_t input) = simple_trigger_func;
 static net_t * _net_in_use;
+static neutron_network_t * _network;
 static size_t mem_used = 0;
 
 static void * _malloc(size_t size)
@@ -29,7 +29,10 @@ static f_t * get_weights(u_t layer, u_t num, u_t len)
 	f_t * weights = _malloc(len * sizeof(f_t));
 
 	for (u_t i = 0; i != len; i++)
-		weights[i] = weight_get_func(layer, num);
+	{
+		weights[i] = _network->weight_get_func(layer, num, i);
+		//printf("Weight L=%5.1u%5.1u%5.1u: %f\n", layer, num, i, weights[i]);
+	}
 
 	return weights;
 }
@@ -60,7 +63,6 @@ static layer_t * create_layer(u_t layer_num, u_t neuron_count, u_t input_count)
 		layer->neurons[i] = create_neuron(layer_num, i, input_count);
 
 	layer->neurons_count = neuron_count;
-
 	return layer;
 }
 
@@ -139,7 +141,7 @@ static void update_weights(void)
 	for (u_t i = 0; i != _net_in_use->layers_count; i++)
 		for (u_t j = 0; j != _net_in_use->layers[i]->neurons_count; j++)
 			for (u_t k = 0; k != _net_in_use->layers[i]->neurons[j]->in_count; k++)
-				_net_in_use->layers[i]->neurons[j]->w[k] = weight_get_func(i, j);
+				_net_in_use->layers[i]->neurons[j]->w[k] = _network->weight_get_func(i, j, k);
 }
 
 static void proccess_one_neuron(neuron_t * neuron)
@@ -148,7 +150,7 @@ static void proccess_one_neuron(neuron_t * neuron)
 	for (u_t i = 0; i != neuron->in_count; i++)
 		result += *neuron->in[i] * neuron->w[i];
 
-	*neuron->out = result_calc_func(result);
+	*neuron->out = _network->trigger_func(result);
 }
 
 static f_t * get_result(net_t * net)
@@ -164,7 +166,10 @@ static f_t * get_result(net_t * net)
 
 	for (u_t i = 0; i != _net_in_use->layers_count; i++)
 		for (u_t j = 0; j != _net_in_use->params.neurons_per_layer[i]; j++)
+		{
 			proccess_one_neuron(_net_in_use->layers[i]->neurons[j]);
+			//printf("Neuron L=%3.1u%3.1u: %f\n", i, j, *_net_in_use->layers[i]->neurons[j]->out);
+		}
 
 	return result;
 }
@@ -176,14 +181,13 @@ neutron_network_t * get_network(void)
 		.release_net = release_net,
 		.get_result = get_result,
 		.update_weights = update_weights,
+		.trigger_func = simple_trigger_func,
 		.mem_used = &mem_used,
+		.weight_get_func = rand_f,
 	};
 
-	return (void*)&network;
+	_network = (void*)&network;
+
+	return _network;
 }
 
-void set_network(neutron_network_t * network)
-{
-	weight_get_func = network->weight_get_func;
-	result_calc_func = network->result_calc_func;
-}
