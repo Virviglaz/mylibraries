@@ -40,6 +40,7 @@ typedef struct
 	f_t * (*get_result)(net_t * net);
 	f_t (*weight_get_func)(u_t layer, u_t num);
 	f_t (*result_calc_func)(f_t input);
+	void (*update_weights)(void);
 }neutron_network_t;
 
 neutron_network_t * get_network(void);
