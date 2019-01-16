@@ -134,6 +134,14 @@ static void release_net(net_t * net)
 	_net_in_use = 0;
 }
 
+static void update_weights(void)
+{
+	for (u_t i = 0; i != _net_in_use->layers_count; i++)
+		for (u_t j = 0; j != _net_in_use->layers[i]->neurons_count; j++)
+			for (u_t k = 0; k != _net_in_use->layers[i]->neurons[j]->in_count; k++)
+				_net_in_use->layers[i]->neurons[j]->w[k] = weight_get_func(i, j);
+}
+
 static void proccess_one_neuron(neuron_t * neuron)
 {
 	f_t result = 0;
@@ -167,6 +175,7 @@ neutron_network_t * get_network(void)
 		.create_net = create_net,
 		.release_net = release_net,
 		.get_result = get_result,
+		.update_weights = update_weights,
 		.mem_used = &mem_used,
 	};
 
