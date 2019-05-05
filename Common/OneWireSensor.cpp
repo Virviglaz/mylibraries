@@ -17,17 +17,19 @@
 #define MATCH_ROM									0x55
 
 #define CONVERT_T_CMD							0x44
-#define WRITE_STRATCHPAD_CMD			0x4E
-#define READ_STRATCHPAD_CMD				0xBE
-#define COPY_STRATCHPAD_CMD				0x48
+#define WRITE_SCRATCHPAD_CMD			0x4E
+#define READ_SCRATCHPAD_CMD				0xBE
+#define COPY_SCRATCHPAD_CMD				0x48
 #define RECALL_E_CMD							0xB8
 #define READ_POWER_SUPPLY_CMD			0xB4
 
-#define DS18B20_STRATCHPAD_SIZE		0x09
+#define DS18B20_SCRATCHPAD_SIZE		0x09
 
 static void find_sensor(OneWire *interface, uint8_t *sn);
 static float convert_t(uint8_t *buf, Resolution resolution);
 static Resolution convert_resolution(uint8_t value);
+static OneWireError read_scratchpad(OneWire *interface,
+	uint8_t *buf, uint8_t (*crc)(uint8_t *buf, uint8_t size));
 
 /**
   * @brief  Initialize with thresholds and resolution
@@ -35,7 +37,7 @@ static Resolution convert_resolution(uint8_t value);
   */
 OneWireError OneWireSensor::init()
 {
-	/* Send RESET pulse */
+	/* Send RESET pulse -> WRITE SCRATCHPAD */
 	OneWireError res = interface->reset();
 	
 	if (res)
@@ -45,13 +47,44 @@ OneWireError OneWireSensor::init()
 	find_sensor(interface, sn);
 	
 	/* Set resolutuin */
-	interface->write_byte(WRITE_STRATCHPAD_CMD);
+	interface->write_byte(WRITE_SCRATCHPAD_CMD);
 	interface->write_byte(Th);
 	interface->write_byte(Tl);
-	interface->write_byte((resolution << 5) | 0x1F);
+	interface->write_byte(resolution << 5);
 
 	is_initialized = true;
 	is_conv_started = false;
+
+	/* Send RESET pulse -> READ SCRATCHPAD */
+	res = interface->reset();
+	
+	if (res)
+		return res;
+	
+	/* Find sensor */
+	find_sensor(interface, sn);
+	
+	uint8_t buf[DS18B20_SCRATCHPAD_SIZE];
+	res = read_scratchpad(interface, buf, crc);
+
+	/* TODO: verify content */
+
+	/* Send RESET pulse -> COPY SCRATCHPAD TO EEPROM */
+	res = interface->reset();
+	
+	if (res)
+		return res;
+	
+	/* Find sensor */
+	find_sensor(interface, sn);
+
+	/* Copy ram to eeprom */
+	interface->write_byte(COPY_SCRATCHPAD_CMD);
+	
+	/* Wait for eeprom update */
+	for (uint8_t i = 0; i != 100; i++)
+		if (interface->read_bit())
+			break;
 	
 	return res;
 }
@@ -138,18 +171,9 @@ OneWireError OneWireSensor::get_result()
 	/* Find sensor */
 	find_sensor(interface, sn);
 
-	/* Send READ command */
-	interface->write_byte(READ_STRATCHPAD_CMD);
-
 	/* Read sensor's buffer */
-	uint8_t buf[DS18B20_STRATCHPAD_SIZE];
-	for (uint8_t cnt = 0; cnt != DS18B20_STRATCHPAD_SIZE; cnt++)
-		buf[cnt] = interface->read_byte();
-
-	/* Check CRC if needed */
-	if (crc)
-		if (!crc(buf, DS18B20_STRATCHPAD_SIZE))
-			res = ERR_CRC;
+	uint8_t buf[DS18B20_SCRATCHPAD_SIZE];
+	res = read_scratchpad(interface, buf, crc);
 
 	/* Update resolution and thresholds */
 	resolution = convert_resolution(buf[4]);
@@ -189,23 +213,15 @@ OneWireError OneWireSensor::get_result_skip_rom()
 		return res;
 
 	interface->write_byte(SKIP_ROM);
-	interface->write_byte(READ_STRATCHPAD_CMD);
 	
-	/* Read sensor's buffer */
-	uint8_t buf[DS18B20_STRATCHPAD_SIZE];
-	for (uint8_t cnt = 0; cnt != DS18B20_STRATCHPAD_SIZE; cnt++)
-		buf[cnt] = interface->read_byte();
+	uint8_t buf[DS18B20_SCRATCHPAD_SIZE];
+	res = read_scratchpad(interface, buf, crc);
 	
 	/* Update resolution */
 	resolution = convert_resolution(buf[4]);
 	
 	if (resolution > RESOLUTION_12_BIT)
 		return ERR_BAD_DATA;
-	
-	/* Check CRC if needed */
-	if (crc)
-		if (crc(buf, DS18B20_STRATCHPAD_SIZE))
-			res = ERR_CRC;
 	
 	temperature = convert_t(buf, resolution);
 	
@@ -224,7 +240,7 @@ OneWireError OneWireSensor::get_result_skip_rom()
 
 /**
   * @brief  Get time, needed to perform conversion
-  * @retval value in ms
+  * @retval Value in ms
   */
 uint16_t OneWireSensor::get_conv_time_ms()
 {
@@ -235,6 +251,10 @@ uint16_t OneWireSensor::get_conv_time_ms()
 	return conv_time_ms[resolution];
 }
 
+/**
+  * @brief  Get text error description
+  * @retval Pointer to text
+  */
 const char *OneWireSensor::error_desc(OneWireError err)
 {
 	if (err > ERR_BAD_DATA)
@@ -253,6 +273,89 @@ const char *OneWireSensor::error_desc(OneWireError err)
 	return err_list[err];
 }
 
+/**
+  * @brief  Search devices over one reference interface
+  * @retval Error code
+  */
+OneWireError OneWireSensors::search_sensors()
+{
+	uint32_t path = 0, next, pos;                     /* decision markers */                              
+ 	uint8_t bit, chk, cnt_num = 0;                    /* bit values */
+	OneWireError res;
+	
+	do
+	{
+		/* Send RESET pulse */	
+		res = interface->reset();
+		
+		if (res)
+			return res;
+
+		/* issue the 'ROM search' command */
+		interface->write_byte(SEARCH_ROM);
+		
+		next = 0;	/* next path to follow */
+		pos = 1;	/* path bit pointer */ 
+		
+		for (uint8_t cnt_byte = 0; cnt_byte != 8; cnt_byte++)
+		{
+			sensors_list[cnt_num].sn[cnt_byte] = 0;
+			for (uint8_t cnt_bit = 0; cnt_bit != 8; cnt_bit++)
+			{
+				/* each bit of the ROM value */
+ 				/* read two bits, 'bit' and 'chk', from the 1-wire bus */
+				bit = interface->read_bit();
+				chk = interface->read_bit();
+				
+				if(!bit && !chk)
+				{
+						/* collision, both are zero */
+						if (pos & path) 
+							/* if we've been here before */
+							bit = 1;
+						else
+							/* else, new branch for next */
+							next = (path & (pos - 1)) | pos;
+						pos <<= 1;
+				}
+				
+				/* write 'bit' to the 1-wire bus */
+				interface->write_bit(bit);
+
+				/* save this bit as part of the current ROM value */
+				if (bit) sensors_list[cnt_num].sn[cnt_byte] |= (1 << cnt_bit);
+			}
+		}
+
+		/* output the just-completed ROM value */
+		path = next;
+		cnt_num++;
+	}while(path && cnt_num < max_devices);
+	
+	devices_found = cnt_num;
+	
+	return res;
+}
+
+/**
+  * @brief  Get devices amount
+  * @retval Amount of devices on reference interface
+  */
+uint8_t OneWireSensors::get_devices_found()
+{
+	return devices_found;
+}
+
+/**
+  * @brief	Get a pointer to devices found
+	* @param	Number of object
+  * @retval Pointer to device object
+  */
+OneWireSensor *OneWireSensors::get_sensor(uint8_t num)
+{
+	return num > devices_found ? NULL : &sensors_list[num];
+}
+
 static void find_sensor(OneWire *interface, uint8_t *sn)
 {
 	interface->write_byte(MATCH_ROM);
@@ -263,11 +366,28 @@ static void find_sensor(OneWire *interface, uint8_t *sn)
 
 static float convert_t(uint8_t *buf, Resolution resolution)
 {
-	int16_t raw_value = buf[0] | buf[1] << 8;
-	return (float)raw_value / (1 << (resolution + 1));
+	return (float)(buf[0] | buf[1] << 8) / (1 << (1 + resolution));
 }
 
 static Resolution convert_resolution(uint8_t value)
 {
 	return (Resolution)((value & 0x60) >> 5);
+}
+
+static OneWireError read_scratchpad(OneWire *interface,
+	uint8_t *buf, uint8_t (*crc)(uint8_t *buf, uint8_t size))
+{
+	/* Send READ command */
+	interface->write_byte(READ_SCRATCHPAD_CMD);
+
+	/* Read sensor's buffer */
+	for (uint8_t cnt = 0; cnt != DS18B20_SCRATCHPAD_SIZE; cnt++)
+		buf[cnt] = interface->read_byte();
+
+	/* Check CRC if needed */
+	if (crc)
+		if (crc(buf, DS18B20_SCRATCHPAD_SIZE))
+			return ERR_CRC;
+	
+	return SUCCESS;
 }
