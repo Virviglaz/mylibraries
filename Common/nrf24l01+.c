@@ -35,7 +35,7 @@
 #define PIPE_BITMASK			0x0E
 #define RX_FIFO_EMPTY_MASK		0x01
 
-struct nrf24l01_conf *local_driver;
+static struct nrf24l01_conf *local_driver;
 
 static uint8_t write_reg (uint8_t reg, uint8_t value)
 {
@@ -83,7 +83,7 @@ static bool send (uint8_t *data, uint8_t size, bool keep_rx)
 
 	local_driver->interface.radio_en(true);
 
-	while (!read_irq() && --cnt);
+	while (!read_irq() && cnt--);
 
 	local_driver->interface.radio_en(keep_rx);
 

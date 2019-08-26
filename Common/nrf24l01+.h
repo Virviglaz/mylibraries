@@ -112,5 +112,6 @@ struct nrf24l01_conf
 };
 
 struct nrf24l01_conf *nrf24l01_init(struct nrf24l01_conf *driver);
+void spi_deinit(void);
 
 #endif /* NRF24L01_H */
