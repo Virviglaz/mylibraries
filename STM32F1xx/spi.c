@@ -1,5 +1,14 @@
 #include "spi.h"
+#include "stm32f10x_spi.h"
+#include "stm32f10x_rcc.h"
+#include "stm32f10x_gpio.h"
+
+#ifdef DEBUG_SPI
 #include <stdio.h>
+#endif
+
+#define PIN_OFF 		GPIO_ResetBits
+#define PIN_ON			GPIO_SetBits
 
 static void Init_RCC (SPI_TypeDef * SPIx);
 static void Init_GPIO(SPI_TypeDef * SPIx);
@@ -17,15 +26,11 @@ static void Init_RCC (SPI_TypeDef * SPIx)
 	{
 		RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1,ENABLE);
 		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_AFIO, ENABLE);
-	}
-	
-	if (SPIx == SPI2)
+	} else if (SPIx == SPI2)
 	{
 		RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI2,ENABLE);
 		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_AFIO, ENABLE);
-	}
-	
-	if (SPIx == SPI3) //not supported yet
+	} else if (SPIx == SPI3) //not supported yet
 	{
 		RCC_APB2PeriphClockCmd(RCC_APB1Periph_SPI3,ENABLE);
 	}
@@ -33,15 +38,18 @@ static void Init_RCC (SPI_TypeDef * SPIx)
 
 static void Init_GPIO(SPI_TypeDef * SPIx)
 {
-	GPIO_InitTypeDef GPIO_InitStruct = {.GPIO_Mode = GPIO_Mode_AF_PP, .GPIO_Speed = GPIO_Speed_50MHz };
-	
-	if (SPIx == SPI1)	
+	GPIO_InitTypeDef GPIO_InitStruct;
+	GPIO_InitStruct.GPIO_Mode = GPIO_Mode_AF_PP;
+	GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
+
+	if (SPIx == SPI1)	{
 		GPIO_InitStruct.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7;		 //alternative func for SPI1
-
-	if (SPIx == SPI2)	
+		GPIO_Init(GPIOA, &GPIO_InitStruct);
+	}
+	else if (SPIx == SPI2) {
 		GPIO_InitStruct.GPIO_Pin = GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;	 //alternative func for SPI2
-
-	GPIO_Init(GPIOA, &GPIO_InitStruct);
+		GPIO_Init(GPIOB, &GPIO_InitStruct);
+	}
 }
 
 void Init_SPI	(SPI_TypeDef * SPIx, uint16_t Prescaler, bool isIdleCLK_High)

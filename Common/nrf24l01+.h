@@ -27,8 +27,6 @@ struct nrf24l01_conf
 		bool max_rt_irq : 1;
 		bool tx_irq : 1;
 		bool rx_irq : 1;
-
-		char reserved : 1;
 	} config;
 
 	/* Enhanced ShockBurst™ Auto Acknowledgment */
@@ -40,7 +38,6 @@ struct nrf24l01_conf
 		bool pipe3 : 1;
 		bool pipe4 : 1;
 		bool pipe5 : 1;
-		char reserved : 2;
 	} auto_acknowledgment;
 
 	/* Enabled RX Addresses */
@@ -52,19 +49,17 @@ struct nrf24l01_conf
 		bool pipe3 : 1;
 		bool pipe4 : 1;
 		bool pipe5 : 1;
-		char reserved : 2;
 	} enabled_rx_addresses;
 
 	/* Setup of Address Widths */
 	struct
 	{
 		enum { 
-			ADD_3_BYTES = 1,
-			ADD_4_BYTES = 2,
-			ADD_5_BYTES = 3,
-		} crc_config : 2;
-		char reserved : 6;
-	}  address_widths;
+			ADDRESS_3_BYTES = 1,
+			ADDRESS_4_BYTES = 2,
+			ADDRESS_5_BYTES = 3,
+		} address_len : 2;
+	} address_widths;
 
 	/* Setup of Automatic Retransmission */
 	struct
@@ -85,7 +80,6 @@ struct nrf24l01_conf
 			P_0dBm = 0x07,
 		} power : 3;
 		enum { R_1MPS, R_2MPS } data_rate : 1;
-		uint8_t reserved : 4;
 	} setup;
 
 	/* Set to NULL if not used */
@@ -104,7 +98,7 @@ struct nrf24l01_conf
 	uint32_t read_cnt;
 
 	/* Interface error will be stored in here */
-	uint8_t error;
+	uint8_t status;
 
 	/* Public functions */
 	bool (* send) (uint8_t *data, uint8_t size, bool keep_rx);

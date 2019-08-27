@@ -33,20 +33,22 @@
 #define FLUSH_RX_CMD			0xE2
 #define RX_PAYLOAD_CMD			0x61
 #define PIPE_BITMASK			0x0E
-#define RX_FIFO_EMPTY_MASK		0x01
+#define RX_FIFO_EMPTY			0x0E
 
 static struct nrf24l01_conf *local_driver;
 
 static uint8_t write_reg (uint8_t reg, uint8_t value)
 {
-	return local_driver->interface.write((0x1F & reg) | (1 << 5),
+	local_driver->status = local_driver->interface.write((0x1F & reg) | (1 << 5),
 		&value, sizeof(value));
+
+	return 0;
 }
 
 static uint8_t read_reg (uint8_t reg)
 {
 	uint8_t res;
-	local_driver->interface.read(0x1F & reg, &res, sizeof(res));
+	local_driver->status = local_driver->interface.read(0x1F & reg, &res, sizeof(res));
 	return res;
 }
 
@@ -59,9 +61,10 @@ static void write_address (uint8_t reg, uint8_t *address)
 static bool read_irq (void)
 {
 	if (local_driver->interface.read_irq)
-		return local_driver->interface.read_irq();
+		/* return active low interrupt */
+		return !local_driver->interface.read_irq();
 
-	return read_reg(STATUS_REG) & 0x70 > 0;
+	return read_reg(STATUS_REG) & 0x70;
 }
 
 static void irq_clear (uint8_t cmd)
@@ -95,7 +98,7 @@ static bool send (uint8_t *data, uint8_t size, bool keep_rx)
 	irq_clear(MAX_RT_IRQ_CLEAR | TX_DS_IRQ_CLEAR);
 	flush_buffer(FLUSH_TX_CMD);
 
-	return cnt == 0;
+	return res;
 }
 
 static uint8_t recv (uint8_t *data, uint8_t size)
@@ -105,11 +108,16 @@ static uint8_t recv (uint8_t *data, uint8_t size)
 	if (!read_irq())
 		return 0;
 
-	res = (local_driver->interface.read(RX_PAYLOAD_CMD, data, size) & PIPE_BITMASK) >> 1;
+	res = local_driver->interface.read(RX_PAYLOAD_CMD, data, size) & PIPE_BITMASK;
 
-	if (read_reg(FIFO_STATUS_REG) & RX_FIFO_EMPTY_MASK)
+	/* this not suppose to be happen
+	 * the RX IRQ rised, but no data received */
+	if (res == RX_FIFO_EMPTY) {
 		irq_clear(RX_DR_IRQ_CLEAR);
-	return res;
+		return 0;
+	}
+
+	return (res >> 1) | 0x80;
 }
 
 struct nrf24l01_conf *nrf24l01_init (struct nrf24l01_conf *driver)
@@ -123,11 +131,8 @@ struct nrf24l01_conf *nrf24l01_init (struct nrf24l01_conf *driver)
 	local_driver->recv = recv;
 
 	/* Disable the radio before config */
-	local_driver->error = write_reg(CONFIG_REG, 0x00);
-	if (local_driver->error)
-		return local_driver;
+	local_driver->status = write_reg(CONFIG_REG, 0x00);
 
-	/* We are checking interface error only once */
 	write_reg(EN_AA_REG, *(uint8_t *)&local_driver->auto_acknowledgment);
 	write_reg(EN_RXADDR_REG, *(uint8_t *)&local_driver->enabled_rx_addresses);
 	write_reg(SETUP_AW_REG, *(uint8_t *)&local_driver->address_widths);
@@ -148,8 +153,8 @@ struct nrf24l01_conf *nrf24l01_init (struct nrf24l01_conf *driver)
 	write_reg(RX_PW_P4_REG, local_driver->rx_pipe_size[4] & 0x3F);
 	write_reg(RX_PW_P5_REG, local_driver->rx_pipe_size[5] & 0x3F);
 
-
-	write_reg(CONFIG_REG, *(uint8_t *)&local_driver->config);
+	/* invert irq enable bits */
+	write_reg(CONFIG_REG, *(uint8_t *)&local_driver->config ^ 0x70);
 
 	return local_driver;
 }
