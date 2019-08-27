@@ -1,3 +1,6 @@
+#ifndef GPIO_H
+#define GPIO_H
+
 #include <stm32f10x.h>
 
 #define PA0			GPIOA, GPIO_Pin_0
@@ -121,3 +124,5 @@ void PIN_IN_PD (GPIO_TypeDef * GPIOx, u16 PINx);
 void PIN_OUT_AF_PP (GPIO_TypeDef * GPIOx,u16 PINx);
 void PIN_OUT_AF_OD (GPIO_TypeDef * GPIOx,u16 PINx);
 void gpio_init (GPIO_TypeDef * GPIOx, u16 PINx, GPIOSpeed_TypeDef GPIO_Speed, GPIOMode_TypeDef GPIO_Mode);
+
+#endif

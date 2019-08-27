@@ -2,10 +2,6 @@
 #define SPI_H
 
 #include "stm32f10x.h"
-#include "stm32f10x_gpio.h"
-#include "stm32_GPIO.h"	
-#include "stm32f10x_spi.h"
-#include "stm32f10x_rcc.h"
 #include <stdbool.h>
 
 void SPIxInitAll (SPI_TypeDef * SPIx, uint16_t Prescaler, bool isIdleCLK_High);
