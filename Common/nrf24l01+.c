@@ -83,26 +83,36 @@ static void update_config (void)
 	write_reg(CONFIG_REG, *(uint8_t *)&local_driver->config ^ INVERT_IRQ_BITS);
 }
 
-static bool send (uint8_t *data, uint8_t size, bool keep_rx)
+static void disable_radio (void)
+{
+	write_reg(CONFIG_REG, 0x00);
+}
+
+static bool send (uint8_t *data, uint8_t size)
 {
 	uint32_t cnt = local_driver->read_cnt;
-	bool res;
+	bool res, in_rx = local_driver->config.mode == RADIO_RX;
+	uint8_t tx_irq = local_driver->auto_retransmit.count ?
+		MAX_RT_IRQ_MASK | TX_DS_IRQ_MASK : TX_DS_IRQ_MASK;
+	
+	local_driver->interface.radio_en(true);
+	
+	local_driver->mode(RADIO_TX, true);
 
 	local_driver->interface.write(SEND_PAYLOAD_CMD, data, size);
+	
+	while (!read_irq(tx_irq) && cnt--);
 
-	local_driver->interface.radio_en(true);
+	res = !(cnt == 0);
 
-	while (!read_irq(RX_DR_IRQ_MASK) && cnt--);
-
-	local_driver->interface.radio_en(keep_rx);
-
-	res = cnt == 0;
-
-	if (local_driver->auto_retransmit.count)
-		res = local_driver->interface.read(0xFF, 0, 0) & TX_DS_IRQ_MASK;
-
-	clear_irq(MAX_RT_IRQ_MASK | TX_DS_IRQ_MASK);
+	clear_irq(tx_irq);
 	flush_buffer(FLUSH_TX_CMD);
+	
+	/* Switch back to RX */
+	if (in_rx)
+		local_driver->mode(RADIO_RX, true);
+	else 
+		local_driver->interface.radio_en(false);
 
 	return res;
 }
@@ -110,6 +120,11 @@ static bool send (uint8_t *data, uint8_t size, bool keep_rx)
 static uint8_t recv (uint8_t *data, uint8_t *pipe_num)
 {
 	uint8_t num;
+	
+	if (local_driver->config.mode == RADIO_TX) {
+		local_driver->mode(RADIO_RX, true);
+		local_driver->interface.radio_en(true);
+	}
 
 	if (!read_irq(RX_DR_IRQ_MASK))
 		return 0; /* FIFO empty */
@@ -139,6 +154,18 @@ static void switch_mode (enum radio_mode mode, bool power_enable)
 	local_driver->config.mode = mode;
 	local_driver->config.power_enable = power_enable;
 
+	disable_radio();
+
+	if (mode == RADIO_TX) {
+		local_driver->config.tx_irq = true;
+		local_driver->config.rx_irq = false;
+		local_driver->config.max_rt_irq = local_driver->auto_retransmit.count;
+	} else {
+		local_driver->config.rx_irq = true;
+		local_driver->config.tx_irq = false;
+		local_driver->config.max_rt_irq = false;
+	}
+
 	update_config();
 }
 
@@ -149,9 +176,7 @@ uint8_t nrf24l01_init (struct nrf24l01_conf *driver)
 	local_driver->recv = recv;
 	local_driver->mode = switch_mode;
 
-	/* Disable the radio before config */
-	write_reg(CONFIG_REG, 0x00);
-
+	disable_radio();
 	write_reg(EN_AA_REG, *(uint8_t *)&local_driver->auto_acknowledgment);
 	write_reg(EN_RXADDR_REG, *(uint8_t *)&local_driver->enabled_rx_addresses);
 	write_reg(SETUP_AW_REG, *(uint8_t *)&local_driver->address_widths);
