@@ -104,7 +104,7 @@ struct nrf24l01_conf
 	bool rx_state;
 
 	/* Public functions */
-	bool (* send) (uint8_t *data, uint8_t size, bool keep_rx);
+	bool (* send) (uint8_t *data, uint8_t size);
 	uint8_t (* recv) (uint8_t *data, uint8_t *pipe_num);
 	void (* mode) (enum radio_mode mode, bool power_enable);
 };
