@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+enum radio_mode { RADIO_TX, RADIO_RX };
+
 struct nrf24l01_conf
 {
 	/* Interface functions */
@@ -12,13 +14,14 @@ struct nrf24l01_conf
 		uint8_t (*write) (uint8_t reg, uint8_t *buf, uint8_t size);
 		uint8_t (*read) (uint8_t reg, uint8_t *buf, uint8_t size);
 		void (*radio_en) (bool state);
-		bool (*read_irq) (void);
+		bool (*read_irq) (void); /* Optional */
+		uint8_t error;
 	} interface;
 
 	/* Configuration Register */
 	struct
 	{
-		enum { RADIO_TX, RADIO_RX } mode : 1;
+		enum radio_mode mode : 1;
 		bool power_enable : 1;
 		enum { CRC_1B, CRC_2B } crc_config : 1;
 		bool crc_enable : 1;
@@ -54,7 +57,7 @@ struct nrf24l01_conf
 	/* Setup of Address Widths */
 	struct
 	{
-		enum { 
+		enum {
 			ADDRESS_3_BYTES = 1,
 			ADDRESS_4_BYTES = 2,
 			ADDRESS_5_BYTES = 3,
@@ -97,15 +100,16 @@ struct nrf24l01_conf
 	/* How many times we gonna pool IRQ before report fault */
 	uint32_t read_cnt;
 
-	/* Interface error will be stored in here */
-	uint8_t status;
+	/* Keep rx enabled after tx if needed */
+	bool rx_state;
 
 	/* Public functions */
 	bool (* send) (uint8_t *data, uint8_t size, bool keep_rx);
-	uint8_t (* recv) (uint8_t *data, uint8_t size);
+	uint8_t (* recv) (uint8_t *data, uint8_t *pipe_num);
+	void (* mode) (enum radio_mode mode, bool power_enable);
 };
 
-struct nrf24l01_conf *nrf24l01_init(struct nrf24l01_conf *driver);
+uint8_t nrf24l01_init (struct nrf24l01_conf *driver);
 void spi_deinit(void);
 
 #endif /* NRF24L01_H */

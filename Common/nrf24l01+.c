@@ -1,14 +1,14 @@
 #include "nrf24l01+.h"
 
 #define CONFIG_REG				0x00
-#define EN_AA_REG				0x01
-#define EN_RXADDR_REG			0x02
-#define SETUP_AW_REG			0x03
+#define EN_AA_REG					0x01
+#define EN_RXADDR_REG				0x02
+#define SETUP_AW_REG				0x03
 #define SETUP_RETR_REG			0x04
-#define RF_CH_REG				0x05
-#define RF_SETUP_REG			0x06
+#define RF_CH_REG					0x05
+#define RF_SETUP_REG				0x06
 #define STATUS_REG				0x07
-#define OBSERV_TX_REG			0x08
+#define OBSERV_TX_REG				0x08
 #define CD_REG					0x09
 #define RX_ADDR_P0_REG			0x0A
 #define RX_ADDR_P1_REG			0x0B
@@ -17,38 +17,40 @@
 #define RX_ADDR_P4_REG			0x0E
 #define RX_ADDR_P5_REG			0x0F
 #define TX_ADDR_REG				0x10
-#define RX_PW_P0_REG			0x11
-#define RX_PW_P1_REG			0x12
-#define RX_PW_P2_REG			0x13
-#define RX_PW_P3_REG			0x14
-#define RX_PW_P4_REG			0x15
-#define RX_PW_P5_REG			0x16
+#define RX_PW_P0_REG				0x11
+#define RX_PW_P1_REG				0x12
+#define RX_PW_P2_REG				0x13
+#define RX_PW_P3_REG				0x14
+#define RX_PW_P4_REG				0x15
+#define RX_PW_P5_REG				0x16
 #define FIFO_STATUS_REG			0x17
 
-#define SEND_PAYLOAD_CMD		0xA0
-#define RX_DR_IRQ_CLEAR			0x40
-#define TX_DS_IRQ_CLEAR			0x20
-#define MAX_RT_IRQ_CLEAR		0x10
-#define FLUSH_TX_CMD			0xE1
-#define FLUSH_RX_CMD			0xE2
+#define SEND_PAYLOAD_CMD			0xA0
+#define RX_DR_IRQ_MASK			0x40
+#define TX_DS_IRQ_MASK			0x20
+#define MAX_RT_IRQ_MASK			0x10
+#define FLUSH_TX_CMD				0xE1
+#define FLUSH_RX_CMD				0xE2
 #define RX_PAYLOAD_CMD			0x61
-#define PIPE_BITMASK			0x0E
-#define RX_FIFO_EMPTY			0x0E
+#define PIPE_BITMASK				0x0E
+#define RX_FIFO_EMPTY_MASK		0x01
+#define INVERT_IRQ_BITS				0x70
 
 static struct nrf24l01_conf *local_driver;
 
-static uint8_t write_reg (uint8_t reg, uint8_t value)
+static void write_reg (uint8_t reg, uint8_t value)
 {
-	local_driver->status = local_driver->interface.write((0x1F & reg) | (1 << 5),
-		&value, sizeof(value));
-
-	return 0;
+	local_driver->interface.error =
+		local_driver->interface.write((0x1F & reg) | (1 << 5),
+			&value, sizeof(value));
 }
 
 static uint8_t read_reg (uint8_t reg)
 {
 	uint8_t res;
-	local_driver->status = local_driver->interface.read(0x1F & reg, &res, sizeof(res));
+	local_driver->interface.error =
+		local_driver->interface.read(0x1F & reg, &res, sizeof(res));
+
 	return res;
 }
 
@@ -58,23 +60,27 @@ static void write_address (uint8_t reg, uint8_t *address)
 		local_driver->interface.write(reg | (1 << 5), address, 5);
 }
 
-static bool read_irq (void)
+static bool read_irq (uint8_t irq_mask)
 {
 	if (local_driver->interface.read_irq)
-		/* return active low interrupt */
 		return !local_driver->interface.read_irq();
 
-	return read_reg(STATUS_REG) & 0x70;
+	return (read_reg(STATUS_REG)) & irq_mask;
 }
 
-static void irq_clear (uint8_t cmd)
+static void clear_irq (uint8_t irq_mask)
 {
-	write_reg(STATUS_REG, cmd);
+	write_reg(STATUS_REG, irq_mask);
 }
 
 static void flush_buffer (uint8_t cmd)
 {
 	local_driver->interface.write(cmd, 0, 0);
+}
+
+static void update_config (void)
+{
+	write_reg(CONFIG_REG, *(uint8_t *)&local_driver->config ^ INVERT_IRQ_BITS);
 }
 
 static bool send (uint8_t *data, uint8_t size, bool keep_rx)
@@ -86,52 +92,65 @@ static bool send (uint8_t *data, uint8_t size, bool keep_rx)
 
 	local_driver->interface.radio_en(true);
 
-	while (!read_irq() && cnt--);
+	while (!read_irq(RX_DR_IRQ_MASK) && cnt--);
 
 	local_driver->interface.radio_en(keep_rx);
 
 	res = cnt == 0;
 
 	if (local_driver->auto_retransmit.count)
-		res = local_driver->interface.read(0xFF, 0, 0) & TX_DS_IRQ_CLEAR;
+		res = local_driver->interface.read(0xFF, 0, 0) & TX_DS_IRQ_MASK;
 
-	irq_clear(MAX_RT_IRQ_CLEAR | TX_DS_IRQ_CLEAR);
+	clear_irq(MAX_RT_IRQ_MASK | TX_DS_IRQ_MASK);
 	flush_buffer(FLUSH_TX_CMD);
 
 	return res;
 }
 
-static uint8_t recv (uint8_t *data, uint8_t size)
+static uint8_t recv (uint8_t *data, uint8_t *pipe_num)
 {
-	uint8_t res;
+	uint8_t num;
 
-	if (!read_irq())
-		return 0;
+	if (!read_irq(RX_DR_IRQ_MASK))
+		return 0; /* FIFO empty */
 
-	res = local_driver->interface.read(RX_PAYLOAD_CMD, data, size) & PIPE_BITMASK;
+	num = read_reg(STATUS_REG);
 
-	/* this not suppose to be happen
-	 * the RX IRQ rised, but no data received */
-	if (res == RX_FIFO_EMPTY) {
-		irq_clear(RX_DR_IRQ_CLEAR);
-		return 0;
-	}
+	/* Calculate pipe num */
+	num &= PIPE_BITMASK;
+	num >>= 1;
 
-	return (res >> 1) | 0x80;
+	if (pipe_num)
+		*pipe_num = num;
+	num = local_driver->rx_pipe_size[num];
+
+	local_driver->interface.read(RX_PAYLOAD_CMD, data, num);
+
+	/* Clear IRQ only if last data received (using FIFO) */
+	if  (read_reg(FIFO_STATUS_REG) & RX_FIFO_EMPTY_MASK)
+		clear_irq(RX_DR_IRQ_MASK);
+
+	/* Return number of bytes in pipe */
+	return num;
 }
 
-struct nrf24l01_conf *nrf24l01_init (struct nrf24l01_conf *driver)
+static void switch_mode (enum radio_mode mode, bool power_enable)
 {
-	/* If NULL is provided just return current driver */
-	if (!driver)
-		return local_driver;
+	local_driver->config.mode = mode;
+	local_driver->config.power_enable = power_enable;
 
+	update_config();
+}
+
+uint8_t nrf24l01_init (struct nrf24l01_conf *driver)
+{
 	local_driver = driver;
 	local_driver->send = send;
 	local_driver->recv = recv;
+	local_driver->mode = switch_mode;
 
 	/* Disable the radio before config */
-	local_driver->status = write_reg(CONFIG_REG, 0x00);
+	write_reg(CONFIG_REG, 0x00);
 
 	write_reg(EN_AA_REG, *(uint8_t *)&local_driver->auto_acknowledgment);
 	write_reg(EN_RXADDR_REG, *(uint8_t *)&local_driver->enabled_rx_addresses);
@@ -154,7 +173,7 @@ struct nrf24l01_conf *nrf24l01_init (struct nrf24l01_conf *driver)
 	write_reg(RX_PW_P5_REG, local_driver->rx_pipe_size[5] & 0x3F);
 
 	/* invert irq enable bits */
-	write_reg(CONFIG_REG, *(uint8_t *)&local_driver->config ^ 0x70);
+	update_config();
 
-	return local_driver;
+	return local_driver->interface.error;;
 }

@@ -54,19 +54,20 @@ static void Init_GPIO(SPI_TypeDef * SPIx)
 
 void Init_SPI	(SPI_TypeDef * SPIx, uint16_t Prescaler, bool isIdleCLK_High)
 {
-	SPI_InitTypeDef SPI_InitStruct = 
-	{	
-		.SPI_Direction = SPI_Direction_2Lines_FullDuplex,
-		.SPI_Mode = SPI_Mode_Master,
-		.SPI_DataSize = SPI_DataSize_8b,
-		.SPI_CPOL = isIdleCLK_High ? SPI_CPOL_High :SPI_CPOL_Low,
-		.SPI_CPHA = isIdleCLK_High ? SPI_CPHA_2Edge : SPI_CPHA_1Edge,
-		.SPI_NSS = SPI_NSS_Soft,
-		.SPI_BaudRatePrescaler = Prescaler,
-		.SPI_FirstBit = SPI_FirstBit_MSB,
-		.SPI_CRCPolynomial = 7,
-	};
-	
+	SPI_InitTypeDef SPI_InitStruct;
+
+	SPI_InitStruct.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
+	SPI_InitStruct.SPI_Mode = SPI_Mode_Master;
+	SPI_InitStruct.SPI_DataSize = SPI_DataSize_8b;
+	SPI_InitStruct.SPI_BaudRatePrescaler = Prescaler;
+	SPI_InitStruct.SPI_DataSize = SPI_DataSize_8b;
+	SPI_InitStruct.SPI_NSS = SPI_NSS_Soft;
+	SPI_InitStruct.SPI_BaudRatePrescaler = Prescaler;
+	SPI_InitStruct.SPI_FirstBit = SPI_FirstBit_MSB;
+	SPI_InitStruct.SPI_CRCPolynomial = 7;
+	SPI_InitStruct.SPI_CPOL = isIdleCLK_High ? SPI_CPOL_High : SPI_CPOL_Low;
+	SPI_InitStruct.SPI_CPHA = isIdleCLK_High ? SPI_CPHA_2Edge : SPI_CPHA_1Edge;
+
 	SPI_Init(SPIx, &SPI_InitStruct);
 	SPI_Cmd(SPIx, ENABLE);
 }
@@ -74,10 +75,10 @@ void Init_SPI	(SPI_TypeDef * SPIx, uint16_t Prescaler, bool isIdleCLK_High)
 __inline static u8 _spi_readByte(SPI_TypeDef * SPIx, u8 byte)
 {
 	u8 res;
-	
+
 	if (SPIx->SR & SPI_SR_OVR)
 		SPIx->DR;
-	
+
     /* Loop while DR register in not empty */
   while (!(SPIx->SR & SPI_SR_TXE));
 
@@ -86,13 +87,13 @@ __inline static u8 _spi_readByte(SPI_TypeDef * SPIx, u8 byte)
 
   /* Wait to receive a byte */
 	while (!(SPIx->SR & SPI_SR_RXNE));
-		
+
 	res = (u8)SPIx->DR;
-		
+
 	#ifdef DEBUG_SPI
 		printf("SPI: WR 0x%.2X, RD 0x%.2X\n", byte, res);
 	#endif
-	
+
   /* Return the byte read from the SPI bus */
   return res;
 }
@@ -103,14 +104,14 @@ __inline static void _spi_select (GPIO_TypeDef * GPIOx, u16 PINx)
 
 	#ifdef DEBUG_SPI
 		printf("SPI: CS low\n");
-	#endif	
+	#endif
 }
 
 __inline static void _spi_deselect (SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx,u16 PINx)
 {
 	while (SPIx->SR & SPI_SR_BSY);
 	PIN_ON(GPIOx, PINx);
-	
+
 	#ifdef DEBUG_SPI
 		printf("SPI: CS high\n\n");
 	#endif
@@ -125,11 +126,11 @@ u8 SPI_WriteReg (SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx, u16 PINx, u8 reg, u8 
 {
 	u8 result;
 	_spi_select(GPIOx, PINx);
-	
+
 	result = _spi_readByte(SPIx, reg);
 	while(size--)
 		_spi_readByte(SPIx, * buf++);
-	
+
 	_spi_deselect(SPIx, GPIOx, PINx);
 	return result;
 }
@@ -137,13 +138,13 @@ u8 SPI_WriteReg (SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx, u16 PINx, u8 reg, u8 
 u8 SPI_ReadReg (SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx, u16 PINx, u8 reg, u8 * buf, u16 size)
 {
 	u8 result;
-	
-	_spi_select(GPIOx, PINx);	
+
+	_spi_select(GPIOx, PINx);
 	result = _spi_readByte(SPIx, reg);
-	
+
 	while(size--)
 		* buf++ = _spi_readByte(SPIx, ++reg);
-	
+
 	_spi_deselect(SPIx, GPIOx, PINx);
 	return result;
 }
@@ -151,16 +152,16 @@ u8 SPI_ReadReg (SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx, u16 PINx, u8 reg, u8 *
 u8 SPI_ReadRegInc (SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx, u16 PINx, u8 reg, u8 * buf, u16 size, u8 inc)
 {
 	u8 result;
-	
-	_spi_select(GPIOx, PINx);	
+
+	_spi_select(GPIOx, PINx);
 	result = _spi_readByte(SPIx, reg);
-	
+
 	while(size--)
 	{
 		reg += inc;
 		* buf++ = _spi_readByte(SPIx, reg);
 	}
-	
+
 	_spi_deselect(SPIx, GPIOx, PINx);
 	return result;
 }
@@ -170,20 +171,20 @@ u8 SPI_RW_Reg (SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx, u16 PINx, u8 reg, u8 * 
 	u8 result, tmp;
 	_spi_select(GPIOx, PINx);
 	result = _spi_readByte(SPIx, reg);
-	
+
 	while(size--)
 	{
 		tmp = _spi_readByte(SPIx, * buf);
 		* buf++ = tmp;
 	}
-	
+
 	_spi_deselect(SPIx, GPIOx, PINx);
-	return result;	
+	return result;
 }
 
 u8 SPI_RW (SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx, u16 PINx, u8 * buf, u16 size)
 {
-	u8 res, tmp; 
+	u8 res, tmp;
 	_spi_select(GPIOx, PINx);
 	res = _spi_readByte(SPIx, * buf);
 
