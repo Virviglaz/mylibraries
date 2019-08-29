@@ -59,6 +59,7 @@ static uint8_t send_receive_reg(uint8_t reg, uint8_t *data, uint16_t size, bool 
 
 	xfer[1].tx_buf = send ? (unsigned long)data : 0;
 	xfer[1].rx_buf = send ? 0 : (unsigned long)data;
+	xfer[1].len = size;
 
 	if (ioctl(local_driver->fd, SPI_IOC_MESSAGE(2), xfer) < 0)
 		debug("%s: Error sending reg data, errno: %s\n",
