@@ -39,7 +39,7 @@ static int send_receive(uint8_t *data, uint16_t size, bool send)
 
 	xfer.len = size;
 
-	res = ioctl(local_driver->fd, SPI_IOC_MESSAGE(1), &xfer);
+	res = ioctl(local_driver->fd, SPI_IOC_MESSAGE(1), &xfer) < 0;
 	if (res)
 		debug("%s: Error sending data\n", local_driver->name);
 
@@ -61,9 +61,9 @@ static int send_receive_reg(uint8_t reg, uint8_t *data, uint16_t size, bool send
 	else
 		xfer[1].rx_buf = (unsigned long)data;
 
-	res = ioctl(local_driver->fd, SPI_IOC_MESSAGE(2), xfer);
+	res = ioctl(local_driver->fd, SPI_IOC_MESSAGE(2), xfer) < 0;
 	if (res)
-		debug("%s: Error sending data\n", local_driver->name);
+		debug("%s: Error sending reg data\n", local_driver->name);
 
 	return res;
 }
