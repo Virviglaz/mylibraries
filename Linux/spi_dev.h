@@ -14,10 +14,10 @@ struct spi_dev {
 	uint32_t freq;
 
 	/* Public functions */
-	int (*send) (uint8_t *data, uint16_t size);
-	int (*recv) (uint8_t *data, uint16_t size);
-	int (*send_reg) (uint8_t reg, uint8_t *data, uint16_t size);
-	int (*recv_reg) (uint8_t reg, uint8_t *data, uint16_t size);
+	uint8_t (*send) (uint8_t *data, uint16_t size);
+	uint8_t (*recv) (uint8_t *data, uint16_t size);
+	uint8_t (*send_reg) (uint8_t reg, uint8_t *data, uint16_t size);
+	uint8_t (*recv_reg) (uint8_t reg, uint8_t *data, uint16_t size);
 };
 
 struct spi_dev *spi_init (struct spi_dev *driver, const char *name);
