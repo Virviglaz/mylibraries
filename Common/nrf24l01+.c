@@ -144,8 +144,10 @@ static uint8_t recv(uint8_t *data, uint8_t *pipe_num)
 	local_driver->interface.read(RX_PAYLOAD_CMD, data, num);
 
 	/* Clear IRQ only if last data received (using FIFO) */
-	if (read_reg(FIFO_STATUS_REG) & RX_FIFO_EMPTY_MASK)
+	if (read_reg(FIFO_STATUS_REG) & RX_FIFO_EMPTY_MASK) {
 		clear_irq(RX_DR_IRQ_MASK);
+		flush_buffer(FLUSH_RX_CMD);
+	}
 
 	/* Return number of bytes in pipe */
 	return num;
