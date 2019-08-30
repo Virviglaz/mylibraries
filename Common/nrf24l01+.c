@@ -88,12 +88,15 @@ static void disable_radio (void)
 	write_reg(CONFIG_REG, 0x00);
 }
 
-static bool send(uint8_t *data, uint8_t size)
+static bool send(uint8_t *dest, uint8_t *data, uint8_t size)
 {
 	uint32_t cnt = local_driver->read_cnt;
 	bool res, in_rx = local_driver->config.mode == RADIO_RX;
 	uint8_t tx_irq = local_driver->auto_retransmit.count ?
 		MAX_RT_IRQ_MASK | TX_DS_IRQ_MASK : TX_DS_IRQ_MASK;
+
+	if (dest) /* Change distanation if needed */
+		write_address(TX_ADDR_REG, dest);
 	
 	local_driver->interface.radio_en(true);
 	
