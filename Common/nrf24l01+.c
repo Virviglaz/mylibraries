@@ -38,14 +38,14 @@
 
 static struct nrf24l01_conf *local_driver;
 
-static void write_reg (uint8_t reg, uint8_t value)
+static void write_reg(uint8_t reg, uint8_t value)
 {
 	local_driver->interface.error =
 		local_driver->interface.write((0x1F & reg) | (1 << 5),
 			&value, sizeof(value));
 }
 
-static uint8_t read_reg (uint8_t reg)
+static uint8_t read_reg(uint8_t reg)
 {
 	uint8_t res;
 	local_driver->interface.error =
@@ -54,13 +54,13 @@ static uint8_t read_reg (uint8_t reg)
 	return res;
 }
 
-static void write_address (uint8_t reg, uint8_t *address)
+static void write_address(uint8_t reg, uint8_t *address)
 {
 	if (address)
 		local_driver->interface.write(reg | (1 << 5), address, 5);
 }
 
-static bool read_irq (uint8_t irq_mask)
+static bool read_irq(uint8_t irq_mask)
 {
 	if (local_driver->interface.read_irq)
 		return !local_driver->interface.read_irq();
@@ -68,17 +68,17 @@ static bool read_irq (uint8_t irq_mask)
 	return (read_reg(STATUS_REG)) & irq_mask;
 }
 
-static void clear_irq (uint8_t irq_mask)
+static void clear_irq(uint8_t irq_mask)
 {
 	write_reg(STATUS_REG, irq_mask);
 }
 
-static void flush_buffer (uint8_t cmd)
+static void flush_buffer(uint8_t cmd)
 {
 	local_driver->interface.write(cmd, 0, 0);
 }
 
-static void update_config (void)
+static void update_config(void)
 {
 	write_reg(CONFIG_REG, *(uint8_t *)&local_driver->config ^ INVERT_IRQ_BITS);
 }
@@ -88,7 +88,7 @@ static void disable_radio (void)
 	write_reg(CONFIG_REG, 0x00);
 }
 
-static bool send (uint8_t *data, uint8_t size)
+static bool send(uint8_t *data, uint8_t size)
 {
 	uint32_t cnt = local_driver->read_cnt;
 	bool res, in_rx = local_driver->config.mode == RADIO_RX;
@@ -117,7 +117,7 @@ static bool send (uint8_t *data, uint8_t size)
 	return res;
 }
 
-static uint8_t recv (uint8_t *data, uint8_t *pipe_num)
+static uint8_t recv(uint8_t *data, uint8_t *pipe_num)
 {
 	uint8_t num;
 	
@@ -129,9 +129,8 @@ static uint8_t recv (uint8_t *data, uint8_t *pipe_num)
 	if (!read_irq(RX_DR_IRQ_MASK))
 		return 0; /* FIFO empty */
 
-	num = read_reg(STATUS_REG);
-
 	/* Calculate pipe num */
+	num = read_reg(STATUS_REG);
 	num &= PIPE_BITMASK;
 	num >>= 1;
 
@@ -142,14 +141,14 @@ static uint8_t recv (uint8_t *data, uint8_t *pipe_num)
 	local_driver->interface.read(RX_PAYLOAD_CMD, data, num);
 
 	/* Clear IRQ only if last data received (using FIFO) */
-	if  (read_reg(FIFO_STATUS_REG) & RX_FIFO_EMPTY_MASK)
+	if (read_reg(FIFO_STATUS_REG) & RX_FIFO_EMPTY_MASK)
 		clear_irq(RX_DR_IRQ_MASK);
 
 	/* Return number of bytes in pipe */
 	return num;
 }
 
-static void switch_mode (enum radio_mode mode, bool power_enable)
+static void switch_mode(enum radio_mode mode, bool power_enable)
 {
 	local_driver->config.mode = mode;
 	local_driver->config.power_enable = power_enable;
@@ -169,12 +168,28 @@ static void switch_mode (enum radio_mode mode, bool power_enable)
 	update_config();
 }
 
-uint8_t nrf24l01_init (struct nrf24l01_conf *driver)
+static void sleep(void)
+{
+	local_driver->interface.radio_en(false);
+	switch_mode(local_driver->config.mode, false);
+}
+
+static void wakeup(void)
+{
+	switch_mode(local_driver->config.mode, true);
+
+	if (local_driver->config.mode == RADIO_RX)
+		local_driver->interface.radio_en(true);
+}
+
+uint8_t nrf24l01_init(struct nrf24l01_conf *driver)
 {
 	local_driver = driver;
 	local_driver->send = send;
 	local_driver->recv = recv;
 	local_driver->mode = switch_mode;
+	local_driver->sleep = sleep;
+	local_driver->wakeup = wakeup;
 
 	disable_radio();
 	write_reg(EN_AA_REG, *(uint8_t *)&local_driver->auto_acknowledgment);
@@ -199,6 +214,9 @@ uint8_t nrf24l01_init (struct nrf24l01_conf *driver)
 
 	/* invert irq enable bits */
 	update_config();
+
+	if (local_driver->config.mode == RADIO_RX)
+		local_driver->interface.radio_en(true);
 
 	return local_driver->interface.error;;
 }

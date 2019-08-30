@@ -4,6 +4,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define SPI_FREQ_MAX_HZ			8000000u
+#define SPI_MODE				SPI_MODE_0
+#define SPI_BITS_PER_WORD		8u
+
 enum radio_mode { RADIO_TX, RADIO_RX };
 
 struct nrf24l01_conf
@@ -107,6 +111,8 @@ struct nrf24l01_conf
 	bool (* send) (uint8_t *data, uint8_t size);
 	uint8_t (* recv) (uint8_t *data, uint8_t *pipe_num);
 	void (* mode) (enum radio_mode mode, bool power_enable);
+	void (* sleep) (void);
+	void (* wakeup) (void);
 };
 
 uint8_t nrf24l01_init (struct nrf24l01_conf *driver);
