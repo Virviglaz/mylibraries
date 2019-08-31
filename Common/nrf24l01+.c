@@ -1,3 +1,47 @@
+/*
+ * This file is provided under a MIT license.  When using or
+ *   redistributing this file, you may do so under either license.
+ *
+ *   MIT License
+ *   
+ *   Copyright (c) 2019 Pavel Nadein
+ *   
+ *   Permission is hereby granted, free of charge, to any person obtaining a copy
+ *   of this software and associated documentation files (the "Software"), to deal
+ *   in the Software without restriction, including without limitation the rights
+ *   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *   copies of the Software, and to permit persons to whom the Software is
+ *   furnished to do so, subject to the following conditions:
+ *   
+ *   The above copyright notice and this permission notice shall be included in all
+ *   copies or substantial portions of the Software.
+ *   
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *   SOFTWARE.
+ *
+ *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * nRF24L01 open source library/driver
+ *
+ * Contact Information:
+ * Pavel Nadein <pavel.nadein@gmail.com>
+ */
+
 #include "nrf24l01+.h"
 
 #define CONFIG_REG				0x00
@@ -35,6 +79,10 @@
 #define PIPE_BITMASK				0x0E
 #define RX_FIFO_EMPTY_MASK		0x01
 #define INVERT_IRQ_BITS				0x70
+
+#define MAX_PIPE_SIZE			32
+
+#define MIN(a,b) (((a)<(b))?(a):(b))
 
 static struct nrf24l01_conf *local_driver;
 
@@ -104,9 +152,14 @@ static bool send(uint8_t *dest, uint8_t *data, uint8_t size)
 
 	local_driver->interface.write(SEND_PAYLOAD_CMD, data, size);
 	
-	while (!read_irq(tx_irq) && cnt--);
+	while (!read_irq(tx_irq) && --cnt);
 
-	res = !(cnt == 0);
+	if (local_driver->auto_retransmit.count)
+		/* Check maximum retransmit is set, return false */
+		res = !(read_reg(STATUS_REG) & MAX_RT_IRQ_MASK);
+	else
+		/* Just check that chip is responding */
+		res = !(cnt == 0);
 
 	clear_irq(tx_irq);
 	flush_buffer(FLUSH_TX_CMD);
@@ -114,7 +167,7 @@ static bool send(uint8_t *dest, uint8_t *data, uint8_t size)
 	/* Switch back to RX */
 	if (in_rx)
 		local_driver->mode(RADIO_RX, true);
-	else 
+	else
 		local_driver->interface.radio_en(false);
 
 	return res;
@@ -164,10 +217,13 @@ static void switch_mode(enum radio_mode mode, bool power_enable)
 		local_driver->config.tx_irq = true;
 		local_driver->config.rx_irq = false;
 		local_driver->config.max_rt_irq = local_driver->auto_retransmit.count;
-	} else {
+	} else { /* RX MODE */
 		local_driver->config.rx_irq = true;
 		local_driver->config.tx_irq = false;
 		local_driver->config.max_rt_irq = false;
+
+		/* Turn on radio in RX mode */
+		local_driver->interface.radio_en(power_enable);
 	}
 
 	update_config();
@@ -187,6 +243,11 @@ static void wakeup(void)
 		local_driver->interface.radio_en(true);
 }
 
+/**
+  * @brief  Configures the nRF24L01
+  * @param  driver: Pointer to nrf24l01_conf infostructure.
+  * @retval value, returned back by interface function (can be used for error handling)
+  */
 uint8_t nrf24l01_init(struct nrf24l01_conf *driver)
 {
 	local_driver = driver;
@@ -210,18 +271,14 @@ uint8_t nrf24l01_init(struct nrf24l01_conf *driver)
 	write_reg(RX_ADDR_P3_REG, local_driver->rx_address_p3);
 	write_reg(RX_ADDR_P4_REG, local_driver->rx_address_p4);
 	write_reg(RX_ADDR_P5_REG, local_driver->rx_address_p5);
-	write_reg(RX_PW_P0_REG, local_driver->rx_pipe_size[0] & 0x3F);
-	write_reg(RX_PW_P1_REG, local_driver->rx_pipe_size[1] & 0x3F);
-	write_reg(RX_PW_P2_REG, local_driver->rx_pipe_size[2] & 0x3F);
-	write_reg(RX_PW_P3_REG, local_driver->rx_pipe_size[3] & 0x3F);
-	write_reg(RX_PW_P4_REG, local_driver->rx_pipe_size[4] & 0x3F);
-	write_reg(RX_PW_P5_REG, local_driver->rx_pipe_size[5] & 0x3F);
+	write_reg(RX_PW_P0_REG, MIN(local_driver->rx_pipe_size[0], MAX_PIPE_SIZE));
+	write_reg(RX_PW_P1_REG, MIN(local_driver->rx_pipe_size[1], MAX_PIPE_SIZE));
+	write_reg(RX_PW_P2_REG, MIN(local_driver->rx_pipe_size[2], MAX_PIPE_SIZE));
+	write_reg(RX_PW_P3_REG, MIN(local_driver->rx_pipe_size[3], MAX_PIPE_SIZE));
+	write_reg(RX_PW_P4_REG, MIN(local_driver->rx_pipe_size[4], MAX_PIPE_SIZE));
+	write_reg(RX_PW_P5_REG, MIN(local_driver->rx_pipe_size[5], MAX_PIPE_SIZE));
 
-	/* invert irq enable bits */
-	update_config();
+	switch_mode(local_driver->config.mode, local_driver->config.power_enable);
 
-	if (local_driver->config.mode == RADIO_RX)
-		local_driver->interface.radio_en(true);
-
-	return local_driver->interface.error;;
+	return local_driver->interface.error;
 }
