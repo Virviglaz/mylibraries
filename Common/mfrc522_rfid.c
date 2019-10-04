@@ -316,7 +316,7 @@ static enum mfrc_status mfrc_auth(enum mfrc_auth auth,
 	for (i = 0; i != 6; i++)
 		buff[i + 2] = *(sector + i);
 
-	for (i=0; i != 4; i++)
+	for (i = 0; i != 4; i++)
 		buff[i + 8] = *(sn + i);
 
 	status = mfrc_to_card(PCD_AUTHENT, buff, 12, buff, &recvBits);
