@@ -333,6 +333,19 @@ static enum mfrc_status mfrc_write(uint8_t block, uint8_t *data)
 	return status;
 }
 
+static void mfrc_restart(void)
+{
+	mfrc_reset();
+	write_reg(MFRC522_REG_T_MODE, 0x8D);
+	write_reg(MFRC522_REG_T_PRESCALER, 0x3E);
+	write_reg(MFRC522_REG_T_RELOAD_L, 30);
+	write_reg(MFRC522_REG_T_RELOAD_H, 0);
+	write_reg(MFRC522_REG_RF_CFG, mfrc_driver->rx_gain);
+	write_reg(MFRC522_REG_TX_AUTO, 0x40);
+	write_reg(MFRC522_REG_MODE, 0x3D);
+	mfrc_tx_disable();
+}
+
 /**
   * @brief  High Level. Read data from one sector.
   * @param  sn: pointer to serial number array.
@@ -406,7 +419,7 @@ enum mfrc_status mfrc_operate(uint8_t sector,
 	}
 
 operate_end:
-	mfrc_tx_disable();
+	mfrc_restart();
 	return res;
 }
 
@@ -441,18 +454,10 @@ struct mfrc_t *mfrc_init(struct mfrc_t *init)
 		if (!mfrc_driver->rx_gain)
 			mfrc_driver->rx_gain = RX_GAIN_48dB;
 
-		mfrc_reset();
 		if (mfrc_check_interface())
 			return 0;
 
-		write_reg(MFRC522_REG_T_MODE, 0x8D);
-		write_reg(MFRC522_REG_T_PRESCALER, 0x3E);
-		write_reg(MFRC522_REG_T_RELOAD_L, 30);
-		write_reg(MFRC522_REG_T_RELOAD_H, 0);
-		write_reg(MFRC522_REG_RF_CFG, init->rx_gain);
-		write_reg(MFRC522_REG_TX_AUTO, 0x40);
-		write_reg(MFRC522_REG_MODE, 0x3D);
-		mfrc_tx_disable();
+		mfrc_restart();
 	}
 
 	return mfrc_driver;
