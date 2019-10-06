@@ -111,13 +111,10 @@ struct mfrc_t {
 		void (*rd)(uint8_t reg, uint8_t *buf, uint8_t size);
 	} io;
 
-	enum mfrc_status(*operate32)(uint8_t *sn, uint8_t sector,
-	uint8_t *key, void(*key_gen_func)(uint8_t *sn, uint8_t *key),
-	void (*handler)(uint8_t *sn, uint32_t *data), enum mfrc_op task);
-
-	enum mfrc_status(*operate)(uint8_t *sn, uint8_t sector,
-	uint8_t *key, void(*key_gen_func)(uint8_t *sn, uint8_t *key),
-	void (*handler)(uint8_t *sn, uint8_t *value), enum mfrc_op task);
+	enum mfrc_status(*operate)(uint8_t sector,
+		void(*key_gen_func)(uint8_t *sn, uint8_t *key),
+		void (*handler)(uint8_t *sn, uint8_t *value),
+		enum mfrc_op task);
 
 	void (*sleep)(void);
 };
@@ -204,9 +201,6 @@ enum mfrc_registers {
 	 MFRC522_REG_RESERVED33		= 0x3E,
 	 MFRC522_REG_RESERVED34		= 0x3F,
 };
-
-#define MFRC522_DUMMY			0x00	// Dummy byte
-#define MFRC522_MAX_LEN			16	// Buf len byte
 
 struct mfrc_t *mfrc_init(struct mfrc_t *init);
 
