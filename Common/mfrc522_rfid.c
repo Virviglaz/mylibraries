@@ -44,6 +44,11 @@
 
 #include "mfrc522_rfid.h"
 
+#define MFRC522_SN_LEN			16
+#define MFRC522_DATA_LEN		16
+#define MFRC522_PASS_LEN		6
+#define MFRC522_MAX_SECTORS		40
+
 /* Local pointer to existing outside configuration structure */
 static struct mfrc_t *mfrc_driver = 0;
 
@@ -66,56 +71,6 @@ static uint8_t read_reg (enum mfrc_registers addr)
 	mfrc_driver->io.rd(addr, &val, sizeof(val));
 
 	return val;
-}
-
-/* Prepare data according general rule of data storage in MIFARE */
-static void mfrc_encode_data(uint32_t value, uint8_t *data)
-{
-	union {
-		uint32_t v32;
-		uint8_t v8[sizeof(uint32_t)];
-	} V32b;
-	V32b.v32 = value;
-
-	/* value */
-	data[0] = V32b.v8[0];
-	data[1] = V32b.v8[1];
-	data[2] = V32b.v8[2];
-	data[3] = V32b.v8[3];
-
-	/* NOT value */
-	data[4] = ~V32b.v8[0];
-	data[5] = ~V32b.v8[1];
-	data[6] = ~V32b.v8[2];
-	data[7] = ~V32b.v8[3];
-
-	/* value */
-	data[8] = V32b.v8[0];
-	data[9] = V32b.v8[1];
-	data[10] = V32b.v8[2];
-	data[11] = V32b.v8[3];
-}
-
-static enum mfrc_status mfrc_decode_data(uint8_t *data, uint32_t *value)
-{
-	enum mfrc_status res = MI_OK;
-	uint8_t cnt;
-	union {
-		uint32_t v32;
-		uint8_t v8[sizeof(uint32_t)];
-	} V32b;
-
-	for (cnt = 0; cnt != sizeof(uint32_t); cnt++)
-		if (data[cnt] != data[cnt + 8])
-			res = MI_WRONG_DATA;
-
-	V32b.v8[0] = data[0];
-	V32b.v8[1] = data[1];
-	V32b.v8[2] = data[2];
-	V32b.v8[3] = data[3];
-
-	*value = V32b.v32;
-	return res;
 }
 
 inline static void mfrc_set_bit_mask(enum mfrc_registers reg, uint8_t mask)
@@ -149,7 +104,7 @@ static enum mfrc_status mfrc_to_card(enum mfrc_cmd command,
 		uint8_t *backData, uint16_t *backLen)
 {
 	enum mfrc_status status = MI_ERR;
-	uint8_t irqEn = 0, waitIRq = 0, lastBits, n;
+	uint8_t irqEn, waitIRq, lastBits, n;
 	uint16_t i;
 
 	switch (command) {
@@ -204,10 +159,10 @@ static enum mfrc_status mfrc_to_card(enum mfrc_cmd command,
 				if (n == 0)
 					n = 1;
 
-				if (n > MFRC522_MAX_LEN)
-					n = MFRC522_MAX_LEN;
+				if (n > MFRC522_SN_LEN)
+					n = MFRC522_SN_LEN;
 
-				for (i = 0; i < n; i++)
+				for (i = 0; i != n; i++)
 					backData[i] =
 						read_reg(MFRC522_REG_FIFO_DATA);
 			}
@@ -238,6 +193,7 @@ static enum mfrc_status mfrc_anti_collision (uint8_t *sn)
 	uint8_t i, sn_check = 0;
 	uint16_t unLen;
 
+	sn_check = 0;
 	write_reg(MFRC522_REG_BIT_FRAMING, 0x00);
 	sn[0] = PICC_ANTICOLL;
 	sn[1] = 0x20;
@@ -316,7 +272,7 @@ static enum mfrc_status mfrc_auth(enum mfrc_auth auth,
 	for (i = 0; i != 6; i++)
 		buff[i + 2] = *(sector + i);
 
-	for (i = 0; i != 4; i++)
+	for (i=0; i != 4; i++)
 		buff[i + 8] = *(sn + i);
 
 	status = mfrc_to_card(PCD_AUTHENT, buff, 12, buff, &recvBits);
@@ -378,77 +334,6 @@ static enum mfrc_status mfrc_write(uint8_t block, uint8_t *data)
 }
 
 /**
-  * @brief  High Level. Read and decode data from one sector.
-  * @param  sn: pointer to serial number array.
-  * @param  sector: sector number.
-  * @param  key: pointer to access key array.
-  * @param  handler: Handler, that receive 32 bit value from card.
-  * @param  task: CARD_READ, CARD_WRITE, CARD_RW or CARD_RW_ANYWAY in case data format error.
-  * @retval None
-  */
-static enum mfrc_status mfrc_operate32(uint8_t *sn, uint8_t sector,
-	uint8_t *key, void (*key_gen_func)(uint8_t *sn, uint8_t *key),
-	void (*handler)(uint8_t *sn, uint32_t *data), enum mfrc_op task)
-{
-	enum mfrc_status res = MI_OK;
-	uint8_t data[16], uid[2];
-	uint32_t value;
-
-	/* Check params */
-	if (sector > 39)
-		return MI_WRONG_PARAM;
-
-	/* Check card presense */
-	if (mfrc_request(PICC_REQIDL, uid) != MI_OK)
-		return MI_NOCARD;
-
-	/* Check link for collision */
-	if (mfrc_anti_collision(sn) != MI_OK)
-		return MI_COLLISION;
-
-	/* Check cart type. Only 1k supported for now */
-	if (mfrc_select_tag(sn) != Mifare_1k)
-		return MI_WRONG_CARD;
-
-	/* Generate key */
-	key_gen_func(sn, key);
-
-	/* Authorise with provided key */
-	if (mfrc_auth(PICC_AUTHENT1A, sector, key, sn) != MI_OK)
-		return MI_AUTH_ERROR;
-
-	/* Read EEPROM data */
-	if (task != CARD_WRITE) {
-		if (mfrc_read(sector, data) != MI_OK)
-			return MI_READ_ERROR;
-
-		/* Check data is valid */
-		res = mfrc_decode_data(data, &value);
-	}
-
-	/* Execute event handler */
-	handler(sn, &value);
-
-	/* Return data, no write */
-	if (task == CARD_READ)
-		return res;
-
-	/* Check what to do. Procced writing anyway, but return error */
-	if (res != MI_OK && task != CARD_RW_ANYWAY)
-		return MI_WRONG_DATA;
-
-	/* Encode data */
-	mfrc_encode_data(value, data);
-
-	/* Write data back to card */
-	if (mfrc_write(sector, data) != MI_OK)
-		return MI_WRITE_ERROR;
-
-	return res;
-}
-
-
-/**
   * @brief  High Level. Read data from one sector.
   * @param  sn: pointer to serial number array.
   * @param  sector: sector number.
@@ -457,55 +342,71 @@ static enum mfrc_status mfrc_operate32(uint8_t *sn, uint8_t sector,
   * @param  task: CARD_READ, CARD_WRITE or CARD_RW.
   * @retval None
   */
-enum mfrc_status mfrc_operate(uint8_t *sn, uint8_t sector,
-	uint8_t *key, void (*key_gen_func)(uint8_t *sn, uint8_t *key),
+enum mfrc_status mfrc_operate(uint8_t sector,
+	void (*keygen_func)(uint8_t *sn, uint8_t *key),
 	void (*handler)(uint8_t *sn, uint8_t *value), enum mfrc_op task)
 {
 	enum mfrc_status res = MI_OK;
-	uint8_t data[16];
+	uint8_t serial[MFRC522_SN_LEN];
+	uint8_t data[MFRC522_DATA_LEN];
+	uint8_t pass[MFRC522_PASS_LEN];
 
 	/* Check params */
-	if (sector > 39)
+	if (sector >= MFRC522_MAX_SECTORS)
 		return MI_WRONG_PARAM;
 
 	/* Enable transmitter */
 	mfrc_tx_enable();
 
 	/* Check card presense */
-	if (mfrc_request(PICC_REQIDL, sn) != MI_OK)
-		return MI_NOCARD;
+	if (mfrc_request(PICC_REQIDL, serial) != MI_OK) {
+		res = MI_NOCARD;
+		goto operate_end;
+	}
 
 	/* Check link for collision */
-	if (mfrc_anti_collision(sn) != MI_OK)
-		return MI_COLLISION;
+	if (mfrc_anti_collision(serial) != MI_OK) {
+		res = MI_COLLISION;
+		goto operate_end;
+	}
 
 	/* Check cart type. Only 1k supported for now */
-	if (mfrc_select_tag(sn) != Mifare_1k)
-		return MI_WRONG_CARD;
+	if (mfrc_select_tag(serial) != Mifare_1k) {
+		res = MI_WRONG_CARD;
+		goto operate_end;
+	}
 
 	/* Generate key */
-	key_gen_func(sn, key);
+	keygen_func(serial, pass);
 
 	/* Authorise with provided key */
-	if (mfrc_auth(PICC_AUTHENT1A, sector, key, sn) != MI_OK)
-		return MI_AUTH_ERROR;
+	if (mfrc_auth(PICC_AUTHENT1A, sector, pass, serial) != MI_OK) {
+		res = MI_AUTH_ERROR;
+		goto operate_end;
+	}
 
 	/* Read EEPROM data */
 	if (task != CARD_WRITE)
-		if (mfrc_read(sector, data) != MI_OK)
-			return MI_READ_ERROR;
+		if (mfrc_read(sector, data) != MI_OK) {
+			res = MI_READ_ERROR;
+			goto operate_end;
+		}
 
 	/* Execute event handler */
-	handler(sn, data);
+	handler(serial, data);
 
 	/* Return data, no write */
 	if (task == CARD_READ)
-		return res;
+		goto operate_end;
 
 	/* Write data back to card */
-	if (mfrc_write(sector, data) != MI_OK)
-		return MI_WRITE_ERROR;
+	if (mfrc_write(sector, data) != MI_OK) {
+		res = MI_WRITE_ERROR;
+		goto operate_end;
+	}
 
+operate_end:
+	mfrc_tx_disable();
 	return res;
 }
 
@@ -530,12 +431,10 @@ static void mfrc_sleep(void)
 	mfrc_to_card(PCD_TRANSCEIVE, buff, 4, buff, &unLen);
 }
 
-
 struct mfrc_t *mfrc_init(struct mfrc_t *init)
 {
 	if (init) {
 		mfrc_driver = init;
-		mfrc_driver->operate32 = mfrc_operate32;
 		mfrc_driver->operate = mfrc_operate;
 		mfrc_driver->sleep = mfrc_sleep;
 
