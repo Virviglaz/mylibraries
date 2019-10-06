@@ -1,18 +1,15 @@
 #ifndef SPI_H
 #define SPI_H
 
-#include <stdio.h>
 #include <stdint.h>
 #include "gpio.h"
 
-typedef enum 
-{
+enum spi_dir {
 	SPIx_Unidirection = 0x00,
-	SPIx_Bidirection =  SPI_CR1_BIDIMODE | SPI_CR1_BIDIOE
-}SPIx_DirectionTypeDef;
+	SPIx_Bidirection =  SPI_CR1_BIDIMODE | SPI_CR1_BIDIOE,
+};
 
-typedef enum
-{
+enum spi_clockdiv {
 	SPIx_Div2   = 0x00,
 	SPIx_Div4   = 0x08,
 	SPIx_Div8   = 0x10,
@@ -20,34 +17,25 @@ typedef enum
 	SPIx_Div32  = 0x20,
 	SPIx_Div64  = 0x28,
 	SPIx_Div128 = 0x30,
-	SPIx_Div256 = 0x38
-}SPIx_BaudRateTypeDef;
+	SPIx_Div256 = 0x38,
+};
 
-typedef enum
-{
+enum spi_clockmode {
 	SPIx_ClockLow = 0,
-	SPIx_ClockHigh = SPI_CR1_CPHA | SPI_CR1_CPOL
-}SPIx_ClockTypeDef;
+	SPIx_ClockHigh = SPI_CR1_CPHA | SPI_CR1_CPOL,
+};
 
-typedef struct
-{
-	ErrorStatus (* Init)	(SPI_TypeDef * SPIx, SPIx_DirectionTypeDef Dir, SPIx_BaudRateTypeDef DB, SPIx_ClockTypeDef Clk);
-	void (* ClockConfig)	(SPI_TypeDef * SPIx, SPIx_ClockTypeDef Clk);
-	uint8_t (* WriteReg)	(SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx, uint16_t PINx, uint8_t reg, uint8_t * buf, uint16_t size);
-	uint8_t (* ReadReg)		(SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx, uint16_t PINx, uint8_t reg, uint8_t * buf, uint16_t size);
-	uint8_t (* ReadRegInc)(SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx, uint16_t PINx, uint8_t reg, uint8_t * buf, uint16_t size, uint8_t inc);
-	uint8_t (* RW_Reg)		(SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx, uint16_t PINx, uint8_t reg, uint8_t * buf, uint16_t size);
-	uint8_t (* RW)				(SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx, uint16_t PINx, uint8_t * buf, uint16_t size);
-	
-}SPI_ClassTypeDef;
+void spi_init(SPI_TypeDef *SPIx,
+	enum spi_dir dir,
+	enum spi_clockdiv div,
+	enum spi_clockmode clkdiv);
 
-ErrorStatus SPIx_Init (SPI_TypeDef * SPIx, SPIx_DirectionTypeDef Dir, SPIx_BaudRateTypeDef DB, SPIx_ClockTypeDef Clk);
-void SPIx_ClockConfigure (SPI_TypeDef * SPIx, SPIx_ClockTypeDef Clk);
-uint8_t SPIx_WriteReg (SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx, uint16_t PINx, uint8_t reg, uint8_t * buf, uint16_t size);
-uint8_t SPIx_ReadReg (SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx, uint16_t PINx, uint8_t reg, uint8_t * buf, uint16_t size);
-uint8_t SPIx_ReadRegInc (SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx, uint16_t PINx, uint8_t reg, uint8_t * buf, uint16_t size, uint8_t inc);
-uint8_t SPIx_RW_Reg (SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx, uint16_t PINx, uint8_t reg, uint8_t * buf, uint16_t size);
-uint8_t SPIx_RW (SPI_TypeDef * SPIx, GPIO_TypeDef * GPIOx, uint16_t PINx, uint8_t * buf, uint16_t size);
+uint8_t spi_read_byte(SPI_TypeDef *SPIx, uint8_t value);
 
-static const SPI_ClassTypeDef STM32_SPI = {SPIx_Init, SPIx_ClockConfigure, SPIx_WriteReg, SPIx_ReadReg, SPIx_ReadRegInc, SPIx_RW_Reg, SPIx_RW};
-#endif
+uint8_t spi_write_reg(SPI_TypeDef *SPIx, GPIO_TypeDef *GPIOx, uint16_t PINx,
+	uint8_t reg, uint8_t *buf, uint16_t size);
+
+uint8_t spi_read_reg(SPI_TypeDef *SPIx, GPIO_TypeDef *GPIOx, uint16_t PINx,
+	uint8_t reg, uint8_t *buf, uint16_t size);
+
+#endif /* SPI_H */
