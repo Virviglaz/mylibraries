@@ -202,6 +202,8 @@ enum mfrc_registers {
 	 MFRC522_REG_RESERVED34		= 0x3F,
 };
 
+void mifare_encode(uint32_t value, uint8_t *buf);
+uint32_t mifare_decode(uint8_t *buf);
 struct mfrc_t *mfrc_init(struct mfrc_t *init);
 
 #endif /* MFRC522_H */

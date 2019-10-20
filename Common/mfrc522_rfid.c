@@ -42,6 +42,7 @@
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
+#include <string.h>
 #include "mfrc522_rfid.h"
 
 #define MFRC522_SN_LEN			16
@@ -442,6 +443,28 @@ static void mfrc_sleep(void)
 	buff[1] = 0;
 	mfrc_calc_crc(buff, 2, &buff[2]);
 	mfrc_to_card(PCD_TRANSCEIVE, buff, 4, buff, &unLen);
+}
+
+void mifare_encode(uint32_t value, uint8_t *buf)
+{
+	memcpy(buf, (void *)&value, sizeof(value));
+	buf += sizeof(value);
+	value = ~value;
+
+	memcpy(buf, (void *)&value, sizeof(value));
+	buf += sizeof(value);
+	value = ~value;
+
+	memcpy(buf, (void *)&value, sizeof(value));
+	buf += sizeof(value);
+}
+
+uint32_t mifare_decode(uint8_t *buf)
+{
+	uint32_t value;
+	memcpy((void *)&value, buf, sizeof(value));
+
+	return value;
 }
 
 struct mfrc_t *mfrc_init(struct mfrc_t *init)
