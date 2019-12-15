@@ -185,8 +185,8 @@ uint8_t mpu6050_get_result(struct mpu_conf *dev)
 	}
 
 	if (dev->real_values) {
-		float g = 32768.0;
-		dev->real_values->temp = (float)dev->raw_result.temp / 340.0 + 36.53;
+		double g = 32768.0;
+		dev->real_values->temp = (double)dev->raw_result.temp / 340.0 + 36.53;
 
 		switch(dev->acc_scale) {
 		case SCALE_2G:
@@ -203,9 +203,9 @@ uint8_t mpu6050_get_result(struct mpu_conf *dev)
 			break;
 		}
 
-		dev->real_values->x = (float)dev->raw_result.x / g;
-		dev->real_values->y = (float)dev->raw_result.y / g;
-		dev->real_values->z = (float)dev->raw_result.z / g;
+		dev->real_values->x = (double)dev->raw_result.x / g;
+		dev->real_values->y = (double)dev->raw_result.y / g;
+		dev->real_values->z = (double)dev->raw_result.z / g;
 	}
 
 	return MPU6050_SUCCESS;
