@@ -47,8 +47,8 @@ struct mpu_zeropoint {
 };
 
 struct mpu_real_values {
-	float x, y, z;
-	float temp;
+	double x, y, z;
+	double temp;
 };
 
 struct mpu_conf {
