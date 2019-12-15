@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+#define MPU6050_SUCCESS		0
+#define MPU6050_BUSY		1
+#define MPU6050_INTERFACE_ERROR	2
+
 enum mpu_gyro {
 	GYRO_0250DS = 0x00,
 	GYRO_0500DS = 0x08,
@@ -18,17 +22,19 @@ enum mpu_acc {
 };
 
 /* Raw measurements results */
-struct /*__attribute__((__packed__))*/ mpu_measdata {
-	uint8_t status;
-
+struct __attribute__((__packed__)) mpu_measdata {
 	/* raw acceleration data */
-	int16_t x, y, z;
+	int16_t x; /* MPU6050_RA_ACCEL_XOUT H/L */
+	int16_t y; /* MPU6050_RA_ACCEL_YOUT H/L */
+	int16_t z; /* MPU6050_RA_ACCEL_ZOUT H/L */
 
 	/* Temperature Data */	
-	int16_t temp;
+	int16_t temp; /* MPU6050_RA_TEMP_OUT H/L */
 
 	/* Gyro Data */
-	int16_t ax, ay, az;
+	int16_t ax; /* MPU6050_RA_GYRO_XOUT H/L */
+	int16_t ay; /* MPU6050_RA_GYRO_YOUT H/L */
+	int16_t az; /* MPU6050_RA_GYRO_ZOUT H/L */
 };
 
 /* Optional struct to store zero point calibration */

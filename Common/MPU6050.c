@@ -158,15 +158,19 @@ uint8_t mpu6050_init(struct mpu_conf *dev, void (*delay_500ms)(void))
 
 uint8_t mpu6050_get_result(struct mpu_conf *dev)
 {
-	if (dev->check_ready_pin)
+	if (dev->check_ready_pin) {
 		if (!dev->check_ready_pin())
-			return 1;
+			return MPU6050_BUSY;
+	} else {
+		uint8_t status;
+		if (dev->read_reg(MPU6050_RA_INT_STATUS, &status, sizeof(status)))
+			return MPU6050_INTERFACE_ERROR;
+		if (!(status & DATA_READY_BIT))
+			return MPU6050_BUSY;
+	}
 
 	if (dev->read_reg(MPU6050_RA_INT_STATUS, (uint8_t*)&dev->raw_result, sizeof(struct mpu_measdata)))
-		return 1;
-
-	if (!(dev->raw_result.status & DATA_READY_BIT))
-		return 1;
+		return MPU6050_INTERFACE_ERROR;
 
 	if (dev->zero_point) {
 		/* Perform zero offset for accelerometer data */
@@ -182,7 +186,7 @@ uint8_t mpu6050_get_result(struct mpu_conf *dev)
 
 	if (dev->real_values) {
 		float g = 32768.0;
-		dev->real_values->temp = ((float)dev->raw_result.temp / 340.0 + 36.53) / 10.0;
+		dev->real_values->temp = (float)dev->raw_result.temp / 340.0 + 36.53;
 
 		switch(dev->acc_scale) {
 		case SCALE_2G:
@@ -204,7 +208,7 @@ uint8_t mpu6050_get_result(struct mpu_conf *dev)
 		dev->real_values->z = (float)dev->raw_result.z / g;
 	}
 
-	return 0;
+	return MPU6050_SUCCESS;
 }
 
 void mpu6050_zero_cal(struct mpu_conf *dev)
