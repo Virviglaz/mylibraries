@@ -55,7 +55,7 @@ struct mpu_conf {
 	/* Interface functions */
 	uint8_t (*write_reg)(uint8_t reg, uint8_t value);
 	uint8_t (*read_reg) (uint8_t reg, uint8_t *buf, uint16_t size);
-	uint16_t (*check_ready_pin)(void);
+	uint16_t (*check_ready_pin)(void); /* for external interrupt */
 	
 	/* Raw measurement data */
 	struct mpu_measdata raw_result;
