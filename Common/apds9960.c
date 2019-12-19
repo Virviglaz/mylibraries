@@ -137,24 +137,36 @@ static uint8_t wait_for_irq(struct apds9960 *dev, uint8_t bit)
 	return ret;
 }
 
+/*
+ * Init for common use
+ */
 uint8_t apds9960_init(struct apds9960 *dev)
 {
 	uint8_t id, ret;
 	ret = dev->read_reg(APDS_ID_REG, &id, sizeof(id));
 
 	if (ret || id != APDS_ID)
-		return APDS9960_INTERFACE_ERROR;
+		return ret;
 
 	ret |= dev->write_reg(APDS_CONTROL_REG, *(uint8_t *)&dev->ctrl1);
 	ret |= dev->write_reg(APDS_CONFIG2_REG, *(uint8_t *)&dev->conf2);
 
+	if (dev->proxy_high_tres) {
+		dev->write_reg(APDS_PILT_REG, dev->proxy_low_tresh);
+		dev->write_reg(APDS_PIHT_REG, dev->proxy_high_tres);
+	}
+
 	return ret;
 }
 
+/*
+ * Read whte, red, green and blue diode response
+ */
 uint8_t apds9960_meas_crgb(struct apds9960 *dev, struct rgbs_data *crgb)
 {
 	dev->write_reg(APDS_ENABLE_REG,
-		       APDS_ENABLE_AEN | APDS_ENABLE_AIEN | APDS_ENABLE_PON);
+		       APDS_ENABLE_AEN | APDS_ENABLE_AIEN |
+		       APDS_ENABLE_PON | APDS_ENABLE_WEN);
 
 	wait_for_irq(dev, APDS_STATUS_AVALID_BIT);
 
@@ -163,15 +175,16 @@ uint8_t apds9960_meas_crgb(struct apds9960 *dev, struct rgbs_data *crgb)
 	return dev->write_reg(APDS_ENABLE_REG, 0);
 }
 
-uint8_t apds9960_proximity(struct apds9960 *dev, uint16_t tresh)
+/*
+ * Wait for proximity even
+ */
+uint8_t apds9960_proximity(struct apds9960 *dev)
 {
 	uint8_t ret;
 
-	dev->write_reg(APDS_PILT_REG, (uint8_t)tresh);
-	dev->write_reg(APDS_PIHT_REG, (uint8_t)(tresh >> 8));
-
 	dev->write_reg(APDS_ENABLE_REG,
-		       APDS_ENABLE_PEN | APDS_ENABLE_PIEN | APDS_ENABLE_PON);
+		       APDS_ENABLE_PEN | APDS_ENABLE_PIEN |
+		       APDS_ENABLE_PON | APDS_ENABLE_WEN);
 
 	ret = wait_for_irq(dev, APDS_STATUS_PINT_BIT | APDS_STATUS_PVALID_BIT);
 
@@ -180,6 +193,6 @@ uint8_t apds9960_proximity(struct apds9960 *dev, uint16_t tresh)
 	/* Clear interrupt */
 	dev->write_reg(APDS_PICLEAR_REG, 0);
 	dev->write_reg(APDS_AICLEAR_REG, 0);
-	
+
 	return ret & APDS_STATUS_PINT_BIT;
 }

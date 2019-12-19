@@ -45,10 +45,6 @@
 #ifndef __APDS9960_H__
 #define __APDS9960_H__
 
-#define APDS9960_SUCCESS		0
-#define APDS9960_BUSY			1
-#define APDS9960_INTERFACE_ERROR	2
-
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -112,10 +108,11 @@ struct apds9960 {
 		bool CPSIEN : 1;
 		bool PSIEN : 1;
 	} conf2;
+	uint8_t proxy_low_tresh, proxy_high_tres;
 };
 
 uint8_t apds9960_init(struct apds9960 *);
 uint8_t apds9960_meas_crgb(struct apds9960 *, struct rgbs_data *);
-uint8_t apds9960_proximity(struct apds9960 *, uint16_t);
+uint8_t apds9960_proximity(struct apds9960 *);
 
 #endif /* __APDS9960_H__ */
