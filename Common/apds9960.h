@@ -48,34 +48,20 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* LED Drive Strength */
-enum apds_led_c {
+enum apds_current {
 	LED_100mA,
 	LED_50mA,
 	LED_25mA,
 	LED_12mA,
 };
 
-/* Proximity Gain Control */
-enum apds_pgain {
-	PGAIN_1x,
-	PGAIN_2x,
-	PGAIN_4x,
-	PGAIN_8x,
+enum apds_gain {
+	GAIN_1x,
+	GAIN_2x,
+	GAIN_4x,
+	GAIN_8x,
 };
 
-/* ALS and Color Gain Control */
-enum apds_again {
-	AGAIN_1x,
-	AGAIN_2x,
-	AGAIN_4x,
-	AGAIN_8x,
-};
-
-/*
- * Additional LDR current during proximity and gesture LED pulses.
- * Current value, set by LDRIVE, is increased by the percentage of LED_BOOST.
-*/
 enum apds_led_boost {
 	BOOST_100,
 	BOOST_150,
@@ -83,8 +69,34 @@ enum apds_led_boost {
 	BOOST_300,
 };
 
+enum apds_gesture {
+	NO_ACTIVITY,
+	DIR_UP,
+	DIR_DOWN,
+	DIR_LEFT,
+	DIR_RIGHT,
+	ERROR,
+};
+
+enum apds_plen {
+	PLEN_4_US,
+	PLEN_8_US,
+	PLEN_16_US,
+	PLEN_32_US,
+};
+
 struct rgbs_data {
-	uint16_t c, r, g, b;
+	uint16_t clear;
+	uint16_t red;
+	uint16_t green;
+	uint16_t blue;
+};
+
+struct gesture_data {
+	uint8_t up;
+	uint8_t down;
+	uint8_t left;
+	uint8_t right;
 };
 
 struct apds9960 {
@@ -95,23 +107,109 @@ struct apds9960 {
 	/* For external interrupt, return status reg value */
 	uint8_t (*wait_for_irq)(struct apds9960 *dev, uint8_t bit);
 
+	uint8_t atime; /* ADC Integration Time Register (0x81) */
+	uint8_t wtime; /* Wait Time Register (0x83) */
+
+	/* ALS Interrupt Threshold (0x84 – 0x87) */
 	struct {
-		enum apds_again again : 2;
-		enum apds_pgain pgain : 2;
+		uint16_t low_threshold;
+		uint16_t high_threshold;
+	} als_treshold;
+
+	/* Proximity Interrupt Threshold (0x89/0x8B) */
+	struct {
+		uint8_t low_threshold;
+		uint8_t high_threshold;
+	} prox_treshold;
+
+	/* Persistence Register (0x8C) */
+	struct {
+		uint8_t apers : 4; /* ALS Interrupt Persistence */
+		uint8_t ppers : 4; /* Proximity Interrupt Persistence */
+	} persistance;
+
+	/* Configuration Register One (0x8D) */
+	struct {
+		uint8_t : 1;
+		bool wlong : 1;
+		uint8_t : 6;
+	} conf1;
+
+	/* Proximity Pulse Count Register (0x8E) */
+	struct {
+		uint8_t ppulse : 6;
+		enum apds_plen pplen : 2;
+	} prox_pulse_cnd;
+
+	/* Control Register One (0x8F) */
+	struct {
+		enum apds_gain again : 2;
+		enum apds_gain pgain : 2;
 		uint8_t : 2;
-		enum apds_led_c led_c : 2;
+		enum apds_current led_c : 2;
 	} ctrl1;
 
+	/* Configuration Register Two (0x90) */
 	struct {
 		uint8_t : 4;
 		enum apds_led_boost led_boost : 2;
 		bool CPSIEN : 1;
 		bool PSIEN : 1;
 	} conf2;
-	uint8_t proxy_low_tresh, proxy_high_tres;
+
+	uint8_t p_offset_ur; /* Proximity Offset UP / RIGHT Register (0x9D) */
+	uint8_t p_offset_ds; /* Proximity Offset DOWN / LEFT Register (0x9E) */
+
+	/* Configuration Three Register (0x9F) */
+	struct {
+		bool p_mask_r : 1;
+		bool p_mask_l : 1;
+		bool p_mask_d : 1;
+		bool p_mask_u : 1;
+		bool sleep_after_irq : 1;
+		bool p_gain_cmp : 1;
+		uint8_t : 2;
+	} pconf3;
+	
+	uint8_t ges_prox_enter; /* Gesture Proximity Enter Threshold (0xA0) */
+	uint8_t get_prox_exit; /* Gesture Exit Threshold Register (0xA1) */
+
+	/* Gesture Configuration One Register (0xA2) */
+	struct {
+		uint8_t gexpers : 2;
+		uint8_t gexmask : 4;
+		uint8_t gfifoth : 2;
+	} gconf1;
+
+	/* Gesture configuration two (0xA3) */
+	struct {
+		uint8_t gwtime : 3;
+		enum apds_current led_c : 2;
+		enum apds_gain ggain : 2;
+		uint8_t : 1;
+	} gconf2;
+
+	uint8_t g_offset_u; /* Gesture UP Offset Register (0xA4) */
+	uint8_t g_offset_d; /* Gesture DOWN Offset Register (0xA5) */
+	uint8_t g_offset_l; /* Gesture LEFT Offset Register (0xA7) */
+	uint8_t g_offset_r; /* Gesture RIGHT Offset Register (0xA9) */
+
+	/* Gesture Pulse Count and Length Register (0xA6) */
+	struct {
+		uint8_t g_pulse : 6;
+		enum apds_plen gplen : 2; 
+	} g_pulse_cnt;
+
+	/* Gesture Configuration Three Register (0xAA) */
+	struct {
+		bool up_down_gest_enable : 1;
+		bool left_right_gest_enable : 1;
+		uint8_t : 6;
+	} gconf3;
 };
 
-uint8_t apds9960_init(struct apds9960 *);
+void apds9960_use_default(struct apds9960 *);
+uint8_t apds9960_init(struct apds9960 *, bool);
 uint8_t apds9960_meas_crgb(struct apds9960 *, struct rgbs_data *);
 uint8_t apds9960_proximity(struct apds9960 *);
 

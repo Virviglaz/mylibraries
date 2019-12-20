@@ -85,9 +85,18 @@
 #define APDS_GOFFSET_R_REG	0xA9 /* R/W Gesture RIGHT offset register */
 #define APDS_GPULSE_REG		0xA6 /* R/W Gesture pulse count and length */
 #define APDS_GCONF3_REG		0xAA /* R/W Gesture configuration three */
+
 #define APDS_GCONF4_REG		0xAB /* R/W Gesture configuration four */
+#define APDS_CONFIG3_GFIFO_CLR	BIT(2) /* Setting this bit to '1' clears irq */
+#define APDS_CONFIG3_GIEN	BIT(1) /* Gesture interrupt enable */
+#define APDS_CONFIG3_GMODE	BIT(0) /* Gesture Mode */
+
 #define APDS_GFLVL_REG		0xAE /* R Gesture FIFO level */
+
 #define APDS_GSTATUS_REG	0xAF /* R Gesture status */
+#define APDS_GSTATUS_GFOV	BIT(1) /* Gesture FIFO Overflow */
+#define APDS_GSTATUS_GVALID	BIT(0) /* Gesture FIFO Data */
+
 #define APDS_IFORCE_REG		0xE4 /* W Force interrupt */
 #define APDS_PICLEAR_REG	0xE5 /* W Proximity interrupt clear */
 #define APDS_CICLEAR_REG	0xE6 /* W ALS clear channel interrupt clear */
@@ -137,10 +146,51 @@ static uint8_t wait_for_irq(struct apds9960 *dev, uint8_t bit)
 	return ret;
 }
 
+void apds9960_use_default(struct apds9960 *dev)
+{
+	dev->atime = 0xFF;
+	dev->wtime = 0xFF;
+	dev->als_treshold.low_threshold = 0;
+	dev->als_treshold.high_threshold = 0;
+	dev->prox_treshold.low_threshold = 0;
+	dev->prox_treshold.high_threshold = 0;
+	dev->persistance.apers = 0;
+	dev->persistance.ppers = 0;
+	dev->conf1.wlong = true;
+	dev->prox_pulse_cnd.ppulse = 0;
+	dev->prox_pulse_cnd.pplen = PLEN_8_US;
+	dev->ctrl1.again = GAIN_1x;
+	dev->ctrl1.pgain = GAIN_1x;
+	dev->ctrl1.led_c = LED_100mA;
+	dev->conf2.led_boost = BOOST_100;
+	dev->conf2.CPSIEN = 0;
+	dev->conf2.PSIEN = true;
+	dev->p_offset_ur = 0;
+	dev->p_offset_ds = 0;
+	dev->pconf3.p_mask_r = false;
+	dev->pconf3.p_mask_l = false;
+	dev->pconf3.p_mask_d = false;
+	dev->pconf3.p_mask_u = false;
+	dev->pconf3.sleep_after_irq = false;
+	dev->pconf3.p_gain_cmp = false;
+	dev->ges_prox_enter = 0;
+	dev->get_prox_exit = 0;
+	dev->gconf1.gexpers = 0;
+	dev->gconf1.gexmask = 0;
+	dev->gconf1.gfifoth = 0;
+	dev->gconf2.gwtime = 0;
+	dev->gconf2.led_c = LED_100mA;
+	dev->gconf2.ggain = GAIN_1x;
+	dev->g_pulse_cnt.g_pulse = 0;
+	dev->g_pulse_cnt.gplen = PLEN_8_US;
+	dev->gconf3.up_down_gest_enable = false;
+	dev->gconf3.left_right_gest_enable = false;
+}
+
 /*
  * Init for common use
  */
-uint8_t apds9960_init(struct apds9960 *dev)
+uint8_t apds9960_init(struct apds9960 *dev, bool use_default)
 {
 	uint8_t id, ret;
 	ret = dev->read_reg(APDS_ID_REG, &id, sizeof(id));
@@ -148,13 +198,35 @@ uint8_t apds9960_init(struct apds9960 *dev)
 	if (ret || id != APDS_ID)
 		return ret;
 
-	ret |= dev->write_reg(APDS_CONTROL_REG, *(uint8_t *)&dev->ctrl1);
-	ret |= dev->write_reg(APDS_CONFIG2_REG, *(uint8_t *)&dev->conf2);
+	if (use_default)
+		apds9960_use_default(dev);
 
-	if (dev->proxy_high_tres) {
-		dev->write_reg(APDS_PILT_REG, dev->proxy_low_tresh);
-		dev->write_reg(APDS_PIHT_REG, dev->proxy_high_tres);
-	}
+	dev->write_reg(APDS_ATIME_REG, dev->atime);
+	dev->write_reg(APDS_WTIME_REG, dev->wtime);
+	dev->write_reg(APDS_AILTL_REG, dev->als_treshold.low_threshold >> 0);
+	dev->write_reg(APDS_AILTH_REG, dev->als_treshold.low_threshold >> 8);
+	dev->write_reg(APDS_AIHTL_REG, dev->als_treshold.high_threshold >> 0);
+	dev->write_reg(APDS_AIHTH_REG, dev->als_treshold.high_threshold >> 8);
+	dev->write_reg(APDS_PILT_REG, dev->prox_treshold.low_threshold);
+	dev->write_reg(APDS_PIHT_REG, dev->prox_treshold.high_threshold);
+	dev->write_reg(APDS_PERS_REG, *(uint8_t *)&dev->persistance);
+	dev->write_reg(APDS_CONFIG1_REG, *(uint8_t *)&dev->conf1);
+	dev->write_reg(APDS_PPULSE_REG, *(uint8_t *)&dev->prox_pulse_cnd);
+	dev->write_reg(APDS_CONTROL_REG, *(uint8_t *)&dev->ctrl1);
+	dev->write_reg(APDS_CONFIG2_REG, *(uint8_t *)&dev->conf2);
+	dev->write_reg(APDS_POFFSET_UR_REG, dev->p_offset_ur);
+	dev->write_reg(APDS_POFFSET_DL_REG, dev->p_offset_ds);
+	dev->write_reg(APDS_CONFIG3_REG, *(uint8_t *)&dev->pconf3);
+	dev->write_reg(APDS_GPENTH_REG, dev->ges_prox_enter);
+	dev->write_reg(APDS_GEXTH_REG, dev->get_prox_exit);
+	dev->write_reg(APDS_GCONF1_REG, *(uint8_t *)&dev->gconf1);
+	dev->write_reg(APDS_GCONF2_REG, *(uint8_t *)&dev->gconf2);
+	dev->write_reg(APDS_GOFFSET_U_REG, dev->g_offset_u);
+	dev->write_reg(APDS_GOFFSET_D_REG, dev->g_offset_d);
+	dev->write_reg(APDS_GOFFSET_L_REG, dev->g_offset_l);
+	dev->write_reg(APDS_GOFFSET_R_REG, dev->g_offset_r);
+	dev->write_reg(APDS_GPULSE_REG, *(uint8_t *)&dev->g_pulse_cnt);
+	dev->write_reg(APDS_GCONF3_REG, *(uint8_t *)&dev->gconf3);
 
 	return ret;
 }
@@ -195,4 +267,11 @@ uint8_t apds9960_proximity(struct apds9960 *dev)
 	dev->write_reg(APDS_AICLEAR_REG, 0);
 
 	return ret & APDS_STATUS_PINT_BIT;
+}
+
+enum apds_gesture apds9960_gesture(struct apds9960 *dev)
+{
+	dev->write_reg(APDS_ENABLE_REG,
+		       APDS_ENABLE_GEN | APDS_ENABLE_PIEN |
+		       APDS_ENABLE_PON | APDS_ENABLE_WEN);
 }
