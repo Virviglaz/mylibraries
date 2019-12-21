@@ -147,7 +147,7 @@ struct apds9960 {
 	struct {
 		uint8_t ppulse : 6; /* Proximity Pulse Count */
 		enum apds_plen pplen : 2; /* Proximity Pulse Length */
-	} prox_pulse_cnd;
+	} prox_pulse_cnt;
 
 	/* Control Register One (0x8F) */
 	struct {
@@ -178,7 +178,7 @@ struct apds9960 {
 		bool p_gain_cmp : 1; /* Proximity Gain Compensation Enable */
 		uint8_t : 2;
 	} pconf3;
-	
+
 	uint8_t ges_prox_enter; /* Gesture Proximity Enter Threshold (0xA0) */
 	uint8_t get_prox_exit; /* Gesture Exit Threshold Register (0xA1) */
 
@@ -217,7 +217,8 @@ struct apds9960 {
 };
 
 void apds9960_use_default(struct apds9960 *);
-uint8_t apds9960_init(struct apds9960 *, bool);
+void apds9960_recomended_settings(struct apds9960 *);
+uint8_t apds9960_init(struct apds9960 *, bool, bool);
 uint8_t apds9960_meas_crgb(struct apds9960 *, struct rgbs_data *);
 uint8_t apds9960_proximity(struct apds9960 *);
 enum apds_gesture apds9960_gesture(struct apds9960 *);

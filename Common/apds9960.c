@@ -125,6 +125,8 @@
 
 /* ID Register (0x92) value, page 25 */
 #define APDS_ID			0xAB
+#define GESTURE_THRESHOLD_MIN   10
+#define GESTURE_THRESHOLD_MAX   240
 
 static uint8_t check_irq(struct apds9960 *dev, uint8_t bit)
 {
@@ -147,6 +149,57 @@ static uint8_t wait_for_irq(struct apds9960 *dev, uint8_t bit)
 	return ret;
 }
 
+static uint8_t sleep_mode(struct apds9960 *dev)
+{
+	uint8_t ret;
+
+	ret = dev->write_reg(APDS_ENABLE_REG, 0);
+
+	/* Clear interrupt */
+	dev->write_reg(APDS_PICLEAR_REG, 0);
+	dev->write_reg(APDS_CICLEAR_REG, 0);
+	dev->write_reg(APDS_AICLEAR_REG, 0);
+
+	return ret;
+}
+
+static bool validate_gest_data(struct gesture_data *data)
+{
+	return (data->up > GESTURE_THRESHOLD_MIN &&
+		data->down > GESTURE_THRESHOLD_MIN &&
+		data->left > GESTURE_THRESHOLD_MIN &&
+		data->right > GESTURE_THRESHOLD_MIN &&
+		data->up < GESTURE_THRESHOLD_MAX &&
+		data->down < GESTURE_THRESHOLD_MAX &&
+		data->left < GESTURE_THRESHOLD_MAX &&
+		data->right < GESTURE_THRESHOLD_MAX);
+}
+
+static enum apds_gesture proccess_gesture(struct gesture_data *min,
+					  struct gesture_data *max)
+{
+	int ud_min = ((min->up - min->down) * 100) / (min->up + min->down);
+	int lr_min = ((min->left - min->right) * 100) / (min->left + min->right);
+	int ud_max = ((max->up - max->down) * 100) / (max->up + max->down);
+	int lr_max = ((max->left - max->right) * 100) / (max->left + max->right);
+	int diff_ud = ud_max - ud_min;
+	int diff_lr = lr_max - lr_min;
+	
+	if (diff_ud > diff_lr && diff_ud > GESTURE_THRESHOLD_MIN)
+		return DIR_UP;
+
+	if (diff_ud > diff_lr && diff_ud < -GESTURE_THRESHOLD_MIN)
+		return DIR_DOWN;
+
+	if (diff_ud < diff_lr && diff_lr > GESTURE_THRESHOLD_MIN)
+		return DIR_LEFT;
+
+	if (diff_ud < diff_lr && diff_lr < -GESTURE_THRESHOLD_MIN)
+		return DIR_RIGHT;
+
+	return ERR_DATA_INVALID;
+}
+
 /*
  * Init chip with default settings
  * This settings can be overwritten after
@@ -162,8 +215,8 @@ void apds9960_use_default(struct apds9960 *dev)
 	dev->persistance.apers = 0;
 	dev->persistance.ppers = 0;
 	dev->conf1.wlong = true;
-	dev->prox_pulse_cnd.ppulse = 0;
-	dev->prox_pulse_cnd.pplen = PLEN_8_US;
+	dev->prox_pulse_cnt.ppulse = 0;
+	dev->prox_pulse_cnt.pplen = PLEN_8_US;
 	dev->ctrl1.again = GAIN_1x;
 	dev->ctrl1.pgain = GAIN_1x;
 	dev->ctrl1.led_c = LED_100mA;
@@ -186,16 +239,50 @@ void apds9960_use_default(struct apds9960 *dev)
 	dev->gconf2.gwtime = 0;
 	dev->gconf2.led_c = LED_100mA;
 	dev->gconf2.ggain = GAIN_1x;
+	dev->g_offset_u = 0;
+	dev->g_offset_d = 0;
+	dev->g_offset_l = 0;
+	dev->g_offset_r = 0;
 	dev->g_pulse_cnt.g_pulse = 0;
 	dev->g_pulse_cnt.gplen = PLEN_8_US;
 	dev->gconf3.up_down_gest_enable = false;
 	dev->gconf3.left_right_gest_enable = false;
 }
 
+void apds9960_recomended_settings(struct apds9960 *dev)
+{
+	apds9960_use_default(dev);
+	dev->gconf1.gfifoth = FIFO_16;
+	dev->gconf3.up_down_gest_enable = true;
+	dev->gconf3.left_right_gest_enable = true;
+	dev->g_pulse_cnt.g_pulse = 10;
+	dev->g_pulse_cnt.gplen = PLEN_16_US;
+	dev->gconf2.gwtime = 2;
+	dev->gconf2.led_c = LED_100mA;
+	dev->gconf2.ggain = GAIN_4x;
+	dev->ctrl1.again = GAIN_4x;
+	dev->ctrl1.pgain = GAIN_4x;
+	dev->ctrl1.led_c = LED_100mA;
+	dev->prox_pulse_cnt.ppulse = 8;
+	dev->prox_pulse_cnt.pplen = PLEN_16_US;
+	dev->conf1.wlong = false;
+	dev->persistance.apers = 1;
+	dev->persistance.ppers = 1;
+	dev->prox_treshold.low_threshold = 0;
+	dev->prox_treshold.high_threshold = 50;
+	dev->atime = 219;
+	dev->wtime = 246;
+	dev->als_treshold.low_threshold = 0xFFFF;
+	dev->als_treshold.high_threshold = 0;
+	dev->ges_prox_enter = 40;
+	dev->get_prox_exit = 30;
+}
+
 /*
  * Init for common use
  */
-uint8_t apds9960_init(struct apds9960 *dev, bool use_default)
+uint8_t apds9960_init(struct apds9960 *dev, bool use_default,
+		      bool use_recommended)
 {
 	uint8_t id, ret;
 	ret = dev->read_reg(APDS_ID_REG, &id, sizeof(id));
@@ -203,7 +290,9 @@ uint8_t apds9960_init(struct apds9960 *dev, bool use_default)
 	if (ret || id != APDS_ID)
 		return ret;
 
-	if (use_default)
+	if (use_recommended)
+		apds9960_recomended_settings(dev);
+	else if (use_default)
 		apds9960_use_default(dev);
 
 	dev->write_reg(APDS_ATIME_REG, dev->atime);
@@ -216,9 +305,9 @@ uint8_t apds9960_init(struct apds9960 *dev, bool use_default)
 	dev->write_reg(APDS_PIHT_REG, dev->prox_treshold.high_threshold);
 	dev->write_reg(APDS_PERS_REG, *(uint8_t *)&dev->persistance);
 	dev->write_reg(APDS_CONFIG1_REG, *(uint8_t *)&dev->conf1);
-	dev->write_reg(APDS_PPULSE_REG, *(uint8_t *)&dev->prox_pulse_cnd);
+	dev->write_reg(APDS_PPULSE_REG, *(uint8_t *)&dev->prox_pulse_cnt);
 	dev->write_reg(APDS_CONTROL_REG, *(uint8_t *)&dev->ctrl1);
-	dev->write_reg(APDS_CONFIG2_REG, *(uint8_t *)&dev->conf2);
+	dev->write_reg(APDS_CONFIG2_REG, *(uint8_t *)&dev->conf2 | 1);
 	dev->write_reg(APDS_POFFSET_UR_REG, dev->p_offset_ur);
 	dev->write_reg(APDS_POFFSET_DL_REG, dev->p_offset_ds);
 	dev->write_reg(APDS_CONFIG3_REG, *(uint8_t *)&dev->pconf3);
@@ -249,7 +338,7 @@ uint8_t apds9960_meas_crgb(struct apds9960 *dev, struct rgbs_data *crgb)
 
 	dev->read_reg(APDS_CDATAL_REG, (uint8_t *)crgb, sizeof(*crgb));
 
-	return dev->write_reg(APDS_ENABLE_REG, 0);
+	return sleep_mode(dev);
 }
 
 /*
@@ -265,45 +354,71 @@ uint8_t apds9960_proximity(struct apds9960 *dev)
 
 	ret = wait_for_irq(dev, APDS_STATUS_PINT_BIT | APDS_STATUS_PVALID_BIT);
 
-	dev->write_reg(APDS_ENABLE_REG, 0);
-
-	/* Clear interrupt */
-	dev->write_reg(APDS_PICLEAR_REG, 0);
-	dev->write_reg(APDS_AICLEAR_REG, 0);
+	sleep_mode(dev);
 
 	return ret & APDS_STATUS_PINT_BIT;
 }
-#include <stdio.h>
+
 enum apds_gesture apds9960_gesture(struct apds9960 *dev)
 {
 	uint8_t ret;
 	uint8_t gvalid;
-	uint8_t fifo_level;
+	uint8_t fifo_level, average_cnt;
 	struct gesture_data gesture;
+	struct {
+		struct gesture_data data;
+		bool is_filled;
+	} min = { 0 }, max = { 0 };
+	enum apds_gesture res = NO_ACTIVITY;
 
 	dev->write_reg(APDS_ENABLE_REG,
 		       APDS_ENABLE_GEN | APDS_ENABLE_PEN | APDS_ENABLE_AEN |
 		       APDS_ENABLE_PON | APDS_ENABLE_WEN);
 
 	ret = wait_for_irq(dev, APDS_STATUS_GINT_BIT);
-	if (!ret)
-		return NO_ACTIVITY;
-
-	dev->read_reg(APDS_GSTATUS_REG, &gvalid, sizeof(gvalid));
-	if (!gvalid)
-		return ERR_DATA_INVALID;
-
-	dev->read_reg(APDS_GFLVL_REG, &fifo_level, sizeof(fifo_level));
-	if (!fifo_level)
-		return ERR_FIFO_EMPTY;
-
-	while(fifo_level--) {
-		dev->read_reg(APDS_CDATAL_REG,
-			      (uint8_t *)&gesture, sizeof(gesture));
-		printf("gesture_data -> up: %u, down: %u, "
-		       "left: %u, right: %u\n",
-			gesture.up, gesture.down, gesture.left, gesture.right);
+	if (!ret) {
+		res = NO_ACTIVITY;
+		goto exit;
 	}
 
-	return NO_ACTIVITY;
+	dev->read_reg(APDS_GSTATUS_REG, &gvalid, sizeof(gvalid));
+	if (!gvalid) {
+		res = ERR_DATA_INVALID;
+		goto exit;
+	}
+
+	dev->read_reg(APDS_GFLVL_REG, &fifo_level, sizeof(fifo_level));
+	if (!fifo_level) {
+		res = ERR_FIFO_EMPTY;
+		goto exit;
+	}
+
+	average_cnt = fifo_level;
+	while(fifo_level--) {
+		dev->read_reg(APDS_GFIFO_U_REG,
+			      (uint8_t *)&gesture, sizeof(gesture));
+		if (validate_gest_data(&gesture)) {
+			if (!min.is_filled) {
+				min.data.up = gesture.up;
+				min.data.down = gesture.down;
+				min.data.left = gesture.left;
+				min.data.right = gesture.right;
+				min.is_filled = true;
+			} else {
+				max.data.up = gesture.up;
+				max.data.down = gesture.down;
+				max.data.left = gesture.left;
+				max.data.right = gesture.right;
+				max.is_filled = true;
+			}
+		}
+	}
+
+exit:
+	sleep_mode(dev);
+
+	if (min.is_filled && max.is_filled)
+		return proccess_gesture(&min.data, &max.data);
+
+	return res;
 }
