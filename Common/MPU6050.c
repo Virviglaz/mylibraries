@@ -153,7 +153,7 @@ uint8_t mpu6050_init(struct mpu_conf *dev, void (*delay_500ms)(void))
 	dev->write_reg(MPU6050_RA_FIFO_EN, 0x00);
 	dev->write_reg(MPU6050_RA_SMPLRT_DIV, 1000 / dev->sample_rate_hz - 1);
 	dev->write_reg(MPU6050_RA_CONFIG, dev->filter_order & 0x07);	
-	return res;
+	return 0;
 }
 
 uint8_t mpu6050_get_result(struct mpu_conf *dev)
