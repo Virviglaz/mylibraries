@@ -48,6 +48,14 @@
 #define BIT(nr)			(1UL << (nr))
 #endif
 #define APDS_ENABLE_REG		0x80 /* R/W Enable states and interrupts */
+#define APDS_ENABLE_GEN		BIT(6) /* Gesture Enable */
+#define APDS_ENABLE_PIEN	BIT(5) /* Proximity Interrupt Enable */
+#define APDS_ENABLE_AIEN	BIT(4) /* ALS Interrupt Enable */
+#define APDS_ENABLE_WEN		BIT(3) /* Wait Enable */
+#define APDS_ENABLE_PEN		BIT(2) /* Proximity Detect Enable */
+#define APDS_ENABLE_AEN		BIT(1) /* ALS Enable */
+#define APDS_ENABLE_PON		BIT(0) /* Power ON */
+
 #define APDS_ATIME_REG		0x81 /* R/W ADC integration time */
 #define APDS_WTIME_REG		0x83 /* R/W Wait time (non-gesture) */
 #define APDS_AILTL_REG		0x84 /* R/W ALS interrupt low threshold low byte */
@@ -56,13 +64,22 @@
 #define APDS_AIHTH_REG		0x87 /* R/W ALS interrupt high threshold high byte */
 #define APDS_PILT_REG		0x89 /* R/W Proximity interrupt low threshold */
 #define APDS_PIHT_REG		0x8B /* R/W Proximity interrupt high threshold */
-#define APDS_PERS_REG		0x8C /* R/W Interrupt persistence filters (non-gesture) */
+#define APDS_PERS_REG		0x8C /* R/W Interrupt persistence filters */
 #define APDS_CONFIG1_REG	0x8D /* R/W Configuration register one */
 #define APDS_PPULSE_REG		0x8E /* R/W Proximity pulse count and length */
 #define APDS_CONTROL_REG	0x8F /* R/W Gain control */
 #define APDS_CONFIG2_REG	0x90 /* R/W Configuration register two */
 #define APDS_ID_REG		0x92 /* R Device ID */
+
 #define APDS_STATUS_REG		0x93 /* R Device status */
+#define APDS_STATUS_CPSAT_BIT	BIT(7) /* Clear Photodiode Saturation */
+#define APDS_STATUS_PGSAT_BIT	BIT(6) /* Analog saturation event occurred */
+#define APDS_STATUS_PINT_BIT	BIT(5) /* Proximity Interrupt */
+#define APDS_STATUS_AINT_BIT	BIT(4) /* ALS Interrupt */
+#define APDS_STATUS_GINT_BIT	BIT(2) /* Gesture Interrupt */
+#define APDS_STATUS_PVALID_BIT	BIT(1) /* Proximity Valid */
+#define APDS_STATUS_AVALID_BIT	BIT(0) /* ALS Valid */
+
 #define APDS_CDATAL_REG		0x94 /* R Low byte of clear channel data */
 #define APDS_CDATAH_REG		0x95 /* R High byte of clear channel data */
 #define APDS_RDATAL_REG		0x96 /* R Low byte of red channel data */
@@ -72,8 +89,8 @@
 #define APDS_BDATAL_REG		0x9A /* R Low byte of blue channel data */
 #define APDS_BDATAH_REG		0x9B /* R High byte of blue channel data */
 #define APDS_PDATA_REG		0x9C /* R Proximity data */
-#define APDS_POFFSET_UR_REG	0x9D /* R/W Proximity offset for UP and RIGHT photodiodes */
-#define APDS_POFFSET_DL_REG	0x9E /* R/W Proximity offset for DOWN and LEFT photodiodes */
+#define APDS_POFFSET_UR_REG	0x9D /* R/W Proximity offset for U/R photodiodes */
+#define APDS_POFFSET_DL_REG	0x9E /* R/W Proximity offset for D/L photodiodes */
 #define APDS_CONFIG3_REG	0x9F /* R/W Configuration register three */
 #define APDS_GPENTH_REG		0xA0 /* R/W Gesture proximity enter threshold */
 #define APDS_GEXTH_REG		0xA1 /* R/W Gesture exit threshold */
@@ -106,22 +123,6 @@
 #define APDS_GFIFO_L_REG	0xFE /* R Gesture FIFO LEFT value */
 #define APDS_GFIFO_R_REG	0xFF /* R Gesture FIFO RIGHT value */
 
-#define APDS_STATUS_CPSAT_BIT	BIT(7)
-#define APDS_STATUS_PGSAT_BIT	BIT(6)
-#define APDS_STATUS_PINT_BIT	BIT(5)
-#define APDS_STATUS_AINT_BIT	BIT(4)
-#define APDS_STATUS_GINT_BIT	BIT(2)
-#define APDS_STATUS_PVALID_BIT	BIT(1)
-#define APDS_STATUS_AVALID_BIT	BIT(0)
-
-#define APDS_ENABLE_GEN		BIT(6)
-#define APDS_ENABLE_PIEN	BIT(5)
-#define APDS_ENABLE_AIEN	BIT(4)
-#define APDS_ENABLE_WEN		BIT(3)
-#define APDS_ENABLE_PEN		BIT(2)
-#define APDS_ENABLE_AEN		BIT(1)
-#define APDS_ENABLE_PON		BIT(0)
-
 /* ID Register (0x92) value, page 25 */
 #define APDS_ID			0xAB
 
@@ -146,6 +147,10 @@ static uint8_t wait_for_irq(struct apds9960 *dev, uint8_t bit)
 	return ret;
 }
 
+/*
+ * Init chip with default settings
+ * This settings can be overwritten after
+ */
 void apds9960_use_default(struct apds9960 *dev)
 {
 	dev->atime = 0xFF;
@@ -177,7 +182,7 @@ void apds9960_use_default(struct apds9960 *dev)
 	dev->get_prox_exit = 0;
 	dev->gconf1.gexpers = 0;
 	dev->gconf1.gexmask = 0;
-	dev->gconf1.gfifoth = 0;
+	dev->gconf1.gfifoth = FIFO_1;
 	dev->gconf2.gwtime = 0;
 	dev->gconf2.led_c = LED_100mA;
 	dev->gconf2.ggain = GAIN_1x;
@@ -268,10 +273,37 @@ uint8_t apds9960_proximity(struct apds9960 *dev)
 
 	return ret & APDS_STATUS_PINT_BIT;
 }
-
+#include <stdio.h>
 enum apds_gesture apds9960_gesture(struct apds9960 *dev)
 {
+	uint8_t ret;
+	uint8_t gvalid;
+	uint8_t fifo_level;
+	struct gesture_data gesture;
+
 	dev->write_reg(APDS_ENABLE_REG,
-		       APDS_ENABLE_GEN | APDS_ENABLE_PIEN |
+		       APDS_ENABLE_GEN | APDS_ENABLE_PEN | APDS_ENABLE_AEN |
 		       APDS_ENABLE_PON | APDS_ENABLE_WEN);
+
+	ret = wait_for_irq(dev, APDS_STATUS_GINT_BIT);
+	if (!ret)
+		return NO_ACTIVITY;
+
+	dev->read_reg(APDS_GSTATUS_REG, &gvalid, sizeof(gvalid));
+	if (!gvalid)
+		return ERR_DATA_INVALID;
+
+	dev->read_reg(APDS_GFLVL_REG, &fifo_level, sizeof(fifo_level));
+	if (!fifo_level)
+		return ERR_FIFO_EMPTY;
+
+	while(fifo_level--) {
+		dev->read_reg(APDS_CDATAL_REG,
+			      (uint8_t *)&gesture, sizeof(gesture));
+		printf("gesture_data -> up: %u, down: %u, "
+		       "left: %u, right: %u\n",
+			gesture.up, gesture.down, gesture.left, gesture.right);
+	}
+
+	return NO_ACTIVITY;
 }
