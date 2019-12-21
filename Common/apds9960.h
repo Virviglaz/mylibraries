@@ -75,7 +75,8 @@ enum apds_gesture {
 	DIR_DOWN,
 	DIR_LEFT,
 	DIR_RIGHT,
-	ERROR,
+	ERR_DATA_INVALID,
+	ERR_FIFO_EMPTY,
 };
 
 enum apds_plen {
@@ -83,6 +84,13 @@ enum apds_plen {
 	PLEN_8_US,
 	PLEN_16_US,
 	PLEN_32_US,
+};
+
+enum apds_gfifo_th {
+	FIFO_1,
+	FIFO_4,
+	FIFO_8,
+	FIFO_16,
 };
 
 struct rgbs_data {
@@ -131,30 +139,30 @@ struct apds9960 {
 	/* Configuration Register One (0x8D) */
 	struct {
 		uint8_t : 1;
-		bool wlong : 1;
+		bool wlong : 1; /* Wait cycle is increased by a factor 12x */
 		uint8_t : 6;
 	} conf1;
 
 	/* Proximity Pulse Count Register (0x8E) */
 	struct {
-		uint8_t ppulse : 6;
-		enum apds_plen pplen : 2;
+		uint8_t ppulse : 6; /* Proximity Pulse Count */
+		enum apds_plen pplen : 2; /* Proximity Pulse Length */
 	} prox_pulse_cnd;
 
 	/* Control Register One (0x8F) */
 	struct {
-		enum apds_gain again : 2;
-		enum apds_gain pgain : 2;
+		enum apds_gain again : 2; /* ALS and Color Gain Control */
+		enum apds_gain pgain : 2; /* Proximity Gain Control */
 		uint8_t : 2;
-		enum apds_current led_c : 2;
+		enum apds_current led_c : 2; /* LED Drive Strength */
 	} ctrl1;
 
 	/* Configuration Register Two (0x90) */
 	struct {
 		uint8_t : 4;
-		enum apds_led_boost led_boost : 2;
-		bool CPSIEN : 1;
-		bool PSIEN : 1;
+		enum apds_led_boost led_boost : 2; /* Additional LDR current */
+		bool CPSIEN : 1; /* Clear Saturation Interrupt Enable */
+		bool PSIEN : 1; /* Proximity Saturation Interrupt Enable */
 	} conf2;
 
 	uint8_t p_offset_ur; /* Proximity Offset UP / RIGHT Register (0x9D) */
@@ -162,12 +170,12 @@ struct apds9960 {
 
 	/* Configuration Three Register (0x9F) */
 	struct {
-		bool p_mask_r : 1;
-		bool p_mask_l : 1;
-		bool p_mask_d : 1;
-		bool p_mask_u : 1;
-		bool sleep_after_irq : 1;
-		bool p_gain_cmp : 1;
+		bool p_mask_r : 1; /* Proximity Mask RIGHT Enable */
+		bool p_mask_l : 1; /* Proximity Mask LEFT Enable */
+		bool p_mask_d : 1; /* Proximity Mask DOWN Enable */
+		bool p_mask_u : 1; /* Proximity Mask UP Enable */
+		bool sleep_after_irq : 1; /* Sleep After Interrupt */
+		bool p_gain_cmp : 1; /* Proximity Gain Compensation Enable */
 		uint8_t : 2;
 	} pconf3;
 	
@@ -176,16 +184,16 @@ struct apds9960 {
 
 	/* Gesture Configuration One Register (0xA2) */
 	struct {
-		uint8_t gexpers : 2;
-		uint8_t gexmask : 4;
-		uint8_t gfifoth : 2;
+		uint8_t gexpers : 2; /* Gesture Exit Persistence 1, 2, 4, 7*/
+		uint8_t gexmask : 4; /* Gesture Exit Mask */
+		enum apds_gfifo_th gfifoth : 2; /* Gesture FIFO Threshold */
 	} gconf1;
 
 	/* Gesture configuration two (0xA3) */
 	struct {
-		uint8_t gwtime : 3;
-		enum apds_current led_c : 2;
-		enum apds_gain ggain : 2;
+		uint8_t gwtime : 3; /* Gesture Wait Time 0..39.2mS */
+		enum apds_current led_c : 2; /* Gesture LED Drive Strength */
+		enum apds_gain ggain : 2; /* Gesture Gain Control */
 		uint8_t : 1;
 	} gconf2;
 
@@ -196,8 +204,8 @@ struct apds9960 {
 
 	/* Gesture Pulse Count and Length Register (0xA6) */
 	struct {
-		uint8_t g_pulse : 6;
-		enum apds_plen gplen : 2; 
+		uint8_t g_pulse : 6; /* Number of Gesture Pulses */
+		enum apds_plen gplen : 2; /* Gesture Pulse Length */
 	} g_pulse_cnt;
 
 	/* Gesture Configuration Three Register (0xAA) */
@@ -212,5 +220,6 @@ void apds9960_use_default(struct apds9960 *);
 uint8_t apds9960_init(struct apds9960 *, bool);
 uint8_t apds9960_meas_crgb(struct apds9960 *, struct rgbs_data *);
 uint8_t apds9960_proximity(struct apds9960 *);
+enum apds_gesture apds9960_gesture(struct apds9960 *);
 
 #endif /* __APDS9960_H__ */
