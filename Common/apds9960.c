@@ -363,7 +363,7 @@ enum apds_gesture apds9960_gesture(struct apds9960 *dev)
 {
 	uint8_t ret;
 	uint8_t gvalid;
-	uint8_t fifo_level, average_cnt;
+	uint8_t fifo_level;
 	struct gesture_data gesture;
 	struct {
 		struct gesture_data data;
@@ -393,7 +393,6 @@ enum apds_gesture apds9960_gesture(struct apds9960 *dev)
 		goto exit;
 	}
 
-	average_cnt = fifo_level;
 	while(fifo_level--) {
 		dev->read_reg(APDS_GFIFO_U_REG,
 			      (uint8_t *)&gesture, sizeof(gesture));
