@@ -1,3 +1,9 @@
 [submodule "verilog"]
 	path = verilog
 	url = https://github.com/Virviglaz/verilog.git
+[submodule "stm8l"]
+	path = stm8l
+	url = https://github.com/Virviglaz/STM8L.git
+[submodule "stm8s"]
+	path = stm8s
+	url = https://github.com/Virviglaz/STM8S.git
