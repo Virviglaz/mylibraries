@@ -368,7 +368,7 @@ enum apds_gesture apds9960_gesture(struct apds9960 *dev)
 	struct {
 		struct gesture_data data;
 		bool is_filled;
-	} min = { 0 }, max = { 0 };
+	} min = { .is_filled = false }, max = { .is_filled = false };
 	enum apds_gesture res = NO_ACTIVITY;
 
 	dev->write_reg(APDS_ENABLE_REG,
@@ -398,13 +398,13 @@ enum apds_gesture apds9960_gesture(struct apds9960 *dev)
 		dev->read_reg(APDS_GFIFO_U_REG,
 			      (uint8_t *)&gesture, sizeof(gesture));
 		if (validate_gest_data(&gesture)) {
-			if (!min.is_filled) {
+			if (!min.is_filled) { /* save first valid */
 				min.data.up = gesture.up;
 				min.data.down = gesture.down;
 				min.data.left = gesture.left;
 				min.data.right = gesture.right;
 				min.is_filled = true;
-			} else {
+			} else { /* save last valid */
 				max.data.up = gesture.up;
 				max.data.down = gesture.down;
 				max.data.left = gesture.left;
