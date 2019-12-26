@@ -62,7 +62,7 @@
 
 static enum chip_type bme280_check_id(struct bme280_t *dev)
 {
-	uint8_t ret, id;
+	uint8_t id;
 
 	if (dev->read_reg(BME280_ID, &id, sizeof(id)))
 		return ID_WRONG;
@@ -170,7 +170,8 @@ uint8_t bme280_init(struct bme280_t *dev)
 	dev->sea_level_pressure = 101325; /* Pressure at sea level (Pa) */
 
 	/* T1..T3, P1..P9 -> 0x88..0x9F */
-	if (ret = dev->read_reg(0x88, (uint8_t*)&dev->calibration, 24))
+	ret = dev->read_reg(0x88, (uint8_t*)&dev->calibration, 24);
+	if (ret)
 		return ret;
 
 	/* H1 -> 0xA1 */
@@ -204,7 +205,8 @@ uint8_t bme280_get_result(struct bme280_t *dev)
 	uint8_t ret;
 	uint8_t buf[8];
 
-	if (ret = check_busy(dev))
+	ret = check_busy(dev);
+	if (ret)
 		return BME280_BUSY;
 
 	dev->read_reg(BME280_PRESS_MSB, buf, sizeof(buf));
@@ -226,7 +228,8 @@ uint8_t bme280_calibrate_sea_level(struct bme280_t *dev)
 {
 	uint8_t ret;
 
-	if (ret = bme280_get_result(dev))
+	ret = bme280_get_result(dev);
+	if (ret)
 		return ret;
 
 	dev->sea_level_pressure = dev->pressure;
