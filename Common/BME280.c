@@ -75,49 +75,12 @@ static enum chip_type bme280_check_id(struct bme280_t *dev)
 	}
 }
 
-uint8_t bme280_init (struct bme280_t *dev)
-{
-	uint8_t ret;
-	uint8_t buf[4];
-
-	dev->chip = bme280_check_id(dev);
-	if (dev->chip == ID_WRONG)
-		return (uint8_t)ID_WRONG;
-
-	/* T1..T3, P1..P9 -> 0x88..0x9F */
-	if (ret = dev->read_reg(0x88, (uint8_t*)&dev->calibration, 24))
-		return ret;
-
-	/* H1 -> 0xA1 */
-	dev->read_reg(0xA1, (uint8_t*)&dev->calibration.h1, 1);
-
-	/* H2 -> 0xE1..0xE2 */
-	dev->read_reg(0xE1, (uint8_t*)&dev->calibration.h2, 2);
-
-	/* H3 -> 0xE3 */
-	dev->read_reg(0xE3, (uint8_t*)&dev->calibration.h3, 1);
-
-	/* H6 -> 0xE7 */
-	dev->read_reg(0xE7, (uint8_t*)&dev->calibration.h6, 1);
-
-	/* H6 -> 0xE7 */
-	dev->read_reg(0xE4, buf, 1);
-
-	dev->calibration.h4 = (buf[1] & 0x07) | ( buf[0] << 4);
-	dev->calibration.h5 = (buf[2] & 0x07) | ( buf[3] << 4);
-
-	dev->write_reg(BME280_CTRL_MEAS, dev->temperature_oversampling << 5 |
-				dev->pressure_oversampling << 2 | 3);
-
-	dev->write_reg(BME280_CTRL_HUM, dev->humidity_oversampling);
-
-	return ret;
-}
-
 static uint8_t check_busy(struct bme280_t *dev)
 {
 	uint8_t ret;
+
 	dev->read_reg(BME280_STATUS, &ret, sizeof(ret));
+
 	return ret & (1 << 3);
 }
 
@@ -195,13 +158,54 @@ static uint32_t compensate_h_int32(int32_t adc_h, struct bme280_t *dev)
 	return (uint32_t)(hum >> 12);
 }
 
+uint8_t bme280_init(struct bme280_t *dev)
+{
+	uint8_t ret;
+	uint8_t buf[4];
+
+	dev->chip = bme280_check_id(dev);
+	if (dev->chip == ID_WRONG)
+		return (uint8_t)ID_WRONG;
+
+	dev->sea_level_pressure = 101325; /* Pressure at sea level (Pa) */
+
+	/* T1..T3, P1..P9 -> 0x88..0x9F */
+	if (ret = dev->read_reg(0x88, (uint8_t*)&dev->calibration, 24))
+		return ret;
+
+	/* H1 -> 0xA1 */
+	dev->read_reg(0xA1, (uint8_t*)&dev->calibration.h1, 1);
+
+	/* H2 -> 0xE1..0xE2 */
+	dev->read_reg(0xE1, (uint8_t*)&dev->calibration.h2, 2);
+
+	/* H3 -> 0xE3 */
+	dev->read_reg(0xE3, (uint8_t*)&dev->calibration.h3, 1);
+
+	/* H6 -> 0xE7 */
+	dev->read_reg(0xE7, (uint8_t*)&dev->calibration.h6, 1);
+
+	/* H6 -> 0xE7 */
+	dev->read_reg(0xE4, buf, 1);
+
+	dev->calibration.h4 = (buf[1] & 0x07) | (buf[0] << 4);
+	dev->calibration.h5 = (buf[2] & 0x07) | (buf[3] << 4);
+
+	dev->write_reg(BME280_CTRL_MEAS, dev->temperature_oversampling << 5 |
+		dev->pressure_oversampling << 2 | 3);
+
+	dev->write_reg(BME280_CTRL_HUM, dev->humidity_oversampling);
+
+	return ret;
+}
+
 uint8_t bme280_get_result(struct bme280_t *dev)
 {
 	uint8_t ret;
 	uint8_t buf[8];
 
 	if (ret = check_busy(dev))
-		return ret;
+		return BME280_BUSY;
 
 	dev->read_reg(BME280_PRESS_MSB, buf, sizeof(buf));
 
@@ -216,4 +220,30 @@ uint8_t bme280_get_result(struct bme280_t *dev)
 			buf[6] << 8), dev)) / 1024;
 
 	return ret;
+}
+
+uint8_t bme280_calibrate_sea_level(struct bme280_t *dev)
+{
+	uint8_t ret;
+
+	if (ret = bme280_get_result(dev))
+		return ret;
+
+	dev->sea_level_pressure = dev->pressure;
+
+	return ret;
+}
+
+#include <math.h>
+
+double bme280_altitude(struct bme280_t *dev)
+{
+	return (double)44330 * (1 - pow(((double)dev->pressure /
+			dev->sea_level_pressure), 0.190295));
+}
+
+uint16_t bme280_mmHg(struct bme280_t *dev)
+{
+	return (uint16_t)((uint32_t)dev->pressure * 760) /
+			dev->sea_level_pressure;
 }

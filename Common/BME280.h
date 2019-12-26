@@ -48,6 +48,7 @@
 #include <stdint.h>
 
 #define BME280_DEFAULT_I2C_ADDRESS		0x76
+#define BME280_BUSY						0x10
 
 enum oversampling {
 	BME280_OVS_SKIPPED,
@@ -88,7 +89,7 @@ struct bme280_const {
 struct bme280_t {
 	/* Result */
 	double humidity;
-	uint32_t pressure;
+	uint32_t pressure, sea_level_pressure;
 	double temperature;
 
 	/* Interface functions */
@@ -106,5 +107,8 @@ struct bme280_t {
 
 uint8_t bme280_init(struct bme280_t *dev);
 uint8_t bme280_get_result(struct bme280_t *dev);
+uint8_t bme280_calibrate_sea_level(struct bme280_t *dev);
+double bme280_altitude(struct bme280_t *dev);
+uint16_t bme280_mmHg(struct bme280_t *dev);
 
 #endif /* BME280_H */
