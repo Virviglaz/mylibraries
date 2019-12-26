@@ -1,131 +1,219 @@
+/*
+ * This file is provided under a MIT license.  When using or
+ *   redistributing this file, you may do so under either license.
+ *
+ *   MIT License
+ *
+ *   Copyright (c) 2019 Pavel Nadein
+ *
+ *   Permission is hereby granted, free of charge, to any person obtaining a copy
+ *   of this software and associated documentation files (the "Software"), to deal
+ *   in the Software without restriction, including without limitation the rights
+ *   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *   copies of the Software, and to permit persons to whom the Software is
+ *   furnished to do so, subject to the following conditions:
+ *
+ *   The above copyright notice and this permission notice shall be included in all
+ *   copies or substantial portions of the Software.
+ *
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *   SOFTWARE.
+ *
+ *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * BME280 Combined humidity and pressure sensor
+ *
+ * Contact Information:
+ * Pavel Nadein <pavelnadein@gmail.com>
+ */
+
 #include "BME280.h"
 
-/* Registers Deginition */
-#define BME280_hum_lsb 				0xFE
-#define BME280_hum_msb 				0xFD
-#define BME280_temp_xlsb 			0xFC
-#define BME280_temp_lsb 			0xFB
-#define BME280_temp_msb 			0xFA
-#define BME280_press_xlsb 		0xF9
-#define BME280_press_lsb 			0xF8
-#define BME280_press_msb 			0xF7
-#define BME280_config 				0xF5
-#define BME280_ctrl_meas 			0xF4
-#define BME280_status 				0xF3
-#define BME280_ctrl_hum 			0xF2
-#define BME280_reset 					0xE0
-#define BME280_id 						0xD0
+/* Registers deginition */
+#define BME280_HUM_LSB				0XFE
+#define BME280_HUM_MSB				0XFD
+#define BME280_TEMP_XLSB			0XFC
+#define BME280_TEMP_LSB				0XFB
+#define BME280_TEMP_MSB				0XFA
+#define BME280_PRESS_XLSB			0XF9
+#define BME280_PRESS_LSB 			0XF8
+#define BME280_PRESS_MSB 			0XF7
+#define BME280_CONFIG				0XF5
+#define BME280_CTRL_MEAS			0XF4
+#define BME280_STATUS				0XF3
+#define BME280_CTRL_HUM				0XF2
+#define BME280_RESET				0XE0
+#define BME280_ID					0XD0
 
-/* Types Deginition */
-#define BME280_S32_t			signed long
-#define BME280_U32_t			unsigned long
-#define BME280_S64_t			signed long long
-
-/* Internal functions */
-BME280_S32_t BME280_compensate_T_int32(BME280_S32_t adc_T, BME280_StructTypeDef * BME280_Struct);
-BME280_U32_t BME280_compensate_P_int64(BME280_S32_t adc_P, BME280_StructTypeDef * BME280_Struct);
-BME280_U32_t BME280_compensate_H_int32(BME280_S32_t adc_H, BME280_StructTypeDef * BME280_Struct);
-
-uint8_t BME280_Init (BME280_StructTypeDef * BME280_Struct)
+static enum chip_type bme280_check_id(struct bme280_t *dev)
 {
-	uint8_t Result;
-	uint8_t buf[4];
-	
-	if (BME280_Struct == 0 || BME280_Struct->BME280_Calibration == 0) return 1;
+	uint8_t ret, id;
 
-	if ((Result = BME280_Struct->ReadReg(BME280_Struct->I2C_Adrs, 0x88, (uint8_t*)BME280_Struct->BME280_Calibration, 24)) != 0) return Result; //T1..T3, P1..P9 -> 0x88..0x9F
-	BME280_Struct->ReadReg(BME280_Struct->I2C_Adrs, 0xA1, (uint8_t*)&BME280_Struct->BME280_Calibration->dig_H1, 1);	//H1 -> 0xA1
-	BME280_Struct->ReadReg(BME280_Struct->I2C_Adrs, 0xE1, (uint8_t*)&BME280_Struct->BME280_Calibration->dig_H2, 2); //H2 -> 0xE1..0xE2
-	BME280_Struct->ReadReg(BME280_Struct->I2C_Adrs, 0xE3, (uint8_t*)&BME280_Struct->BME280_Calibration->dig_H3, 1); //H3 -> 0xE3
-	BME280_Struct->ReadReg(BME280_Struct->I2C_Adrs, 0xE7, (uint8_t*)&BME280_Struct->BME280_Calibration->dig_H6, 1); //H6 -> 0xE7
+	if (dev->read_reg(BME280_ID, &id, sizeof(id)))
+		return ID_WRONG;
 
-	BME280_Struct->ReadReg(BME280_Struct->I2C_Adrs, 0xE4, buf, 1); //H6 -> 0xE7
-	BME280_Struct->BME280_Calibration->dig_H4 = (buf[1] & 0x07) | ( buf[0] << 4);
-	BME280_Struct->BME280_Calibration->dig_H5 = (buf[2] & 0x07) | ( buf[3] << 4);
-
-	BME280_Struct->WriteReg(BME280_Struct->I2C_Adrs, BME280_ctrl_meas, (BME280_Struct->TemperatureOversampling & 7) << 5 | (BME280_Struct->PressureOversampling & 7) << 2 | 3);
-	BME280_Struct->WriteReg(BME280_Struct->I2C_Adrs, BME280_ctrl_hum, BME280_Struct->HumidityOversampling & 7);
-	return Result;
-}
-
-uint8_t BME280_Get_Result (BME280_StructTypeDef * BME280_Struct)
-{
-	uint8_t Result;
-	uint8_t buff[8];
-	if ((Result = BME280_Struct->ReadReg(BME280_Struct->I2C_Adrs, 0xF7, buff, sizeof(buff))) != 0) return Result;
-	
-	BME280_Struct->Temperature = (float)BME280_compensate_T_int32((BME280_S32_t)(buff[5] | buff[4] << 8 | buff[3] << 16) >> 4, BME280_Struct) / 100;
-	BME280_Struct->Pressure = (long)(BME280_compensate_P_int64((BME280_S32_t)(buff[2] | buff[1] << 8 | buff[0] << 16) >> 4, BME280_Struct) >> 8);
-	BME280_Struct->Humidity = (float)(BME280_compensate_H_int32((BME280_S32_t)(buff[7] | buff[6] << 8), BME280_Struct)) / 1024;
-	return Result;
-}
-
-// 0 when conversion is done
-uint8_t BME280_Busy (BME280_StructTypeDef * BME280_Struct)
-{
-  uint8_t Result;
-  BME280_Struct->ReadReg(BME280_Struct->I2C_Adrs, BME280_status, &Result, 1);
-	return Result & (1 << 3);
-}
-
-uint8_t BME280_Check_ID (BME280_StructTypeDef * BME280_Struct)
-{
-	uint8_t Result;
-	BME280_Struct->ReadReg(BME280_Struct->I2C_Adrs, BME280_id, &Result, 1);
-	return Result - 0x60;
-}
-
-// Returns temperature in DegC, resolution is 0.01 DegC. Output value of 5123 equals 51.23 DegC.
-// t_fine carries fine temperature as global value
-BME280_S32_t t_fine;
-BME280_S32_t BME280_compensate_T_int32(BME280_S32_t adc_T, BME280_StructTypeDef * BME280_Struct)
-{
-	BME280_S32_t var1, var2, T;
-	var1 = ((((adc_T >> 3) - ((BME280_S32_t)BME280_Struct->BME280_Calibration->dig_T1 << 1))) * ((BME280_S32_t)BME280_Struct->BME280_Calibration->dig_T2)) >> 11;
-	var2 = (((((adc_T >> 4) - ((BME280_S32_t)BME280_Struct->BME280_Calibration->dig_T1)) * ((adc_T >> 4) - ((BME280_S32_t)BME280_Struct->BME280_Calibration->dig_T1))) >> 12) *
-	((BME280_S32_t)BME280_Struct->BME280_Calibration->dig_T3)) >> 14;
-	t_fine = var1 + var2;
-	T = (t_fine * 5 + 128) >> 8;
-	return T;
-}
-
-// Returns pressure in Pa as unsigned 32 bit integer in Q24.8 format (24 integer bits and 8 fractional bits).
-// Output value of 24674867 represents 24674867/256 = 96386.2 Pa = 963.862 hPa
-BME280_U32_t BME280_compensate_P_int64(BME280_S32_t adc_P, BME280_StructTypeDef * BME280_Struct)
-{
-	BME280_S64_t var1, var2, p;
-	var1 = ((BME280_S64_t)t_fine) - 128000;
-	var2 = var1 * var1 * (BME280_S64_t)BME280_Struct->BME280_Calibration->dig_P6;
-	var2 = var2 + ((var1*(BME280_S64_t)BME280_Struct->BME280_Calibration->dig_P5) << 17);
-	var2 = var2 + (((BME280_S64_t)BME280_Struct->BME280_Calibration->dig_P4) << 35);
-	var1 = ((var1 * var1 * (BME280_S64_t)BME280_Struct->BME280_Calibration->dig_P3) >> 8) + ((var1 * (BME280_S64_t)BME280_Struct->BME280_Calibration->dig_P2) << 12);
-	var1 = (((((BME280_S64_t)1) << 47) + var1)) * ((BME280_S64_t)BME280_Struct->BME280_Calibration->dig_P1) >> 33;
-	if (var1 == 0)
+	switch (id)
 	{
-		return 0; // avoid exception caused by division by zero
+	case 0x58: return BMP280;
+	case 0x60: return BME280;
+	default: return ID_WRONG;
 	}
-	p = 1048576 - adc_P;
-	p = (((p << 31) - var2) * 3125) / var1;
-	var1 = (((BME280_S64_t)BME280_Struct->BME280_Calibration->dig_P9) * (p >> 13) * (p >> 13)) >> 25;
-	var2 = (((BME280_S64_t)BME280_Struct->BME280_Calibration->dig_P8) * p) >> 19;
-	p = ((p + var1 + var2) >> 8) + (((BME280_S64_t)BME280_Struct->BME280_Calibration->dig_P7) << 4);
-	return (BME280_U32_t)p;
 }
 
-// Returns humidity in %RH as unsigned 32 bit integer in Q22.10 format (22 integer and 10 fractional bits).
-// Output value of 47445 represents 47445/1024 = 46.333 %RH
-BME280_U32_t BME280_compensate_H_int32(BME280_S32_t adc_H, BME280_StructTypeDef * BME280_Struct)
+uint8_t bme280_init (struct bme280_t *dev)
 {
-	BME280_S32_t Hum_s32_var;
-	
-	Hum_s32_var = (t_fine - ((BME280_S32_t)76800));
-	Hum_s32_var = (((((adc_H << 14) - (((BME280_S32_t)BME280_Struct->BME280_Calibration->dig_H4) << 20) - (((BME280_S32_t)BME280_Struct->BME280_Calibration->dig_H5) * Hum_s32_var)) +
-		((BME280_S32_t)16384)) >> 15) * (((((((Hum_s32_var * ((BME280_S32_t)BME280_Struct->BME280_Calibration->dig_H6)) >> 10) * (((Hum_s32_var *
-			((BME280_S32_t)BME280_Struct->BME280_Calibration->dig_H3)) >> 11) + ((BME280_S32_t)32768))) >> 10) + ((BME280_S32_t)2097152)) *
-				((BME280_S32_t)BME280_Struct->BME280_Calibration->dig_H2) + 8192) >> 14));
-	Hum_s32_var = (Hum_s32_var - (((((Hum_s32_var >> 15) * (Hum_s32_var >> 15)) >> 7) * ((BME280_S32_t)BME280_Struct->BME280_Calibration->dig_H1)) >> 4));
-	Hum_s32_var = (Hum_s32_var < 0 ? 0 : Hum_s32_var);
-	Hum_s32_var = (Hum_s32_var > 419430400 ? 419430400 : Hum_s32_var);
+	uint8_t ret;
+	uint8_t buf[4];
 
-	return (BME280_U32_t)(Hum_s32_var >> 12);
+	dev->chip = bme280_check_id(dev);
+	if (dev->chip == ID_WRONG)
+		return (uint8_t)ID_WRONG;
+
+	/* T1..T3, P1..P9 -> 0x88..0x9F */
+	if (ret = dev->read_reg(0x88, (uint8_t*)&dev->calibration, 24))
+		return ret;
+
+	/* H1 -> 0xA1 */
+	dev->read_reg(0xA1, (uint8_t*)&dev->calibration.h1, 1);
+
+	/* H2 -> 0xE1..0xE2 */
+	dev->read_reg(0xE1, (uint8_t*)&dev->calibration.h2, 2);
+
+	/* H3 -> 0xE3 */
+	dev->read_reg(0xE3, (uint8_t*)&dev->calibration.h3, 1);
+
+	/* H6 -> 0xE7 */
+	dev->read_reg(0xE7, (uint8_t*)&dev->calibration.h6, 1);
+
+	/* H6 -> 0xE7 */
+	dev->read_reg(0xE4, buf, 1);
+
+	dev->calibration.h4 = (buf[1] & 0x07) | ( buf[0] << 4);
+	dev->calibration.h5 = (buf[2] & 0x07) | ( buf[3] << 4);
+
+	dev->write_reg(BME280_CTRL_MEAS, dev->temperature_oversampling << 5 |
+				dev->pressure_oversampling << 2 | 3);
+
+	dev->write_reg(BME280_CTRL_HUM, dev->humidity_oversampling);
+
+	return ret;
+}
+
+static uint8_t check_busy(struct bme280_t *dev)
+{
+	uint8_t ret;
+	dev->read_reg(BME280_STATUS, &ret, sizeof(ret));
+	return ret & (1 << 3);
+}
+
+static int32_t t_fine;
+static int32_t compensate_t_int32(int32_t adc_t, struct bme280_t *dev)
+{
+	int32_t var1, var2;
+
+	var1 = ((((adc_t >> 3) - ((int32_t)dev->calibration.t1 << 1))) *
+			((int32_t)dev->calibration.t2)) >> 11;
+
+	var2 = (((((adc_t >> 4) - ((int32_t)dev->calibration.t1)) *
+			((adc_t >> 4) - ((int32_t)dev->calibration.t1))) >> 12) *
+			((int32_t)dev->calibration.t3)) >> 14;
+	
+	t_fine = var1 + var2;
+
+	return (t_fine * 5 + 128) >> 8;
+}
+
+static uint32_t compensate_p_int64(int32_t adc_p, struct bme280_t *dev)
+{
+	int64_t var1, var2, p;
+
+	var1 = ((int64_t)t_fine) - 128000;
+
+	var2 = var1 * var1 * (int64_t)dev->calibration.p6;
+
+	var2 = var2 + ((var1*(int64_t)dev->calibration.p5) << 17);
+
+	var2 = var2 + (((int64_t)dev->calibration.p4) << 35);
+
+	var1 = ((var1 * var1 * (int64_t)dev->calibration.p3) >> 8) +
+			((var1 * (int64_t)dev->calibration.p2) << 12);
+
+	var1 = (((((int64_t)1) << 47) + var1)) *
+			((int64_t)dev->calibration.p1) >> 33;
+
+	if (!var1)
+		return 0; /* avoid exception caused by division by zero */
+
+	p = 1048576 - adc_p;
+
+	p = (((p << 31) - var2) * 3125) / var1;
+
+	var1 = (((int64_t)dev->calibration.p9) * (p >> 13) * (p >> 13)) >> 25;
+
+	var2 = (((int64_t)dev->calibration.p8) * p) >> 19;
+
+	p = ((p + var1 + var2) >> 8) + (((int64_t)dev->calibration.p7) << 4);
+
+	return (uint32_t)p;
+}
+
+static uint32_t compensate_h_int32(int32_t adc_h, struct bme280_t *dev)
+{
+	int32_t hum;
+	
+	hum = (t_fine - ((int32_t)76800));
+
+	hum = (((((adc_h << 14) - (((int32_t)dev->calibration.h4) << 20) -
+			(((int32_t)dev->calibration.h5) * hum)) +
+			((int32_t)16384)) >> 15) * (((((((hum *
+			((int32_t)dev->calibration.h6)) >> 10) *
+			(((hum * ((int32_t)dev->calibration.h3)) >> 11) +
+			((int32_t)32768))) >> 10) + ((int32_t)2097152)) *
+			((int32_t)dev->calibration.h2) + 8192) >> 14));
+
+	hum = (hum - (((((hum >> 15) * (hum >> 15)) >> 7) *
+			((int32_t)dev->calibration.h1)) >> 4));
+
+	hum = (hum < 0 ? 0 : hum);
+	hum = (hum > 419430400 ? 419430400 : hum);
+
+	return (uint32_t)(hum >> 12);
+}
+
+uint8_t bme280_get_result(struct bme280_t *dev)
+{
+	uint8_t ret;
+	uint8_t buf[8];
+
+	if (ret = check_busy(dev))
+		return ret;
+
+	dev->read_reg(BME280_PRESS_MSB, buf, sizeof(buf));
+
+	dev->temperature = (double)compensate_t_int32((int32_t)(buf[5] |
+			buf[4] << 8 | buf[3] << 16) >> 4, dev) / 100;
+
+	dev->pressure = (uint32_t)(compensate_p_int64((int32_t)(buf[2] |
+			buf[1] << 8 | buf[0] << 16) >> 4, dev) >> 8);
+
+	if (dev->chip == BME280)
+		dev->humidity = (double)(compensate_h_int32((int32_t)(buf[7] |
+			buf[6] << 8), dev)) / 1024;
+
+	return ret;
 }
