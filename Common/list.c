@@ -109,8 +109,6 @@ static void remove_first(struct list_t *list)
 {
 	struct list_t *next = list->next;
 
-	_free(list->entry);
-
 	if (!list->next) { /* Only one entry in list */
 		list->next = NULL;
 		return;
@@ -161,6 +159,7 @@ struct list_t *add_to_list(struct list_t *list, void *entry)
 	return last;
 }
 
+/* NOTE: We do not release the entry used memory */
 void remove_entry_from_list(struct list_t *list, void *entry)
 {
 	struct list_t *prev;
@@ -207,4 +206,19 @@ void *foreach_list(struct list_t *list)
 		return NULL;
 
 	return last->entry;
+}
+
+void execute_foreach(struct list_t *list,
+		void(*handler)(void *entry))
+{
+	while (list->next) {
+		handler(list->entry);
+		list = list->next;
+	}
+}
+
+void release_list(struct list_t *list)
+{
+	while (list->next)
+		remove_first(list);
 }
