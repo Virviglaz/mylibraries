@@ -57,3 +57,6 @@ void remove_entry_from_list(struct list_t *list, void *entry);
 void remove_entry_by_num(struct list_t *list, size_t num);
 void *get_entry_by_num(struct list_t *list, size_t num);
 void *foreach_list(struct list_t *list);
+void execute_foreach(struct list_t *list,
+	void(*handler)(void *entry));
+void release_list(struct list_t *list);
