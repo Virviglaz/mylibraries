@@ -159,6 +159,18 @@ struct list_t *add_to_list(struct list_t *list, void *entry)
 	return last;
 }
 
+size_t get_list_size(struct list_t *list)
+{
+	size_t i = 0;
+
+	while (list->next) {
+		list = list->next;
+		i++;
+	}
+
+	return i;
+}
+
 /* NOTE: We do not release the entry used memory */
 void remove_entry_from_list(struct list_t *list, void *entry)
 {
