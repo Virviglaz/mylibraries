@@ -53,6 +53,7 @@ struct list_t {
 struct list_t *create_list(void *(*__malloc)(size_t size),
 	void (*__free)(void *pointer));
 struct list_t *add_to_list(struct list_t *list, void *entry);
+size_t get_list_size(struct list_t *list);
 void remove_entry_from_list(struct list_t *list, void *entry);
 void remove_entry_by_num(struct list_t *list, size_t num);
 void *get_entry_by_num(struct list_t *list, size_t num);
