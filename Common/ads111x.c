@@ -52,12 +52,12 @@
 
 static uint8_t check_ready(struct ads111x_t *dev)
 {
-	uint8_t conf[2];
+	uint8_t conf;
 
 	dev->rd(dev->i2c_addr, CONF_REG,
-		conf, sizeof(conf));
+		&conf, sizeof(conf));
 
-	return conf[1] & 0x80;
+	return conf & 0x80;
 }
 
 uint8_t ads111x_init(struct ads111x_t *dev)
