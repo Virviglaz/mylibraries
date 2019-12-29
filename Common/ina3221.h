@@ -1,94 +1,143 @@
+/*
+ * This file is provided under a MIT license.  When using or
+ * redistributing this file, you may do so under either license.
+ *
+ * MIT License
+ *
+ * Copyright (c) 2019 Pavel Nadein
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * INA3221 Triple-Channel, High-Side Measurement, Shunt and Bus Voltage
+ * Monitor with I2C- and SMBUS-Compatible Interface
+ *
+ * Contact Information:
+ * Pavel Nadein <pavelnadein@gmail.com>
+ */
+
 #ifndef INA3221_H
 #define INA3221_H
 
 #include <stdint.h>
 #include <stdbool.h>
 
-#define INA3221_CH1							0x00
-#define INA3221_CH2							0x01
-#define INA3221_CH3							0x02
+#define INA3221_I2C_ADDRESS_GND			0x40
+#define INA3221_I2C_ADDRESS_VDD			0x41
+#define INA3221_I2C_ADDRESS_SDA			0x42
+#define INA3221_I2C_ADDRESS_SCL			0x43
 
-#define INA3221_CONFIG_REG			0x00
-#define INA3221_CH1_SHUNT_I			0x01
-#define INA3221_CH1_BUS_V				0x02
-#define INA3221_CH2_SHUNT_I			0x03
-#define INA3221_CH2_BUS_V				0x04
-#define INA3221_CH3_SHUNT_I			0x05
-#define INA3221_CH3_BUS_V				0x06
-#define INA3221_CH1_CRIT_I			0x07
-#define INA3221_CH1_WARN_I			0x08
-#define INA3221_CH2_CRIT_I			0x09
-#define INA3221_CH2_WARN_I			0x0A
-#define INA3221_CH3_CRIT_I			0x0B
-#define INA3221_CH3_WARN_I			0x0C
-#define INA3221_SHUNT_I_SUM			0x0D
-#define INA3221_SHUNT_I_SUM_LIM	0x0E
-#define INA3221_MASK_ENABLE			0x0F
-#define INA3221_POWER_UPPER_LIM 0x10
-#define INA3221_POWER_LOWER_LIM	0x11
-#define INA3221_MANUFACTURE_ID	0xFE
-#define INA3221_DIE_ID					0xFF
+#define INA3221_NO_DATA_READY			0x80
+#define INA3221_WRONG_ID				0x60
 
-#define INA3221_MANUFACTURE_ID_VALUE	0x4954
+enum ina3221_channel {
+	CH1,
+	CH2,
+	CH3
+};
 
-#define INA3221_POWER_DOWN 														0
-#define INA3221_SHUNT_VOLTAGE_SINGLE_SHOT							1
-#define INA3221_BUS_VOLTAGE_SINGLE_SHOT								2
-#define INA3221_SHUNT_AND_BUS_VOLTAGE_SINGLE_SHOT			3
-#define INA3221_SHUNT_VOLTAGE_CONT										5
-#define INA3221_BUS_VOLTAGE_CONT											6
-#define INA3221_SHUNT_AND_BUS_VOLTAGE_CONT_DEFAULT		7
+enum ina3221_average {
+	AVG_0001,
+	AVG_0004,
+	AVG_0016,
+	AVG_0064,
+	AVG_0128,
+	AVG_0256,
+	AVG_0512,
+	AVG_1024,
+};
 
-typedef struct
-{
-	uint16_t INA3221_Mode: 3;
-	uint16_t INA3221_ShuntVoltageConvTime : 3;
-	uint16_t INA3221_BusVoltageConvTime : 3;
-	uint16_t INA3221_Averaging : 3;
-	bool INA3221_CH3_EN : 1;
-	bool INA3221_CH2_EN : 1;
-	bool INA3221_CH1_EN : 1;	
-	bool INA3221_Reset : 1;
-}int3221_config_t;
+enum ina3221_conv_time {
+	CONV_TIME_140US,
+	CONV_TIME_204US,
+	CONV_TIME_332US,
+	CONV_TIME_588US,
+	CONV_TIME_1100US,
+	CONV_TIME_2116US,
+	CONV_TIME_4156US,
+	CONV_TIME_8244US,
+};
 
-typedef struct
-{
+enum ina3221_mode {
+	POWER_DOWN,
+	SHUNT_VOLTAGE_SINGLE_SHOT,
+	BUS_VOLTAGE_SINGLE_SHOT,
+	SHUNT_AND_BUS_SINGLE_SHOT,
+	POWER_DOWN2,
+	SHUNT_VOLTAGE_CONTIUOUS,
+	BUS_VOLTAGE_CONTIUOUS,
+	SHUNT_AND_BUS_CONTIUOUS,
+};
+
+struct ina3221_t {
 	/* Interface */
-	uint8_t (*wr) (uint8_t i2c_adrs, uint8_t reg, uint8_t * buf, uint8_t len);
-	uint8_t (*rd) (uint8_t i2c_adrs, uint8_t reg, uint8_t * buf, uint8_t len);
-	
-	/* Settings */
-	int3221_config_t config;
-	
-	/* I2c address */
-	uint8_t i2c_address;
-	
-	/* Shunt resistors */
-	float shunt[3];
-}int3221_t;
+	uint8_t i2c_addr;
+	uint8_t(*wr)(uint8_t i2c_adrs, uint8_t reg, uint8_t *buf, uint16_t len);
+	uint8_t(*rd)(uint8_t i2c_adrs, uint8_t reg, uint8_t *buf, uint16_t len);
 
-int3221_t * INA3221_Init (int3221_t * driver);
-uint8_t INA3221_SearchOnBus (int3221_t * driver);
-int3221_t * INA3221_StructInit (int3221_t * driver, float shunt_resistance);
-float INA3221_ReadBusVoltage (uint8_t channel);
-float INA3221_ReadShuntCurrent (uint8_t channel);
-void INA3221_SetCriticalAlertCurrent (float current, uint8_t channel);
-void INA3221_SetWarningAlertCurrent (float current, uint8_t channel);
-void INA3221_SetPowerValidLimits (float hi_lim, float lo_lim);
+	struct {
+		enum ina3221_mode  mode : 3;
+		enum ina3221_conv_time shunt_voltage_conv_time : 3;
+		enum ina3221_conv_time bus_voltage_conv_time : 3;
+		enum ina3221_average average : 3;
+		bool ch3_enable : 1;
+		bool ch2_enable : 1;
+		bool ch1_enable : 1;
+		bool reset : 1;
+	} config;
 
-/**
- * C++ analog class (use: INA3221.Init(&init_struct); )
- */
-const struct
-{
-	int3221_t * (*Init) (int3221_t * driver);
-	uint8_t (*SearchOnBus) (int3221_t * driver);
-	int3221_t * (*StructInit) (int3221_t * driver, float shunt_resistance);
-	float (*ReadBusVoltage) (uint8_t channel);
-	float (*ReadShuntCurrent) (uint8_t channel);
-	void (*SetCriticalAlertCurrent) (float current, uint8_t channel);
-	void (*SetWarningAlertCurrent) (float current, uint8_t channel);
-	void (*SetPowerValidLimits) (float hi_lim, float lo_lim);
-}INA3221 = { INA3221_Init, INA3221_SearchOnBus, INA3221_StructInit, INA3221_ReadBusVoltage, \
-	INA3221_ReadShuntCurrent, INA3221_SetCriticalAlertCurrent, INA3221_SetWarningAlertCurrent, INA3221_SetPowerValidLimits };
-#endif //INA3221_H
+	/* Shunt resistors values */
+	double shunt[3];
+};
+
+/* Init */
+uint8_t ina3221_init(struct ina3221_t *dev);
+
+/* Read voltage */
+double ina3221_read_bus_voltage(struct ina3221_t *dev,
+	enum ina3221_channel ch);
+
+/* Read current */
+double ina3221_read_shunt_current(struct ina3221_t *dev,
+	enum ina3221_channel ch);
+
+/* Set critical current alarm */
+uint8_t ina3221_set_critical_current(struct ina3221_t *dev,
+	double current, enum ina3221_channel ch);
+
+/* Set warning current alarm */
+uint8_t ina3221_set_warning_current(struct ina3221_t *dev,
+	double current, enum ina3221_channel ch);
+
+/* Set power limit alarm */
+uint8_t ina3221_set_power_limits(struct ina3221_t *dev,
+	double high, double low);
+
+#endif /* INA3221_H */
