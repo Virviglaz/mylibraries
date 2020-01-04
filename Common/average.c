@@ -59,7 +59,7 @@ double get_average(double *buf, uint16_t size, uint16_t average)
 	double sum = 0;
 	uint16_t i;
 
-	for (i = size - average - 1; i != size - 1; i++)
+	for (i = size - average; i != size; i++)
 		sum += buf[i];
 
 	return sum / average;
