@@ -2,7 +2,6 @@
 #define DB_H
 
 #include <stdint.h>
-#include <string.h>
 
 /* DATABASE STRUCTURE
 8 8 8 8 - whole db size (32 bit)
@@ -20,50 +19,36 @@ DB_DataTypeDef DataType [8 bit]
 [Data] - entry data (raw data)
 */
 
-typedef enum
-{
+enum db_data_type {
 	DB_Text = 0,
 	DB_8b = 1,
 	DB_16b = 2,
 	DB_32b = 4,
 	DB_TypeError,
-}DB_DataTypeDef;
+};
 
-typedef enum
-{
-  DB_Success = 0,
-  DB_WrongCRC,
-  DB_TagNotFound,
-  DB_TagExist,
+enum db_error {
+	DB_Success,
+	DB_WrongCRC,
+	DB_TagNotFound,
+	DB_TagExist,
 	DB_NoCRC_Func,
 	DB_WrongFormat,
 	DB_Blank,
-}DB_ErrorTypeDef;
+};
 
-DB_ErrorTypeDef DB_Init (uint32_t (*CRC_Func)(void * buf, uint32_t size));
-DB_ErrorTypeDef DB_StoreData   (const char * Tag,	void * Data, uint16_t Size,	DB_DataTypeDef DataType, void * db);
-DB_ErrorTypeDef DB_OverWriteData   (const char * Tag,	void * Data, uint16_t DataSize,	DB_DataTypeDef DataType, void * db);
-uint16_t DB_ReadData (const char * Tag, void * Data, void * db);
-DB_ErrorTypeDef DB_Validate (void * db);
-DB_DataTypeDef DB_GetDataType (const char * Tag, void * db);
-uint16_t DB_GetEntrySize (const char * Tag, void * db);
-uint32_t DB_GetSize (void * db);
-DB_ErrorTypeDef DB_DeleteEntry (const char * Tag, void * db);
-uint16_t DB_GetAmountOfTags (void * db);
-char * DB_ExplainError (DB_ErrorTypeDef err);
+void db_init(uint32_t (*crc)(void *buf, uint32_t size));
+uint32_t db_get_size(void *db);
+enum db_error db_write(const char *tag, void *data, uint16_t datasize,
+		enum db_data_type type, void *db);
+enum db_error db_overwrite(const char *tag, void *data, uint16_t datasize,
+		enum db_data_type type, void *db);
+uint16_t db_read(const char *tag, void *data, void *db);
+enum db_data_type db_get_type(const char *tag, void *db);
+uint16_t db_get_entry_size(const char *tag, void *db);
+enum db_error db_validate (void *db);
+enum db_error db_delete(const char *tag, void *db);
+uint16_t db_get_nof_tags(void *db);
+char *db_error_string(enum db_error err);
 
-static const struct
-{
-	DB_ErrorTypeDef (* Init)  (uint32_t (*CRC_Func)(void * buf, uint32_t size));
-	DB_ErrorTypeDef (* Write) (const char * Tag,	void * Data, uint16_t Size,	DB_DataTypeDef DataType, void * db);
-	DB_ErrorTypeDef (* OverWrite)   (const char * Tag,	void * Data, uint16_t DataSize,	DB_DataTypeDef DataType, void * db);
-	uint16_t (* Read) (const char * Tag, void * Data, void * db);
-	DB_ErrorTypeDef (* Validate) (void * db);
-	DB_DataTypeDef (* GetDataType) (const char * Tag, void * db);
-	uint16_t (* GetEntrySize) (const char * Tag, void * db);
-	uint32_t (* GetSize) (void * db);
-	DB_ErrorTypeDef (* DeleteEntry) (const char * Tag, void * db);
-	uint16_t (* GetAmountOfTags) (void * db);
-	char * (* ExplainError) (DB_ErrorTypeDef err);
-}SimpleDB = { DB_Init, DB_StoreData, DB_OverWriteData, DB_ReadData, DB_Validate, DB_GetDataType, DB_GetEntrySize, DB_GetSize, DB_DeleteEntry, DB_GetAmountOfTags, DB_ExplainError };
 #endif
