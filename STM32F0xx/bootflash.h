@@ -1,7 +1,6 @@
 #ifndef BOOTFLASH_H
 #define BOOTFLASH_H
 
-#include "stm32f0xx.h"                  // Device header
 #include <stdint.h>
 #include <stdio.h>
 

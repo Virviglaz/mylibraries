@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2020 Pavel Nadein
+ * Copyright (c) 2019 Pavel Nadein
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,18 +36,28 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Moving average calculation
+ * Linked list generic api
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
-#ifndef _AVERAGE_H_
-#define _AVERAGE_H_
-
 #include <stdint.h>
+#include <stddef.h>
 
-void add_value(double *buf, uint16_t size, double value);
-double get_average(double *buf, uint16_t size, uint16_t average);
+struct list_t {
+	void *entry;
+	struct list_t *next;
+};
 
-#endif /* _AVERAGE_H_ */
+struct list_t *create_list(void *(*__malloc)(size_t size),
+	void (*__free)(void *pointer));
+struct list_t *add_to_list(struct list_t *list, void *entry);
+size_t get_list_size(struct list_t *list);
+void remove_entry_from_list(struct list_t *list, void *entry);
+void remove_entry_by_num(struct list_t *list, size_t num);
+void *get_entry_by_num(struct list_t *list, size_t num);
+void *foreach_list(struct list_t *list);
+void execute_foreach(struct list_t *list,
+	void(*handler)(void *entry));
+void release_list(struct list_t *list);
