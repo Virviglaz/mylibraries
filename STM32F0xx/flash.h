@@ -3,7 +3,7 @@
 
 #include "stm32f0xx.h"                  // Device header
 #include "stm32f0xx_flash.h"
-#include "PCB23_HW.h"
+#include "bsp.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>

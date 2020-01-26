@@ -1,31 +1,53 @@
 #include "DS18B20.h"
 
-/* Internal functions */
-void DS18B20_FindSensor (DS18B20_TypeDef * DS18B20);
+/*dev Commands list */
+#define DS18B20_READ_ROM			0x33
+#define DS18B20_SKIP_ROM			0xCC
+#define DS18B20_SEARCH_ROM			0xF0
+#define DS18B20_MATCH_ROM			0x55
+
+#define DS18B20_CONVERT_T_CMD			0x44
+#define DS18B20_WRITE_STRATCHPAD_CMD		0x4E
+#define DS18B20_READ_STRATCHPAD_CMD		0xBE
+#define DS18B20_COPY_STRATCHPAD_CMD		0x48
+#define DS18B20_RECALL_E_CMD			0xB8
+#define DS18B20_READ_POWER_SUPPLY_CMD		0xB4
+
+#define DS18B20_STRATCHPAD_SIZE			0x09
+#define DefaultResolution			Res_12bit
+
+/**
+  * @brief  Search for sensor with corresponding serial number
+  * @param  DS18B20: Sensor to search for
+  */
+static void find_sensor(struct ds18b20_t *dev)
+{
+	uint8_t i;
+	dev->interface->write(DS18B20_MATCH_ROM);
+
+	for (i = 0; i != 8; i++) 
+		dev->interface->write(dev->SN[i]);
+}
 
 /**
   * @brief  Perform writing data configuration to configuration register
   * @param  DS18B20: Sensor to configure
   * @retval One_Wire_Success or One wire error
   */
-uint8_t DS18B20_Configure (DS18B20_TypeDef * DS18B20)
+uint8_t ds18b20_init(struct ds18b20_t *dev)
 {
-	uint8_t Result;
+	uint8_t ret = dev->interface->reset();
+	if (ret)
+		return ret;
 
-	/* Send RESET pulse */
-	Result = DS18B20->One_Wire_Interface->ResetFunc();
-	if (Result)	return Result;
+	find_sensor(dev);
 
-	/* Find corresponding sensor */
-	DS18B20_FindSensor(DS18B20);
+	dev->interface->write(DS18B20_WRITE_STRATCHPAD_CMD);
+	dev->interface->write(dev->Th);
+	dev->interface->write(dev->Tl);
+	dev->interface->write((dev->res << 5) | 0x1F);
 
-	/* Perform configure */
-	DS18B20->One_Wire_Interface->WriteByte (DS18B20_WRITE_STRATCHPAD_CMD);
-	DS18B20->One_Wire_Interface->WriteByte (DS18B20->Th);
-	DS18B20->One_Wire_Interface->WriteByte (DS18B20->Tl);
-	DS18B20->One_Wire_Interface->WriteByte ((DS18B20->Resolution << 5) | 0x1F);
-
-	return Result;
+	return ret;
 }
 
 /**
@@ -33,21 +55,17 @@ uint8_t DS18B20_Configure (DS18B20_TypeDef * DS18B20)
   * @param  DS18B20: Sensor to start the conversion
   * @retval One_Wire_Success or One wire error
   */
-uint8_t DS18B20_Start_Conversion (DS18B20_TypeDef * DS18B20)
+uint8_t ds18b20_start(struct ds18b20_t *dev)
 {
-	uint8_t Result;
+	uint8_t ret = dev->interface->reset();
+	if (ret)
+		return ret;
 
-	/* Send RESET pulse */
-	Result = DS18B20->One_Wire_Interface->ResetFunc();
-	if (Result)	return Result;
+	find_sensor(dev);
 
-	/* Find corresponding sensor */
-	DS18B20_FindSensor(DS18B20);
+	dev->interface->write(DS18B20_CONVERT_T_CMD);
 
-	/* Sens start conversion command */
-	DS18B20->One_Wire_Interface->WriteByte (DS18B20_CONVERT_T_CMD);
-
-	return Result;
+	return ret;
 }
 
 /**
@@ -55,37 +73,29 @@ uint8_t DS18B20_Start_Conversion (DS18B20_TypeDef * DS18B20)
   * @param  DS18B20: Sensor to read
   * @retval One_Wire_Success or One wire error
   */
-uint8_t DS18B20_Get_Conversion_Result (DS18B20_TypeDef * DS18B20)
+uint8_t ds18b20_get_result(struct ds18b20_t *dev)
 {
-	uint8_t Result;
-	uint8_t cnt;
-	uint8_t inbuff[DS18B20_STRATCHPAD_SIZE];
+	uint8_t i;
+	uint8_t buf[DS18B20_STRATCHPAD_SIZE];
+	uint8_t ret = dev->interface->reset();
+	if (ret)
+		return ret;
 
-	/* Send RESET pulse */
-	Result = DS18B20->One_Wire_Interface->ResetFunc();
-	if (Result)	return Result;
+	find_sensor(dev);
 
-	/* Find corresponding sensor */
-	DS18B20_FindSensor(DS18B20);
+	dev->interface->write (DS18B20_READ_STRATCHPAD_CMD);
 
-	/* Send READ command */
-	DS18B20->One_Wire_Interface->WriteByte (DS18B20_READ_STRATCHPAD_CMD);
+	for (i = 0; i != DS18B20_STRATCHPAD_SIZE; i++)
+		buf[i] = dev->interface->read();
 
-	/* Read sensor's buffer */
-	for (cnt=0; cnt != DS18B20_STRATCHPAD_SIZE; cnt++)
-		inbuff[cnt] = DS18B20->One_Wire_Interface->ReadByte();
-
-	/* Check CRC */
-	Result = Crc8Dallas(inbuff, DS18B20_STRATCHPAD_SIZE);
-	if (!Result) 
-		{
-			/* Convert obtained data */
-			DS18B20->Temp16 = inbuff[0] | (inbuff[1] << 8);
-			DS18B20->Th = inbuff[2];
-					DS18B20->Tl = inbuff[3];
-					DS18B20->Resolution = (DS18B20_ResolutionTypeDef) ((inbuff[4] << 5) & 0x60);
-		}
-	return Result;
+	ret = Crc8Dallas(buf, DS18B20_STRATCHPAD_SIZE);
+	if (!ret) {
+		dev->temp = buf[0] | (buf[1] << 8);
+		dev->Th = buf[2];
+		dev->Tl = buf[3];
+		dev->res = (enum ds18b20_resolution) ((buf[4] << 5) & 0x60);
+	}
+	return ret;
 }
 
 /**
@@ -93,18 +103,18 @@ uint8_t DS18B20_Get_Conversion_Result (DS18B20_TypeDef * DS18B20)
   * @param  DS18B20: Sensor to start conversion (single sensor)
   * @retval One_Wire_Success or One wire error
   */
-uint8_t DS18B20_Start_Conversion_Skip_Rom (DS18B20_single_TypeDef * DS18B20)
+uint8_t ds18b20_start_single(struct ds18b20_s *dev)
 {
-	/* Send RESET pulse */
-	uint8_t Result = DS18B20->One_Wire_Interface->ResetFunc();
-	if (Result)	return Result;
+	uint8_t ret = dev->interface->reset();
+	if (ret)
+		return ret;
 	
 	/* Start conversion skipping ROM */
-	DS18B20->One_Wire_Interface->ResetFunc();	
-	DS18B20->One_Wire_Interface->WriteByte (DS18B20_SKIP_ROM);
-	DS18B20->One_Wire_Interface->WriteByte (DS18B20_CONVERT_T_CMD);
+	dev->interface->reset();	
+	dev->interface->write(DS18B20_SKIP_ROM);
+	dev->interface->write(DS18B20_CONVERT_T_CMD);
 
-	return Result;
+	return ret;
 }
 
 /**
@@ -112,21 +122,20 @@ uint8_t DS18B20_Start_Conversion_Skip_Rom (DS18B20_single_TypeDef * DS18B20)
   * @param  DS18B20: Sensor to read (single sensor)
   * @retval One_Wire_Success or One wire error
   */
-uint8_t DS18B20_Read_Skip_Rom (DS18B20_single_TypeDef * DS18B20)
+uint8_t ds18b20_read_single(struct ds18b20_s *dev)
 {
-	uint8_t Result;
 	int16_t rawvalue;
+	uint8_t ret = dev->interface->reset();
+	if (ret)
+		return ret;
 
-	Result = DS18B20->One_Wire_Interface->ResetFunc();
-	if (Result)	return Result;
-
-	DS18B20->One_Wire_Interface->WriteByte (DS18B20_SKIP_ROM);
-	DS18B20->One_Wire_Interface->WriteByte (DS18B20_READ_STRATCHPAD_CMD);
-	rawvalue = DS18B20->One_Wire_Interface->ReadByte();
-	rawvalue |= DS18B20->One_Wire_Interface->ReadByte() << 8;
+	dev->interface->write (DS18B20_SKIP_ROM);
+	dev->interface->write (DS18B20_READ_STRATCHPAD_CMD);
+	rawvalue = dev->interface->read();
+	rawvalue |= dev->interface->read() << 8;
 	
-	DS18B20->Temp = (float)(rawvalue) / 16;
-	return Result;
+	dev->temp = (double)(rawvalue) / 16.0;
+	return ret;
 }
 
 /**
@@ -134,10 +143,9 @@ uint8_t DS18B20_Read_Skip_Rom (DS18B20_single_TypeDef * DS18B20)
   * @param  DS18B20: Sensor to get data from
   * @retval float temperature value
   */
-float DS18B20_ConvertTemp (DS18B20_TypeDef * DS18B20)
+double ds18b20_convert_temp(struct ds18b20_t *dev)
 {
-	uint8_t Div = 1 << (DS18B20->Resolution + 1);
-	return (float)DS18B20->Temp16 / Div;
+	return (double)dev->temp / (1 << (dev->res + 1));
 }
 
 /**
@@ -145,20 +153,8 @@ float DS18B20_ConvertTemp (DS18B20_TypeDef * DS18B20)
   * @param  DS18B20: Sensor to get resolution value
   * @retval delay in us needed to convert temperature
   */
-unsigned int DS18B20_GetConversionDelayValue (DS18B20_TypeDef * DS18B20)
+uint16_t ds18b20_delay_value(struct ds18b20_t *dev)
 {
-	const uint16_t ConvDelay[] = {100, 200, 400, 800};
-	return ConvDelay[DS18B20->Resolution];
-}
-
-/**
-  * @brief  Search for sensor with corresponding serial number
-  * @param  DS18B20: Sensor to search for
-  */
-void DS18B20_FindSensor (DS18B20_TypeDef * DS18B20)
-{
-	/* Find corresponding sensor */
-	DS18B20->One_Wire_Interface->WriteByte ( DS18B20_MATCH_ROM);
-	for (uint8_t cnt = 0; cnt != 8; cnt++) 
-		DS18B20->One_Wire_Interface->WriteByte ( DS18B20->SN[cnt]);
+	const uint16_t delays[] = {100, 200, 400, 800};
+	return delays[dev->res];
 }

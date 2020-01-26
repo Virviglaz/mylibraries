@@ -9,7 +9,7 @@
 #define VREFINT_CAL							*(__IO int16_t*)0x1FFFF7BA
 
 uint32_t ADCx_GetCalibrationFactor (ADC_TypeDef * ADCx);
-float GetIntTemp (void);
-float GetIntVDD (void);
+double GetIntTemp (void);
+double GetIntVDD (void);
 uint16_t ADC_GenericRead (ADC_TypeDef * ADCx, uint32_t ADC_Channel);
 #endif

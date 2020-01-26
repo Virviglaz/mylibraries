@@ -4,59 +4,39 @@
 #include "CRC.h"
 #include <stdint.h>
 
-/* DS18B20 Commands list */
-#define DS18B20_READ_ROM									0x33
-#define DS18B20_SKIP_ROM									0xCC
-#define DS18B20_SEARCH_ROM								0xF0
-#define DS18B20_MATCH_ROM									0x55
+enum ds18b20_resolution {
+	Res_9bit,
+	Res_10bit,
+	Res_11bit,
+	Res_12bit,
+};
 
-#define DS18B20_CONVERT_T_CMD							0x44
-#define DS18B20_WRITE_STRATCHPAD_CMD			0x4E
-#define DS18B20_READ_STRATCHPAD_CMD				0xBE
-#define DS18B20_COPY_STRATCHPAD_CMD				0x48
-#define DS18B20_RECALL_E_CMD							0xB8
-#define DS18B20_READ_POWER_SUPPLY_CMD			0xB4
+struct one_wire_interface {
+	uint8_t (*reset)(void);
+	uint8_t (*write)(uint8_t value);
+	uint8_t (*read)(void);
+};
 
-#define DS18B20_STRATCHPAD_SIZE						0x09
-#define DefaultResolution									Res_12bit
-
-typedef enum
-{
-	Res_9bit  = 0,
-	Res_10bit = 1,
-	Res_11bit = 2,
-	Res_12bit = 3
-}DS18B20_ResolutionTypeDef;
-
-typedef struct
-{
-	uint8_t (*ResetFunc) (void);
-	uint8_t (*WriteByte) (uint8_t value);
-	uint8_t (*ReadByte) (void);
-}One_Wire_InterfaceTypeDef;
-
-typedef struct
-{
-	One_Wire_InterfaceTypeDef * One_Wire_Interface;
+struct ds18b20_t {
+	struct one_wire_interface *interface;
 	uint8_t SN[8];
-	int16_t Temp16;
+	int16_t temp;
 	int8_t Th;
 	int8_t Tl;
-	DS18B20_ResolutionTypeDef Resolution;
-}DS18B20_TypeDef;
+	enum ds18b20_resolution res;
+};
 
-typedef struct
-{
-	One_Wire_InterfaceTypeDef * One_Wire_Interface;
-	float Temp;
-}DS18B20_single_TypeDef;
+struct ds18b20_s {
+	struct one_wire_interface *interface;
+	double temp;
+};
 
-uint8_t DS18B20_Configure (DS18B20_TypeDef * DS18B20);
-uint8_t DS18B20_Start_Conversion (DS18B20_TypeDef * DS18B20);
-uint8_t DS18B20_Get_Conversion_Result (DS18B20_TypeDef * DS18B20);
-uint8_t DS18B20_Start_Conversion_Skip_Rom (DS18B20_single_TypeDef * DS18B20);
-uint8_t DS18B20_Read_Skip_Rom (DS18B20_single_TypeDef * DS18B20);
-float DS18B20_ConvertTemp (DS18B20_TypeDef * DS18B20);
-unsigned int DS18B20_GetConversionDelayValue (DS18B20_TypeDef * DS18B20);
+uint8_t ds18b20_init(struct ds18b20_t *dev);
+uint8_t ds18b20_start(struct ds18b20_t *dev);
+uint8_t ds18b20_get_result(struct ds18b20_t *dev);
+uint8_t ds18b20_start_single(struct ds18b20_s *dev);
+uint8_t ds18b20_read_single(struct ds18b20_s *dev);
+double ds18b20_convert_temp(struct ds18b20_t *dev);
+uint16_t ds18b20_delay_value(struct ds18b20_t *dev);
 
 #endif
