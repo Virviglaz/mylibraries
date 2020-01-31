@@ -1,4 +1,3 @@
-#include "bsp.h"
 #include "bootflash.h"
 #include "stm32f0xx_rcc.h"
 #include "stm32f0xx_syscfg.h"
@@ -20,9 +19,9 @@ void Remap_Table(uint32_t FW_Address)
 	// Copy interrupt vector table to the RAM.
 	volatile uint32_t *VectorTable = (volatile uint32_t *)0x20000000;
 	uint32_t ui32_VectorIndex = 0;
-	for (ui32_VectorIndex = 0; ui32_VectorIndex < 48; ui32_VectorIndex++)
-	{
-		VectorTable[ui32_VectorIndex] = *(__IO uint32_t*)(FW_Address + (ui32_VectorIndex << 2));
+	for (ui32_VectorIndex = 0; ui32_VectorIndex < 48; ui32_VectorIndex++) {
+		VectorTable[ui32_VectorIndex] = *(__IO uint32_t*)(FW_Address + \
+			(ui32_VectorIndex << 2));
 	}
 	//  Enable SYSCFG peripheral clock
 	RCC_APB2PeriphResetCmd(RCC_APB2Periph_SYSCFG, ENABLE);

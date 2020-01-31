@@ -346,20 +346,20 @@ static enum mfrc_card_type mfrc_select_tag (uint8_t *sn)
 	enum mfrc_status status;
 	enum mfrc_card_type CardType;
 	uint16_t recvBits;
-	uint8_t buffer[9];
+	uint8_t buf[9];
 
-	buffer[0] = PICC_SElECTTAG;
-	buffer[1] = 0x70;
+	buf[0] = PICC_SElECTTAG;
+	buf[1] = 0x70;
 
 	for (i = 0; i != 5; i++)
-		buffer[i + 2] = *(sn + i);
+		buf[i + 2] = *(sn + i);
 
-	mfrc_calc_crc(buffer, 7, &buffer[7]);
+	mfrc_calc_crc(buf, 7, &buf[7]);
 
-	status = mfrc_to_card(PCD_TRANSCEIVE, buffer, 9, buffer, &recvBits);
+	status = mfrc_to_card(PCD_TRANSCEIVE, buf, 9, buf, &recvBits);
 
 	if ((status == MI_OK) && (recvBits == 0x18))
-		CardType = (enum mfrc_card_type)buffer[0];
+		CardType = (enum mfrc_card_type)buf[0];
 	else
 		CardType = MifareErr;
 
@@ -371,18 +371,18 @@ static enum mfrc_status mfrc_auth(enum mfrc_auth auth,
 {
 	enum mfrc_status status;
 	uint16_t recvBits;
-	uint8_t i, buff[12];
+	uint8_t i, buf[12];
 
-	buff[0] = auth;
-	buff[1] = block;
+	buf[0] = auth;
+	buf[1] = block;
 
 	for (i = 0; i != 6; i++)
-		buff[i + 2] = *(sector + i);
+		buf[i + 2] = *(sector + i);
 
 	for (i=0; i != 4; i++)
-		buff[i + 8] = *(sn + i);
+		buf[i + 8] = *(sn + i);
 
-	status = mfrc_to_card(PCD_AUTHENT, buff, 12, buff, &recvBits);
+	status = mfrc_to_card(PCD_AUTHENT, buf, 12, buf, &recvBits);
 	if ((status != MI_OK) || (!(read_reg(MFRC522_REG_STATUS2) & 0x08)))
 		status = MI_ERR;
 
@@ -411,29 +411,29 @@ static enum mfrc_status mfrc_write(uint8_t block, uint8_t *data)
 {
 	enum mfrc_status status;
 	uint16_t recvBits;
-	uint8_t i, buff[18];
+	uint8_t i, buf[MFRC522_DATA_LEN + 2];
 
-	buff[0] = PICC_WRITE;
-	buff[1] = block;
+	buf[0] = PICC_WRITE;
+	buf[1] = block;
 
-	mfrc_calc_crc(buff, 2, &buff[2]);
+	mfrc_calc_crc(buf, 2, &buf[2]);
 
-	status = mfrc_to_card(PCD_TRANSCEIVE, buff, 4, buff, &recvBits);
+	status = mfrc_to_card(PCD_TRANSCEIVE, buf, 4, buf, &recvBits);
 
-	if ((status != MI_OK) || (recvBits != 4) || ((buff[0] & 0x0F) != 0x0A))
+	if ((status != MI_OK) || (recvBits != 4) || ((buf[0] & 0x0F) != 0x0A))
 		status = MI_ERR;
 
 	if (status == MI_OK) {
 		// Data to the FIFO write 16Byte
-		for (i = 0; i != 16; i++)
-			buff[i] = *(data+i);
+		for (i = 0; i != MFRC522_DATA_LEN; i++)
+			buf[i] = *(data+i);
 
-		mfrc_calc_crc(buff, 16, &buff[16]);
+		mfrc_calc_crc(buf, 16, &buf[16]);
 
-		status = mfrc_to_card(PCD_TRANSCEIVE, buff,
-				      18, buff, &recvBits);
+		status = mfrc_to_card(PCD_TRANSCEIVE, buf, sizeof(buf),
+				      buf, &recvBits);
 		if ((status != MI_OK) || (recvBits != 4) || \
-			((buff[0] & 0x0F) != 0x0A))
+			((buf[0] & 0x0F) != 0x0A))
 			status = MI_ERR;
 	}
 
@@ -462,12 +462,13 @@ static void mfrc_restart(void)
   * @param  task: CARD_READ, CARD_WRITE or CARD_RW.
   * @retval None
   */
+volatile void *p;
 enum mfrc_status mfrc_operate(uint8_t sector,
 	void (*keygen_func)(uint8_t *sn, uint8_t *key),
 	void (*handler)(uint8_t *sn, uint8_t *value), enum mfrc_op task)
 {
 	enum mfrc_status res = MI_OK;
-	static uint8_t serial[MFRC522_SN_LEN];
+	uint8_t serial[MFRC522_SN_LEN];
 	uint8_t data[MFRC522_DATA_LEN];
 	uint8_t pass[MFRC522_PASS_LEN];
 
@@ -475,6 +476,7 @@ enum mfrc_status mfrc_operate(uint8_t sector,
 	if (sector >= MFRC522_MAX_SECTORS)
 		return MI_WRONG_PARAM;
 
+	p = serial;
 	/* Enable transmitter */
 	mfrc_tx_enable();
 
@@ -542,12 +544,12 @@ static enum mfrc_status mfrc_check_interface(void)
 static void mfrc_sleep(void)
 {
 	uint16_t unLen;
-	uint8_t buff[4];
+	uint8_t buf[4];
 
-	buff[0] = PICC_HALT;
-	buff[1] = 0;
-	mfrc_calc_crc(buff, 2, &buff[2]);
-	mfrc_to_card(PCD_TRANSCEIVE, buff, 4, buff, &unLen);
+	buf[0] = PICC_HALT;
+	buf[1] = 0;
+	mfrc_calc_crc(buf, 2, &buf[2]);
+	mfrc_to_card(PCD_TRANSCEIVE, buf, 4, buf, &unLen);
 }
 
 void mifare_encode(uint32_t value, uint8_t *buf)

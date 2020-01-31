@@ -81,45 +81,44 @@ static const uint16_t crc16_tab[] = {
         0x8201, 0x42C0, 0x4380, 0x8341, 0x4100, 0x81C1, 0x8081, 0x4040
 };
 
-uint32_t crc32(uint8_t * buf, uint32_t len)
+uint32_t crc32(uint8_t *buf, uint32_t len)
 {
-  uint32_t crc = 0;
-  while (len--)
-    crc = crc32_tab[(crc ^ *buf++) & 0xFF] ^ (crc >> 8);
-  return crc ^ ~0U;
+	uint32_t crc = 0;
+
+	while (len--)
+		crc = crc32_tab[(crc ^ *buf++) & 0xFF] ^ (crc >> 8);
+	return crc ^ ~0U;
 }
 
-uint16_t crc16(uint8_t * buf, uint16_t len)
+uint16_t crc16(uint8_t *buf, uint16_t len)
 {
-  uint16_t crc = 0;
-  while (len--)
-        crc = (crc << 8) ^ crc16_tab[(crc >> 8) ^ * buf++];
-  return crc;
+	uint16_t crc = 0;
+
+	while (len--)
+		crc = (crc << 8) ^ crc16_tab[(crc >> 8) ^ * buf++];
+	return crc;
 }
 
-
-uint8_t Crc8Dallas(uint8_t * buf, uint16_t len)
+uint8_t Crc8Dallas(uint8_t *buf, uint16_t len)
 {
- 	uint8_t i, crc = 0;
+	uint8_t i, crc = 0;
 
- 	while (len--)
- 	{
- 		crc ^= *buf++;
+	while (len--) {
+		crc ^= *buf++;
 		for (i = 0; i < 8; i++)
- 		crc = crc & 0x01 ? (crc >> 1) ^ 0x8C : crc >> 1;
+			crc = crc & 0x01 ? (crc >> 1) ^ 0x8C : crc >> 1;
  	}
 	return crc;
- }
+}
 
-uint8_t Crc8(uint8_t * buf, uint16_t len)
+uint8_t Crc8(uint8_t *buf, uint16_t len)
 {
 	uint8_t i, crc = 0xFF;
 
- 	while (len--)
- 	{
- 		crc ^= *buf++;
+	while (len--) {
+		crc ^= *buf++;
 		for (i = 0; i < 8; i++)
- 		crc = crc & 0x80 ? (crc << 1) ^ 0x31 : crc << 1;
- 	}
- 	return crc;
+			crc = crc & 0x80 ? (crc << 1) ^ 0x31 : crc << 1;
+	}
+	return crc;
 }

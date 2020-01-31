@@ -21,7 +21,8 @@ FLASH_Status FlashPagesErase (uint32_t Address, uint8_t Pages, const uint32_t Pa
 	return Result;
 }
 
-FLASH_Status FlashErase (uint32_t Address, uint32_t Size, const uint32_t PageSize)
+FLASH_Status FlashErase (uint32_t Address, uint32_t Size,
+	const uint32_t PageSize)
 {
 	static FLASH_Status Result;
 	Result = FLASH_COMPLETE;
@@ -80,7 +81,8 @@ void Internal_Flash_Write8 (uint32_t address, uint32_t count, char * data)
 
 	for (i = 0; i < count; i += 2) 
 	{
-		*(volatile unsigned short*)(address + i) = (((unsigned short)data[i + 1]) << 8) + data[i];
+		*(volatile unsigned short*)(address + i) =
+			(((unsigned short)data[i + 1]) << 8) + data[i];
 		while (!(FLASH->SR & (FLASH_SR_EOP | FLASH_SR_PGERR)));
 		FLASH->SR = FLASH_SR_EOP;
 	}
@@ -110,7 +112,8 @@ void Internal_Flash_Erase(uint32_t pageAddress)
 
 bool isFlashAreaBlank (FlashArea_TypeDef * area)
 {
-	for (uint32_t i = area->StartAddress; i < (area->StartAddress + area->Size); i += sizeof(uint32_t))
+	for (uint32_t i = area->StartAddress;
+		i < (area->StartAddress + area->Size); i += sizeof(uint32_t))
 			if ( *(__IO uint32_t*)i != 0xFFFFFFFF) return false;
 		
 	return true;
