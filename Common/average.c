@@ -36,7 +36,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Moving average calculation
+ * Moving average and Kalman filter calculation
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
@@ -63,4 +63,14 @@ double get_average(double *buf, uint16_t size, uint16_t average)
 		sum += buf[i];
 
 	return sum / average;
+}
+
+double kalman_f(struct kalman_t *k, double value)
+{
+    double res = k->k * value;
+    value = 1.0 - k->k;
+    k->prev *= value;
+    res += k->prev;
+    k->prev = res;
+    return res;
 }
