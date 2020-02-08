@@ -7,3 +7,6 @@
 [submodule "stm8s"]
 	path = stm8s
 	url = https://github.com/Virviglaz/STM8S.git
+[submodule "stm8s_stdperiph_driver"]
+	path = stm8s_stdperiph_driver
+	url = https://bitbucket.org/Virviglaz/stm8s_stdperiph_driver.git
