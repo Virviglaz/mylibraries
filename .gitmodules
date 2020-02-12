@@ -10,3 +10,6 @@
 [submodule "stm8s_stdperiph_driver"]
 	path = stm8s_stdperiph_driver
 	url = https://bitbucket.org/Virviglaz/stm8s_stdperiph_driver.git
+[submodule "stm32f103"]
+	path = stm32f103
+	url = https://Virviglaz@bitbucket.org/Virviglaz/stm32f103.git
