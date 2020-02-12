@@ -97,3 +97,26 @@ enum stp_status stepper_run(struct stp_task_t *task)
 	work->status = STP_ACC;
 	return work->status;
 }
+
+/* Calculate every step based on initial speed */
+u16 calc_step(u16 start, u16 steps)
+{
+	static u32 c;
+	static u16 i, half, n;
+	if (start) {
+		c = start;
+		i = steps;
+		n = 0;
+		half = steps / 2;
+		return 0;
+	}
+
+	n++;
+
+	if (n < half) /* Acceleration */
+		c = c - 2 * c / (4 * (n + 1));
+	else	/* Deacceleration */
+		c = c + 2 * c / (4 * (i - n + 2) + 1);
+
+	return n < i ? (u16)c : 0;
+}

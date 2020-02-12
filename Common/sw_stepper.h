@@ -112,5 +112,6 @@ struct stp_task_t {
 uint16_t stepper_handler(void);
 bool stepper_do_step(void);
 enum stp_status stepper_run(struct stp_task_t *task);
+u16 calc_step(u16 start, u16 steps);
 
 #endif /* __SW_STEPPER_H__ */
