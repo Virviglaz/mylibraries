@@ -44,65 +44,71 @@
 
 #include "sw_stepper.h"
 
-static struct stp_task_t *work;
+static struct stp_task_t *work = 0;
 
 /* Executed by timer interrupt */
 /* Returns the value to be writtern to the timer autoreload register */
-uint16_t stepper_handler(void)
+uint16_t stepper_duty_calc(const uint32_t time_base)
 {
-	if (!work || work->status == STP_IDLE)
-		return 0;
+	work->done_steps++;
+	return (uint16_t)(time_base / (uint32_t)work->speed);
+}
 
-	switch (work->status) {
-	case STP_ACC:
-		if (work->state.speed < work->run)
-			work->state.speed += work->acc;
-		else
-			work->status = STP_RUN;
-		break;
-	case STP_RUN:
-		if (work->state.steps > work->state.dcc_at)
-			work->status = STP_DCC;
-		break;
-	case STP_DCC:
-		if (work->state.speed > work->dcc)
-			work->state.speed -= work->dcc;
-		else
-			work->status = STP_IDLE;
-		break;
+/* Will return STP_DONE when timers have to be stoped */
+enum stp_status stepper_speed_calc(void)
+{
+	/* Free run */
+	if (work->speed_to == work->speed_from) {
+		if (work->done_steps >= work->todo_steps)
+			if (work->next) {
+				work = work->next;
+				work->speed = work->speed_from;
+				return work->status = STP_NEXT;
+			} else
+				return work->status = STP_DONE;
+		return work->status = STP_RUN;
 	}
 
-	return (uint16_t)(work->time_base / (uint32_t)work->state.speed);
+	/* Acceleration or deacceleration */
+	if ((work->acc > 0 && work->speed > work->speed_to) || \
+		(work->acc < 0 && work->speed < work->speed_to)) {
+		if (work->next) {
+			work = work->next;
+			work->speed = work->speed_from;
+			return work->status = STP_NEXT;
+		} else
+			return work->status = STP_DONE;
+	}
+
+	work->speed += work->acc;
+	return work->status = STP_RUN;
 }
 
-bool stepper_do_step(void)
+enum stp_status stepper_start(struct stp_task_t *task)
 {
-	if (!work || work->status == STP_IDLE)
-		return false;
-	work->state.steps++;
-	return true;
-}
+	if (work && work->next)
+		return STP_RUN;
 
-enum stp_status stepper_run(struct stp_task_t *task)
-{
-	/* Run only if IDLE */
-	if (!task && task->status != STP_IDLE)
+	if (!task)
 		return STP_ERR;
 
 	work = task;
-	work->state.steps = 0;
-	work->state.speed = work->acc;
-	work->state.dcc_at = work->steps - work->run / work->dcc;
 
-	work->status = STP_ACC;
+	task->speed = task->speed_from; /* Initial speed */
+
+	return work->status;
+}
+
+enum stp_status stepper_status(void)
+{
 	return work->status;
 }
 
 /* Calculate every step based on initial speed */
-u16 calc_step(u16 start, u16 steps)
+uint16_t calc_step(uint16_t start, uint16_t steps)
 {
-	static u32 c;
-	static u16 i, half, n;
+	static uint32_t c;
+	static uint16_t i, half, n;
 	if (start) {
 		c = start;
 		i = steps;
@@ -118,5 +124,5 @@ u16 calc_step(u16 start, u16 steps)
 	else	/* Deacceleration */
 		c = c + 2 * c / (4 * (i - n + 2) + 1);
 
-	return n < i ? (u16)c : 0;
+	return n < i ? (uint16_t)c : 0;
 }

@@ -45,42 +45,64 @@
 
 /* Example of use:
 
-	struct stp_task_t stp;
-	static void tim1_handler(void)
-	{
-		if (stepper_do_step())
-		gpio_inv(STP_CLK);
-	}
+struct stp_task_t dec = {
+	.speed_from = 10000,
+	.speed_to = 100,
+	.acc = -10,
+	.todo_steps = 0,
+	.next = 0,
+};
 
-	static void tim2_handler(void)
-	{
-		u16 freq = stepper_handler();
-		if (freq)
-			tim1_set_freq(freq);
-	}
+struct stp_task_t run = {
+	.speed_from = 10000,
+	.speed_to = 10000,
+	.acc = 0,
+	.todo_steps = 3200,
+	.next = &dec,
+};
+
+struct stp_task_t acc = {
+	.speed_from = 100,
+	.speed_to = 10000,
+	.acc = 10,
+	.todo_steps = 0,
+	.next = &run,
+};
 
 Code:
-	stp.acc = 20;
-	stp.run = 20000;
-	stp.dcc = 20;
-	stp.steps = 3200 * 2;
-	stp.time_base = 1000000;
-	stp.status = STP_IDLE;
 
-	tim1_init(8, 65000);
-	tim2_init(TIM2_HSI_DIV_8, 10000);
+static void tim1_handler(void)
+{
+	tim1_set_freq(stepper_duty_calc(1000000));
+}
+
+// 1000 Hz TIMER
+static void tim2_handler(void)
+{
+	if (stepper_speed_calc() == STP_DONE) {
+		tim1_enable(false);
+		tim2_enable(false);
+	}
+}
+
+int main( void )
+{
+	clk_set(CLK_NO_DIV);
+	init_gpio();
+	delays_init();
+
+	stepper_start(&acc);
+
+	tim1_init(16, 10000);
+	tim2_init(TIM2_HSI_DIV_32, 1000);
 	tim1_enable_irq(tim1_handler);
 	tim2_enable_irq(tim2_handler);
+	pwm_enable(STP_CH4, 30);
 	rim();
 
-	while(1) {
+	while (stepper_status() != STP_DONE);
+}
 
-		delay_ms(500);
-		stepper_run(&stp);
-		delay_ms(500);
-		while (stp.status != STP_IDLE);
-		gpio_inv(STP_DIR);
-	}
 */
 
 #ifndef __SW_STEPPER_H__
@@ -90,28 +112,27 @@ Code:
 #include <stdbool.h>
 
 enum stp_status {
-	STP_IDLE,
-	STP_ACC,
+	STP_DONE,
+	STP_NEXT,
 	STP_RUN,
-	STP_DCC,
 	STP_ERR,
 };
 
 struct stp_task_t {
-	uint32_t time_base; /* Hz */
-	uint32_t steps; /* How many steps we want to do */
-	uint16_t acc, run, dcc; /* SPEEDS in Hz */
-	enum stp_status status;
-	struct {
-		uint16_t speed; /* current speed */
-		uint32_t steps; /* steps passed */
-		uint16_t dcc_at; /* start deacc at possition */
-	} state;
+	uint16_t speed_from;		/* USER PROVIDE */
+	uint16_t speed_to;		/* USER PROVIDE */
+	int16_t acc;			/* USER PROVIDE */
+	uint32_t todo_steps;		/* USER PROVIDE */
+	struct stp_task_t *next;	/* USER PROVIDE */
+	uint16_t speed;			/* INTERNAL */
+	uint32_t done_steps;		/* REAL VALUE */
+	enum stp_status status;		/* STATUS */
 };
 
-uint16_t stepper_handler(void);
-bool stepper_do_step(void);
-enum stp_status stepper_run(struct stp_task_t *task);
-u16 calc_step(u16 start, u16 steps);
+uint16_t stepper_duty_calc(const uint32_t time_base);
+enum stp_status stepper_speed_calc(void);
+enum stp_status stepper_start(struct stp_task_t *task);
+enum stp_status stepper_status(void);
+uint16_t calc_step(uint16_t start, uint16_t steps);
 
 #endif /* __SW_STEPPER_H__ */
