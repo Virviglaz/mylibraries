@@ -5,37 +5,39 @@
 #include <stdbool.h>
 
 /* LCD color */
-#define White          0xFFFF
-#define Black          0x0000
-#define Grey           0xAD55
-#define Blue           0x001F
-#define Blue2          0x051F
-#define Red            0xF800
-#define Magenta        0xF81F
-#define Green          0x07E0
-#define Cyan           0x7FFF
-#define Yellow         0xFFE0
+#define White		0xFFFF
+#define Black		0x0000
+#define Grey		0xAD55
+#define Blue		0x001F
+#define Blue2		0x051F
+#define Red		0xF800
+#define Magenta	0xF81F
+#define Green		0x07E0
+#define Cyan		0x7FFF
+#define Yellow		0xFFE0
 
-typedef struct
-{
-	uint8_t FontXsize, FontYsize;
-	const uint8_t * Font;
-}Font_StructTypeDef;
+struct font_t {
+	uint8_t x_size, y_size;
+	const uint8_t *data;
+};
 
-typedef struct
-{
-	void (*WriteReg) (uint8_t LCD_Reg, uint16_t LCD_RegValue);
-	uint16_t (*ReadReg) (uint8_t LCD_Reg);
-	void (*RamPrepare) (void);
-	void (*WriteRam) (uint16_t RGB);
-	bool Xmirror, Ymirror;
-	Font_StructTypeDef * FontStruct;
-	uint16_t Color, BackColor;
-}SSD1289_StructTypeDef;
+struct ssd1289_t {
+	void (*wr_reg) (uint8_t reg, uint16_t value);
+	uint16_t (*rd_reg) (uint8_t reg);
+	void (*ram_prepare) (void);
+	void (*wr_ram) (uint16_t c);
+	uint16_t (*rd_ram)(void);
+	bool x_mirror, y_mirror;
+	struct font_t * font;
+	uint16_t c, bc; /* color/backcolor */
+};
 
-SSD1289_StructTypeDef *  SSD1289_Init (SSD1289_StructTypeDef * SSD1289_InitStruct);
-void SSD1289_Clear (void);
-void SSD1289_DrawPic (uint16_t StartX, uint16_t StartY, uint16_t SizeX, uint16_t SizeY, uint16_t * pic);
-void SSD1289_PrintChar (uint16_t StartX, uint16_t StartY, char Ch);
-uint16_t SSD1289_PrintText (uint16_t StartX, uint16_t StartY, char * Text);
-#endif
+uint16_t rgb2col(uint8_t r, uint8_t g, uint8_t b);
+struct ssd1289_t *ssd1289_init(struct ssd1289_t *dev);
+void ssd1289_clear(void);
+void ssd1289_pic(uint16_t x, uint16_t y, uint16_t dx,
+	uint16_t dy, uint16_t *pic);
+void ssd1289_putchar(uint16_t x, uint16_t y, char c);
+uint16_t ssd1289_print(uint16_t x, uint16_t y, char *t);
+
+#endif /* SSD1289_H */
