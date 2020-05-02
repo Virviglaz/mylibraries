@@ -48,6 +48,7 @@
 #define MPU6050_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define MPU6050_SUCCESS				0
 #define MPU6050_BUSY				1
@@ -111,10 +112,11 @@ struct mpu_interface {
 
 struct mpu_conf {
 	/* Configuration */
-	uint8_t sample_rate_hz;
+	uint8_t sample_rate_hz;		/* Sample rate 4..250 Hz */
 	enum mpu_gyro gyro_scale;
 	enum mpu_acc acc_scale;
-	uint8_t filter_order;
+	uint8_t filter_order;		/* Filer order 0..7 */
+	bool byteswap;			/* Enable byte swapping for raw data */
 };
 
 struct mpu_t {

@@ -179,6 +179,15 @@
 #define TEMP_DIS			0x08
 #define DATA_READY_BIT			0x01
 
+#if !defined(BSWAP16)
+#define BSWAP16(a)		((a & 0x00FF) << 8) | ((a & 0xFF00) >> 8)
+#endif
+
+static int16_t byte_swap(int16_t value)
+{
+	return BSWAP16(value);
+}
+
 uint8_t mpu6050_init(struct mpu_t *dev, void (*delay_100ms)(void))
 {
 	uint8_t res = dev->i->wr(MPU6050_RA_PWR_MGMT_1, 0x80);
@@ -219,6 +228,16 @@ uint8_t mpu6050_get_result(struct mpu_t *dev)
 	if (dev->i->rd(MPU6050_RA_INT_STATUS, (uint8_t*)&dev->raw_result,
 			  sizeof(struct mpu_measdata)))
 		return MPU6050_INTERFACE_ERROR;
+
+	if (dev->conf->byteswap) {
+		dev->raw_result.x = byte_swap(dev->raw_result.x);
+		dev->raw_result.y = byte_swap(dev->raw_result.y);
+		dev->raw_result.z = byte_swap(dev->raw_result.z);
+		dev->raw_result.ax = byte_swap(dev->raw_result.ax);
+		dev->raw_result.ay = byte_swap(dev->raw_result.ay);
+		dev->raw_result.az = byte_swap(dev->raw_result.az);
+		dev->raw_result.temp = byte_swap(dev->raw_result.temp);
+	}
 
 	if (dev->zero_point) {
 		/* Perform zero offset for accelerometer data */
