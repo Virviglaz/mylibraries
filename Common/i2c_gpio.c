@@ -78,7 +78,7 @@ static enum i2c_gpio_res_t start(const struct i2c_gpio_t *dev)
 	 * Check, if any BUS signal is low that meas that BUS is busy
 	 * by other device or H/W issue
 	 */
-	if (dev->sda_rd() == 0)
+	if (!dev->sda_rd())
 		return I2C_BUS_BUSY;
 
 	dev->sda_wr(LOW);
