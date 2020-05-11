@@ -48,6 +48,7 @@
 #define MPU6050_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define MPU6050_SUCCESS				0
 #define MPU6050_BUSY				1
@@ -102,11 +103,28 @@ struct mpu_real_values {
 	double temp;
 };
 
-struct mpu_conf {
+struct mpu_interface {
 	/* Interface functions */
-	uint8_t (*write_reg)(uint8_t reg, uint8_t value);
-	uint8_t (*read_reg) (uint8_t reg, uint8_t *buf, uint16_t size);
-	uint16_t (*check_ready_pin)(void); /* for external interrupt */
+	uint8_t (*wr)(uint8_t reg, uint8_t value);
+	uint8_t (*rd) (uint8_t reg, uint8_t *buf, uint16_t size);
+	uint16_t (*ready)(void); /* for external interrupt */
+};
+
+struct mpu_conf {
+	/* Configuration */
+	uint8_t sample_rate_hz;		/* Sample rate 4..250 Hz */
+	enum mpu_gyro gyro_scale;
+	enum mpu_acc acc_scale;
+	uint8_t filter_order;		/* Filer order 0..7 */
+	bool byteswap;			/* Enable byte swapping for raw data */
+};
+
+struct mpu_t {
+	/* Interface definition */
+	const struct mpu_interface *i;
+
+	/* Static configuration */
+	const struct mpu_conf *conf;
 
 	/* Raw measurement data */
 	struct mpu_measdata raw_result;
@@ -116,17 +134,11 @@ struct mpu_conf {
 
 	/* Optional real values storing struct */
 	struct mpu_real_values *real_values;
-
-	/* Configuration */
-	uint8_t sample_rate_hz;
-	enum mpu_gyro gyro_scale;
-	enum mpu_acc acc_scale;
-	uint8_t filter_order;
 };
 
 
-uint8_t mpu6050_init(struct mpu_conf *, void (*)(void));
-uint8_t mpu6050_get_result(struct mpu_conf *);
-void mpu6050_zero_cal(struct mpu_conf *);
+uint8_t mpu6050_init(struct mpu_t *, void (*)(void));
+uint8_t mpu6050_get_result(struct mpu_t *);
+void mpu6050_zero_cal(struct mpu_t *);
 
 #endif /* MPU6050_H */

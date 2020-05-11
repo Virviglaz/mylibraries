@@ -179,46 +179,65 @@
 #define TEMP_DIS			0x08
 #define DATA_READY_BIT			0x01
 
-uint8_t mpu6050_init(struct mpu_conf *dev, void (*delay_500ms)(void))
+#if !defined(BSWAP16)
+#define BSWAP16(a)		((a & 0x00FF) << 8) | ((a & 0xFF00) >> 8)
+#endif
+
+static int16_t byte_swap(int16_t value)
 {
-	uint8_t res = dev->write_reg(MPU6050_RA_PWR_MGMT_1, 0x80);
+	return BSWAP16(value);
+}
+
+uint8_t mpu6050_init(struct mpu_t *dev, void (*delay_100ms)(void))
+{
+	uint8_t res = dev->i->wr(MPU6050_RA_PWR_MGMT_1, 0x80);
 	if (res)
 		return res;
 
-	/* 500ms delay needed */
-	if (delay_500ms)
-		delay_500ms();
+	/* 100ms delay needed */
+	if (delay_100ms)
+		delay_100ms();
 
-	dev->write_reg(MPU6050_RA_GYRO_CONFIG, (uint8_t)dev->gyro_scale);
-	dev->write_reg(MPU6050_RA_ACCEL_CONFIG, (uint8_t)dev->acc_scale);
-	dev->write_reg(MPU6050_RA_INT_PIN_CFG, LATCH_INT_EN | INT_RD_CLEAR);
-	dev->write_reg(MPU6050_RA_INT_ENABLE, DATA_RDY_EN);
-	dev->write_reg(MPU6050_RA_USER_CTRL, 0x00);
-	dev->write_reg(MPU6050_RA_PWR_MGMT_1, 0x00);
-	dev->write_reg(MPU6050_RA_PWR_MGMT_2, 0x00);
-	dev->write_reg(MPU6050_RA_FIFO_EN, 0x00);
-	dev->write_reg(MPU6050_RA_SMPLRT_DIV, 1000 / dev->sample_rate_hz - 1);
-	dev->write_reg(MPU6050_RA_CONFIG, dev->filter_order & 0x07);
+	dev->i->wr(MPU6050_RA_GYRO_CONFIG, (uint8_t)dev->conf->gyro_scale);
+	dev->i->wr(MPU6050_RA_ACCEL_CONFIG, (uint8_t)dev->conf->acc_scale);
+	dev->i->wr(MPU6050_RA_INT_PIN_CFG, LATCH_INT_EN | INT_RD_CLEAR);
+	dev->i->wr(MPU6050_RA_INT_ENABLE, DATA_RDY_EN);
+	dev->i->wr(MPU6050_RA_USER_CTRL, 0x00);
+	dev->i->wr(MPU6050_RA_PWR_MGMT_1, 0x00);
+	dev->i->wr(MPU6050_RA_PWR_MGMT_2, 0x00);
+	dev->i->wr(MPU6050_RA_FIFO_EN, 0x00);
+	dev->i->wr(MPU6050_RA_SMPLRT_DIV, 1000 / dev->conf->sample_rate_hz - 1);
+	dev->i->wr(MPU6050_RA_CONFIG, dev->conf->filter_order & 0x07);
 	return 0;
 }
 
-uint8_t mpu6050_get_result(struct mpu_conf *dev)
+uint8_t mpu6050_get_result(struct mpu_t *dev)
 {
-	if (dev->check_ready_pin) {
-		if (!dev->check_ready_pin())
+	if (dev->i->ready) {
+		if (!dev->i->ready())
 			return MPU6050_BUSY;
 	} else {
 		uint8_t status;
-		if (dev->read_reg(MPU6050_RA_INT_STATUS, &status,
+		if (dev->i->rd(MPU6050_RA_INT_STATUS, &status,
 				  sizeof(status)))
 			return MPU6050_INTERFACE_ERROR;
 		if (!(status & DATA_READY_BIT))
 			return MPU6050_BUSY;
 	}
 
-	if (dev->read_reg(MPU6050_RA_INT_STATUS, (uint8_t*)&dev->raw_result,
+	if (dev->i->rd(MPU6050_RA_INT_STATUS, (uint8_t*)&dev->raw_result,
 			  sizeof(struct mpu_measdata)))
 		return MPU6050_INTERFACE_ERROR;
+
+	if (dev->conf->byteswap) {
+		dev->raw_result.x = byte_swap(dev->raw_result.x);
+		dev->raw_result.y = byte_swap(dev->raw_result.y);
+		dev->raw_result.z = byte_swap(dev->raw_result.z);
+		dev->raw_result.ax = byte_swap(dev->raw_result.ax);
+		dev->raw_result.ay = byte_swap(dev->raw_result.ay);
+		dev->raw_result.az = byte_swap(dev->raw_result.az);
+		dev->raw_result.temp = byte_swap(dev->raw_result.temp);
+	}
 
 	if (dev->zero_point) {
 		/* Perform zero offset for accelerometer data */
@@ -237,7 +256,7 @@ uint8_t mpu6050_get_result(struct mpu_conf *dev)
 		dev->real_values->temp =
 			(double)dev->raw_result.temp / 340.0 + 36.53;
 
-		switch(dev->acc_scale) {
+		switch(dev->conf->acc_scale) {
 		case SCALE_2G:
 			g /= 2;
 			break;
@@ -260,7 +279,7 @@ uint8_t mpu6050_get_result(struct mpu_conf *dev)
 	return MPU6050_SUCCESS;
 }
 
-void mpu6050_zero_cal(struct mpu_conf *dev)
+void mpu6050_zero_cal(struct mpu_t *dev)
 {
 	if (!dev->zero_point)
 		return;
