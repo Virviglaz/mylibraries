@@ -11,15 +11,20 @@ struct params_t {
 	int socket;
 	srv_handler handler;
 	pthread_t *this;
+	int size;
 };
 
 static void *client_handler(void *ptr)
 {
 	struct params_t *param = ptr;
-	char buffer[200];
+	char *buffer;
 	int size;
 	int err;
 	socklen_t len = sizeof(err);
+
+	buffer = malloc(param->size);
+	if (!buffer)
+		goto nomem;
 
 	do {
 		if (getsockopt(param->socket, SOL_SOCKET, SO_ERROR, &err, &len))
@@ -31,12 +36,14 @@ static void *client_handler(void *ptr)
 
 	} while (!err);
 
+nomem:
 	close(param->socket);
+	free(buffer);
 	free(param->this);
 	free(param);
 }
 
-int server_start(int port, srv_handler handler)
+int server_start(int port, srv_handler handler, int size)
 {
 	int sockfd, clientfd;
 	socklen_t clilen;
@@ -71,6 +78,7 @@ int server_start(int port, srv_handler handler)
 		param->handler = handler;
 		param->socket = clientfd;
 		param->this = malloc(sizeof(pthread_t));
+		param->size = size;
 
 		if (pthread_create(param->this, NULL, client_handler, (void *)param))
 			break;
