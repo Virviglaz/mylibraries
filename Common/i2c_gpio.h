@@ -36,24 +36,58 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Moving average and Kalman filter calculation
+ * I2C over GPIO driver
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
-#ifndef _AVERAGE_H_
-#define _AVERAGE_H_
+#ifndef I2C_GPIO_H
+#define I2C_GPIO_H
+
+#ifdef __cplusplus
+ extern "C" {
+#endif
 
 #include <stdint.h>
 
-struct kalman_t {
-    double prev;
-    double k;
+struct i2c_gpio_t {
+#ifndef I2C_GPIO_NO_DELAYS
+	/* Delay value */
+	uint16_t delay;
+
+	/* Functions */
+	void (* delay_func)(uint16_t us);
+#endif
+	void (* scl_wr)(uint8_t state);
+	void (* sda_wr)(uint8_t state);
+	uint8_t (* sda_rd)(void);
 };
 
-void add_value(double *buf, uint16_t size, double value);
-double get_average(double *buf, uint16_t size, uint16_t average);
-double kalman_f(struct kalman_t *k, double value);
+enum i2c_gpio_res_t {
+	I2C_SUCCESS = 0,
+	I2C_TIMEOUT,
+	I2C_ERROR,
+	I2C_BUS_BUSY,
+	I2C_ACK_OK,
+	I2C_ACK_NOT_OK,
+	I2C_ADD_NOT_EXIST,
+	I2C_VERIFY_ERROR,
+	I2C_INTERFACE_ERROR,
+};
 
-#endif /* _AVERAGE_H_ */
+extern const char *errors[];
+
+enum i2c_gpio_res_t i2c_write(const struct i2c_gpio_t *dev, uint8_t i2c_addr,
+			      uint8_t *addr, uint8_t addr_len,
+			      uint8_t *buf, uint16_t size);
+
+enum i2c_gpio_res_t i2c_read(const struct i2c_gpio_t *dev, uint8_t i2c_addr,
+			      uint8_t *addr, uint8_t addr_len,
+			      uint8_t *buf, uint16_t size);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* I2C_GPIO_H */
