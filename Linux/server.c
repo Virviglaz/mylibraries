@@ -12,6 +12,7 @@ struct params_t {
 	srv_handler handler;
 	pthread_t *this;
 	int size;
+	int pooling_int_us;
 };
 
 static void *client_handler(void *ptr)
@@ -33,6 +34,7 @@ static void *client_handler(void *ptr)
 		size = read(param->socket, buffer, sizeof(buffer));
 		if (size)
 			param->handler(buffer, size, param->socket);
+		usleep(param->pooling_int_us);
 
 	} while (!err);
 
@@ -43,7 +45,7 @@ nomem:
 	free(param);
 }
 
-int server_start(int port, srv_handler handler, int size)
+int server_start(int port, srv_handler handler, int size, int int_ms)
 {
 	int sockfd, clientfd;
 	socklen_t clilen;
@@ -77,10 +79,14 @@ int server_start(int port, srv_handler handler, int size)
 
 		param->handler = handler;
 		param->socket = clientfd;
-		param->this = malloc(sizeof(pthread_t));
 		param->size = size;
+		param->pooling_int_us = int_ms * 1000;
+		param->this = malloc(sizeof(pthread_t));
+		if (!param->this)
+			break;
 
-		if (pthread_create(param->this, NULL, client_handler, (void *)param))
+		if (pthread_create(param->this, NULL,
+			client_handler, (void *)param))
 			break;
 
 	} while (clientfd > 0);
