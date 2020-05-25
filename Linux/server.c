@@ -31,7 +31,7 @@ static void *client_handler(void *ptr)
 		if (getsockopt(param->socket, SOL_SOCKET, SO_ERROR, &err, &len))
 			break;
 
-		size = read(param->socket, buffer, sizeof(buffer));
+		size = read(param->socket, buffer, param->size);
 		if (size)
 			param->handler(buffer, size, param->socket);
 		usleep(param->pooling_int_us);
