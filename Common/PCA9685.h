@@ -48,10 +48,15 @@
 #include <stdint.h>
 
 #define PCA9685_50HZ_PSC_VALUE		121
+#define PCA9685_DEFAULT_I2C_ADDR	0x40
+
+#define SERVO9G_50HZ_MAX		512
+#define SERVO9G_50HZ_MIN		105
+#define SERVO9G_50HZ_MID	((SERVO9G_50HZ_MAX + SERVO9G_50HZ_MIN) / 2)
 
 enum pca9685_ext_clk {
-	PCA9685_EXT_CLK_DISABLED = 0x00,
-	PCA9685_EXT_CLK_ENABLED = 0x40,
+	PCA9685_EXT_CLK_DISABLED =	0x00,
+	PCA9685_EXT_CLK_ENABLED =	0x40,
 };
 
 struct pca9685_t {
@@ -63,7 +68,7 @@ struct pca9685_t {
 	uint8_t psc;
 };
 
-uint8_t pca9685_init(struct pca9685_t *dev);
-uint8_t pca9685_set(struct pca9685_t *dev, uint8_t channel, uint16_t value);
+uint8_t pca9685_init(const struct pca9685_t *dev);
+uint8_t pca9685_set(const struct pca9685_t *dev, uint8_t channel, uint16_t value);
 
 #endif /* PCA9685_H */

@@ -44,18 +44,18 @@
 
 #include "PCA9685.h"
 
-uint8_t pca9685_init(struct pca9685_t *dev)
+uint8_t pca9685_init(const struct pca9685_t *dev)
 {
 	uint8_t ret;
 	uint8_t clk = (uint8_t)dev->ext_clk | 0x20 | 0x80;
 
-	ret = dev->wr(dev->i2c_addr, 0xFE, &dev->psc, 1);
+	ret = dev->wr(dev->i2c_addr, 0xFE, (void *)&dev->psc, 1);
 	dev->wr(dev->i2c_addr, 0x00, &clk, sizeof(clk));
 
 	return ret;
 }
 
-uint8_t pca9685_set(struct pca9685_t *dev, uint8_t channel, uint16_t value)
+uint8_t pca9685_set(const struct pca9685_t *dev, uint8_t channel, uint16_t value)
 {
   uint8_t buf[4] = { 0, 0, value, (value >> 8) & 0x0F };
 
