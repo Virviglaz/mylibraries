@@ -282,13 +282,13 @@ static enum mfrc_status mfrc_to_card(enum mfrc_cmd command,
 static enum mfrc_status mfrc_request (uint8_t reqMode, uint8_t *tag)
 {
 	enum mfrc_status status;
-	uint16_t backBits;
+	uint16_t backbits = 0;
 
 	write_reg(MFRC522_REG_BIT_FRAMING, 0x07);
 	tag[0] = reqMode;
-	status = mfrc_to_card(PCD_TRANSCEIVE, tag, 1, tag, &backBits);
+	status = mfrc_to_card(PCD_TRANSCEIVE, tag, 1, tag, &backbits);
 
-	if ((status != MI_OK) || (backBits != 0x10))
+	if ((status != MI_OK) || (backbits != 0x10))
 		status = MI_ERR;
 
 	return status;
@@ -296,7 +296,7 @@ static enum mfrc_status mfrc_request (uint8_t reqMode, uint8_t *tag)
 
 static enum mfrc_status mfrc_anti_collision (uint8_t *sn)
 {
-	enum mfrc_status status;
+	volatile enum mfrc_status status;
 	uint8_t i, sn_check = 0;
 	uint16_t unLen;
 
@@ -462,13 +462,12 @@ static void mfrc_restart(void)
   * @param  task: CARD_READ, CARD_WRITE or CARD_RW.
   * @retval None
   */
-volatile void *p;
 enum mfrc_status mfrc_operate(uint8_t sector,
 	void (*keygen_func)(uint8_t *sn, uint8_t *key),
 	void (*handler)(uint8_t *sn, uint8_t *value), enum mfrc_op task)
 {
 	enum mfrc_status res = MI_OK;
-	uint8_t serial[MFRC522_SN_LEN];
+	uint8_t serial[MFRC522_SN_LEN] = { 0 };
 	uint8_t data[MFRC522_DATA_LEN];
 	uint8_t pass[MFRC522_PASS_LEN];
 
@@ -476,7 +475,6 @@ enum mfrc_status mfrc_operate(uint8_t sector,
 	if (sector >= MFRC522_MAX_SECTORS)
 		return MI_WRONG_PARAM;
 
-	p = serial;
 	/* Enable transmitter */
 	mfrc_tx_enable();
 
