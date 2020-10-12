@@ -110,7 +110,7 @@ void Internal_Flash_Erase(uint32_t pageAddress)
 	FLASH_Lock();
 }
 
-bool isFlashAreaBlank (FlashArea_TypeDef * area)
+bool isFlashAreaBlank (flash_t * area)
 {
 	for (uint32_t i = area->StartAddress;
 		i < (area->StartAddress + area->Size); i += sizeof(uint32_t))
@@ -119,22 +119,22 @@ bool isFlashAreaBlank (FlashArea_TypeDef * area)
 	return true;
 }
 
-uint32_t flashAreaCRC32 (FlashArea_TypeDef * area)
+uint32_t flashAreaCRC32 (flash_t * area)
 {
 	return crc32((void*)area->StartAddress, area->Size);
 }
 
-void eraseFlashArea (FlashArea_TypeDef * area)
+void eraseFlashArea (flash_t * area)
 {
 	FlashErase(area->StartAddress, area->Size, FLASH_PAGE_SIZE);
 }
 
-void writeFlashPage (FlashArea_TypeDef * area, uint16_t pageNum, uint8_t * data)
+void writeFlashPage (flash_t * area, uint16_t pageNum, uint8_t * data)
 {
 	Internal_Flash_Write8(area->StartAddress + pageNum * FLASH_PAGE_SIZE, FLASH_PAGE_SIZE, (char*)data);
 }
 
-void copyFlashArea (FlashArea_TypeDef * source, FlashArea_TypeDef * dest)
+void copyFlashArea(flash_t * source, flash_t * dest)
 {
 	if (source->Size != dest->Size) return; //size should be equal
 	
