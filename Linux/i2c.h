@@ -42,22 +42,12 @@
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
-#ifndef I2C_DEV_H
-#define I2C_DEV_H
+#ifndef __I2C_H__
+#define __I2C_H__
 
 #include <stdint.h>
-#include <stdbool.h>
 
-struct i2c_dev {
-	const char *name;
-	int fd;
+int i2c_wr(const char *dev, uint8_t addr, uint8_t reg, uint8_t *data, uint16_t size);
+int i2c_rd(const char *dev, uint8_t addr, uint8_t reg, uint8_t *data, uint16_t size);
 
-	/* Public functions */
-	uint8_t(*wr_reg)(struct i2c_dev *dev, uint8_t addr, uint8_t reg, uint8_t *data, uint16_t size);
-	uint8_t(*rd_reg)(struct i2c_dev *dev, uint8_t addr, uint8_t reg, uint8_t *data, uint16_t size);
-};
-
-int i2c_init(struct i2c_dev *dev, const char *name);
-void i2c_close(struct i2c_dev *dev);
-
-#endif /* I2C_DEV_H */
+#endif /* __I2C_H__ */
