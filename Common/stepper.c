@@ -73,21 +73,26 @@ stp_t stepper_add_task(struct stepper_t *dev, struct stepper_task_t *task,
 {
 	struct stepper_task_t *prev_task = dev->next_task;
 	double prev_speed = 0;
+	double t;
 
 	ASSERT(!dev);
 	ASSERT(!task);
 	ASSERT(!dev->tim_freq);
 
-	task->acc_steps = (stp_t)((double)dev->tim_freq * (double)speed / (double)acc);
-	task->dec_steps = (stp_t)((double)dev->tim_freq * (double)speed / (double)dec);
+	t = (double)speed / (double)acc;
+	task->acc_steps = (stp_t)(t * t * (double)acc) >> 1;
+	task->acc = (stp_t)((double)speed / (double)task->acc_steps);
+
+	t = (double)speed / (double)dec;
+	task->dec_steps = (stp_t)(t * t * (double)dec) >> 1;
+	task->dec = (stp_t)((double)speed / (double)task->dec_steps);
+
 	task->speed = speed;
 
 	if (task->acc_steps + task->dec_steps >= steps)
 		return 0;
 
 	task->run_steps = steps - task->acc_steps - task->dec_steps;
-	task->acc = (stp_t)((double)acc / (double)task->acc_steps);
-	task->dec = (stp_t)((double)dec / (double)task->acc_steps);
 	task->dir = dir;
 	task->buf = buf;
 
@@ -96,7 +101,8 @@ stp_t stepper_add_task(struct stepper_t *dev, struct stepper_task_t *task,
 	else {
 		prev_speed = prev_task->speed;
 		while (prev_task->next)
-			prev_task = task->next;
+			prev_task = prev_task->next;
+		prev_task->next = task;
 	}
 
 	if (buf && buf->acc_buf_size > task->acc_steps) {
