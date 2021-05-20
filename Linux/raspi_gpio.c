@@ -80,12 +80,21 @@ static int init(void)
 	return 0;
 }
 
-void gpio_close(void)
+static uint32_t *get_gpfsel_reg(int gpio_num)
 {
-	munmap((void *)gpio, sizeof(raspi_gpio_t));
-	gpio = (raspi_gpio_t *)0;
-
-	close(fd);
+	if (gpio_num <= 9)
+		return &gpio->GPFSEL[0];
+	if (gpio_num <= 19)
+		return &gpio->GPFSEL[1];
+	if (gpio_num <= 29)
+		return &gpio->GPFSEL[2];
+	if (gpio_num <= 39)
+		return &gpio->GPFSEL[3];
+	if (gpio_num <= 49)
+		return &gpio->GPFSEL[4];
+	if (gpio_num <= 53)
+		return &gpio->GPFSEL[5];
+	return 0;
 }
 
 int gpio_init(int gpio_num, enum gpio_func func)
@@ -95,19 +104,7 @@ int gpio_init(int gpio_num, enum gpio_func func)
 	if (res)
 		return res;
 
-	if (gpio_num <= 9)
-		reg = &gpio->GPFSEL[0];
-	else if (gpio_num <= 19)
-		reg = &gpio->GPFSEL[1];
-	else if (gpio_num <= 29)
-		reg = &gpio->GPFSEL[2];
-	else if (gpio_num <= 39)
-		reg = &gpio->GPFSEL[3];
-	else if (gpio_num <= 49)
-		reg = &gpio->GPFSEL[4];
-	else if (gpio_num <= 53)
-		reg = &gpio->GPFSEL[5];
-
+	reg = get_gpfsel_reg(gpio_num);
 	if (!reg)
 		return EINVAL;
 
@@ -117,6 +114,23 @@ int gpio_init(int gpio_num, enum gpio_func func)
 	*reg |= ((uint32_t)func << gpio_num);
 
 	return 0;
+}
+
+enum gpio_func gpio_func(int gpio_num)
+{
+	uint32_t *reg = 0;
+	int res = init();
+	if (res)
+		return GPIO_ERROR;
+
+	reg = get_gpfsel_reg(gpio_num);
+	if (!reg)
+		return GPIO_ERROR;
+
+	gpio_num %= 10;
+	gpio_num *= 3;
+
+	return (enum gpio_func)((*reg >> gpio_num) & 7);
 }
 
 void gpio_set(int gpio_num)
@@ -142,4 +156,12 @@ int gpio_read(int gpio_num)
 
 	gpio_num -= 31;
 	return gpio->GPLEV[1] & (1 << gpio_num) ? 1 : 0;
+}
+
+void gpio_close(void)
+{
+	munmap((void *)gpio, sizeof(raspi_gpio_t));
+	gpio = (raspi_gpio_t *)0;
+
+	close(fd);
 }

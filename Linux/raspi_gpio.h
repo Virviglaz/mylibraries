@@ -98,14 +98,17 @@ enum gpio_func {
 	GPIO_ALT1	= 5,
 	GPIO_ALT2	= 6,
 	GPIO_ALT3	= 7,
+	GPIO_ERROR,
 };
 
 #endif
 
 int gpio_init(int gpio, enum gpio_func func);
+enum gpio_func gpio_func(int gpio_num);
 void gpio_set(int gpio_num);
 void gpio_clr(int gpio_num);
 int gpio_read(int gpio_num);
+void gpio_close(void);
 
 #ifdef __cplusplus
 }
