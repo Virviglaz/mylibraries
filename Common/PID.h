@@ -1,97 +1,85 @@
-#ifndef PID_H
-#define PID_H
+/*
+ * This file is provided under a MIT license.  When using or
+ * redistributing this file, you may do so under either license.
+ *
+ * MIT License
+ *
+ * Copyright (c) 2021 Pavel Nadein
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * PID
+ *
+ * Contact Information:
+ * Pavel Nadein <pavelnadein@gmail.com>
+ */
 
-typedef float FloatType;
+#ifndef __PID_H__
+#define __PID_H__
+
+#ifndef PID_T
+#define PID_T	double
+#endif
+
+#ifdef __cplusplus
+	extern "C" {
+#endif
+
 #include <stdbool.h>
 
-//Constants used in some of the functions below
-typedef enum
-{
-  PID_Mode_Automatic = 1,
-  PID_Mode_Manual    = 0
-} PidModeType;
+struct pid {
+	PID_T disp_kp;	// * we'll hold on to the tuning parameters in user-entered
+	PID_T disp_ki;	//   format for display purposes
+	PID_T disp_kd;	//
 
-typedef enum
-{
-  PID_Direction_Direct  = 0,
-  PID_Direction_Reverse = 1
-} PidDirectionType;
+	PID_T kp;	// * (P)roportional Tuning Parameter
+	PID_T ki;	// * (I)ntegral Tuning Parameter
+	PID_T kd;	// * (D)erivative Tuning Parameter
 
-typedef struct {
-  FloatType dispKp; // * we'll hold on to the tuning parameters in user-entered
-  FloatType dispKi; //   format for display purposes
-  FloatType dispKd; //
+	PID_T in;		// * Pointers to the Input, Output, and Setpoint variables
+	PID_T out;		//   This creates a hard link between the variables and the
+	PID_T set_point;	//   PID, freeing the user from having to constantly tell us
 
-  FloatType kp; // * (P)roportional Tuning Parameter
-  FloatType ki; // * (I)ntegral Tuning Parameter
-  FloatType kd; // * (D)erivative Tuning Parameter
+	PID_T iterm, last_input;
+	PID_T min, max;
+	bool limits_en;
+};
 
-  PidDirectionType controllerDirection;
+void pid_init(struct pid *, PID_T, PID_T, PID_T);
+void pid_set_limits(struct pid *, PID_T, PID_T);
+void pid_set_target(struct pid *, PID_T);
+PID_T pid_calc(struct pid *, PID_T);
 
-  FloatType myInput; // * Pointers to the Input, Output, and Setpoint variables
-  FloatType myOutput; //   This creates a hard link between the variables and the
-  FloatType mySetpoint; //   PID, freeing the user from having to constantly tell us
-                     //   what these values are.  with pointers we'll just know.
-
-//  unsigned long lastTime;
-  FloatType ITerm, lastInput;
-
-  unsigned long SampleTime;
-  FloatType outMin, outMax;
-  bool inAuto;
-} PidType;
-
-//commonly used functions **************************************************************************
-
-//  constructor.  links the PID to the Input, Output, and
-//  Setpoint.  Initial tuning parameters are also set here
-void PID_init(PidType* pid,
-    FloatType kp,
-    FloatType ki,
-    FloatType kd,
-    PidDirectionType controllerDirection);
-
-// sets PID to either Manual (0) or Auto (non-0)
-void PID_SetMode(PidType* pid, PidModeType mode);
-
-// performs the PID calculation.  it should be
-// called every time loop() cycles. ON/OFF and
-// calculation frequency can be set using SetMode
-// SetSampleTime respectively
-bool PID_Compute(PidType* pid);
-
-// clamps the output to a specific range. 0-255 by default, but
-// it's likely the user will want to change this depending on
-// the application
-void PID_SetOutputLimits(PidType* pid, FloatType min, FloatType max);
-
-//available but not commonly used functions ********************************************************
-
-// While most users will set the tunings once in the
-// constructor, this function gives the user the option
-// of changing tunings during runtime for Adaptive control
-void PID_SetTunings(PidType* pid, FloatType kp, FloatType ki, FloatType kd);
-
-// Sets the Direction, or "Action" of the controller. DIRECT
-// means the output will increase when error is positive. REVERSE
-// means the opposite.  it's very unlikely that this will be needed
-// once it is set in the constructor.
-void PID_SetControllerDirection(PidType* pid, PidDirectionType Direction);
-
-// sets the frequency, in Milliseconds, with which
-// the PID calculation is performed.  default is 100
-void PID_SetSampleTime(PidType* pid, int newSampleTime);
-
-//Display functions ****************************************************************
-// These functions query the pid for interal values.
-//  they were created mainly for the pid front-end,
-// where it's important to know what is actually
-//  inside the PID.
-FloatType PID_GetKp(PidType* pid);
-FloatType PID_GetKi(PidType* pid);
-FloatType PID_GetKd(PidType* pid);
-PidModeType PID_GetMode(PidType* pid);
-PidDirectionType PID_GetDirection(PidType* pid);
-
-//void PID_Initialize(PidType* pid);
+#ifdef __cplusplus
+}
 #endif
+
+#endif /* __PID_H__ */

@@ -36,69 +36,85 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * PID
+ * PID driver with FreeRTOS support
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
-#include "pid.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
+#include "pid_FreeRTOS.h"
 
-void pid_init(struct pid *p, PID_T kp, PID_T ki, PID_T kd)
+struct pid_rtos {
+	struct pid pid;
+	void *private_data;
+	PID_T (*read_func)(void *private_data);
+	void (*write_func)(PID_T value, void *private_data);
+	SemaphoreHandle_t mutex;
+	uint delay;
+};
+
+static void pid_task(void *args)
 {
-	p->iterm = 0;
-	p->last_input = 0;
+	struct pid_rtos *pid_rtos = (struct pid_rtos *)args;
 
-	p->kp = kp;
-	p->ki = ki;
-	p->kd = kd;
+	while (1) {
+		PID_T in, out;
+		if (xSemaphoreTake(pid_rtos->mutex, pid_rtos->delay)
+			== pdTRUE) {
+			vSemaphoreDelete(pid_rtos->mutex);
+			free(pid_rtos);
+			vTaskDelete(0);
+		}
 
-	p->limits_en = false;
+		in = pid_rtos->read_func(pid_rtos->private_data);
+		out = pid_calc(&pid_rtos->pid, in);
+		pid_rtos->write_func(out, pid_rtos->private_data);
+	}
 }
 
-void pid_set_limits(struct pid *p, PID_T min, PID_T max)
+void *create_pid(
+	PID_T kp, PID_T ki, PID_T kd, PID_T target,
+	PID_T min, PID_T max,
+	PID_T (*read_func)(void *private_data),
+	void (*write_func)(PID_T value, void *private_data),
+	void *private_data, uint stack_size, uint priority,
+	uint delay
+)
 {
-	p->min = min;
-	p->max = max;
+	struct pid_rtos *pid_rtos = malloc(sizeof(*pid_rtos));
+	if (!pid_rtos)
+		return 0;
 
-	p->limits_en = true;
-}
-
-void pid_set_target(struct pid *p, PID_T v)
-{
-	p->set_point = v;
-}
-
-PID_T pid_calc(struct pid *p, PID_T input)
-{
-	/* Compute all the working error variables */
-	PID_T error = p->set_point - input;
-	PID_T d_input;
-	PID_T output;
-
-	p->iterm += (p->ki * error);
-
-	if (p->limits_en) {
-		if (p->iterm > p->max)
-			p->iterm = p->max;
-		else if (p->iterm < p->min)
-			p->iterm = p->min;
+	pid_rtos->mutex = xSemaphoreCreateBinary();
+	if (!pid_rtos->mutex) {
+		free(pid_rtos);
+		return 0;
 	}
 
-	d_input = input - p->last_input;
+	pid_init(&pid_rtos->pid, kp, ki, kd);
+	pid_set_limits(&pid_rtos->pid, min, max);
+	pid_set_target(&pid_rtos->pid, target);
 
-	/* Compute PID Output */
-	output = p->kp * error + p->iterm - p->kd * d_input;
+	pid_rtos->private_data = private_data;
+	pid_rtos->read_func = read_func;
+	pid_rtos->write_func = write_func;
+	pid_rtos->delay = delay;
 
-	if (p->limits_en) {
-		if (output > p->max)
-			output = p->max;
-		else if (output < p->min)
-			output = p->min;
+	if (xTaskCreate(pid_task, 0, stack_size, pid_rtos, priority, 0)
+		!= pdPASS) {
+		free(pid_rtos);
+		return 0;
 	}
 
-	/* Remember some variables for next time */
-	p->last_input = input;
+	return (void *)pid_rtos;
+}
 
-	return output;
+void destroy_pid(void *pid)
+{
+	struct pid_rtos *pid_rtos = (struct pid_rtos *)pid;
+
+	xSemaphoreGive(pid_rtos->mutex);
 }

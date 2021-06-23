@@ -36,69 +36,34 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * PID
+ * PID driver with FreeRTOS support
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
+#ifndef __PID_FREERTOS_H__
+#define __PID_FREERTOS_H__
+
 #include "pid.h"
 
-void pid_init(struct pid *p, PID_T kp, PID_T ki, PID_T kd)
-{
-	p->iterm = 0;
-	p->last_input = 0;
-
-	p->kp = kp;
-	p->ki = ki;
-	p->kd = kd;
-
-	p->limits_en = false;
+#ifdef __cplusplus
 }
+#endif
 
-void pid_set_limits(struct pid *p, PID_T min, PID_T max)
-{
-	p->min = min;
-	p->max = max;
+void *create_pid(
+	PID_T kp, PID_T ki, PID_T kd, PID_T target,
+	PID_T min, PID_T max,
+	PID_T (*read_func)(void *private_data),
+	void (*write_func)(PID_T value, void *private_data),
+	void *private_data, uint stack_size, uint priority,
+	uint delay
+);
 
-	p->limits_en = true;
+void destroy_pid(void *pid);
+
+#ifdef __cplusplus
 }
+#endif
 
-void pid_set_target(struct pid *p, PID_T v)
-{
-	p->set_point = v;
-}
-
-PID_T pid_calc(struct pid *p, PID_T input)
-{
-	/* Compute all the working error variables */
-	PID_T error = p->set_point - input;
-	PID_T d_input;
-	PID_T output;
-
-	p->iterm += (p->ki * error);
-
-	if (p->limits_en) {
-		if (p->iterm > p->max)
-			p->iterm = p->max;
-		else if (p->iterm < p->min)
-			p->iterm = p->min;
-	}
-
-	d_input = input - p->last_input;
-
-	/* Compute PID Output */
-	output = p->kp * error + p->iterm - p->kd * d_input;
-
-	if (p->limits_en) {
-		if (output > p->max)
-			output = p->max;
-		else if (output < p->min)
-			output = p->min;
-	}
-
-	/* Remember some variables for next time */
-	p->last_input = input;
-
-	return output;
-}
+#endif /* __PID_FREERTOS_H__ */
