@@ -49,9 +49,6 @@
 #include <time.h>
 #include <stdlib.h>
 
-#include <stdio.h>
-#include <string.h>
-
 struct pid_rtos {
 	struct pid pid;
 	void *private_data;
@@ -79,7 +76,6 @@ static void *pid_task(void *args)
 		
 		if (sem_timedwait(&pid->semaphore, &ts) == -1
 			&& errno != ETIMEDOUT) {
-			printf("errno:%s, %lu\n", strerror(errno), ts.tv_nsec);
 			sem_destroy(&pid->semaphore);
 			free(pid);
 			break;
@@ -89,7 +85,6 @@ static void *pid_task(void *args)
 		out = pid_calc(&pid->pid, in);
 		pid->write_func(out, pid->private_data);
 	}
-printf("DONE\n");
 	return 0;
 }
 
