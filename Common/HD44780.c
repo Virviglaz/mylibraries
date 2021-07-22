@@ -1,207 +1,257 @@
+/*
+ * This file is provided under a MIT license.  When using or
+ * redistributing this file, you may do so under either license.
+ *
+ * MIT License
+ *
+ * Copyright (c) 2021 Pavel Nadein
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * HD44780 4/8 bit LCD/OLED driver
+ *
+ * Contact Information:
+ * Pavel Nadein <pavelnadein@gmail.com>
+ */
+
 #include "HD44780.h"
-#include <string.h>
 
-#define INIT_DELAY              10
+#ifndef BIT
+#define BIT(x)						(1 << x)
+#endif
 
-/* Internal pointer to current driver */
-HD44780_StructTypeDef * HD44780;
-static void (* HD44780_Write) (uint8_t data, uint8_t cmd);
+#define INIT_DELAY					10
 
-/* Internal functions protorypes */
-static void HD44780_WriteToBus (uint8_t dat);
-static void HD44780_Write_4bit (uint8_t data, uint8_t cmd);
-static void HD44780_Write_8bit (uint8_t data, uint8_t cmd);
-static uint8_t Translate (uint8_t dat);
+enum lcd_cmd {
+	HD44780_CMD_NOP					= 0x00,
+	HD44780_CMD_CLEAR				= 0x01,
+	HD44780_CMD_HOME				= 0x02,
+	HD44780_CMD_8B					= 0x03,
+	HD44780_CMD_AUTOINCREMENTON			= 0x06,
+	HD44780_CMD_BLANK				= 0x08,
+	HD44780_CMD_CURSORLEFT				= 0x10,
+	HD44780_CMD_CURSORRIGHT				= 0x14,
+	HD44780_CMD_POWERON				= 0x17,
+	HD44780_CMD_4B_1LINE				= 0x20,
+	HD44780_CMD_4B_2LINES				= 0x28,
+	HD44780_CMD_8B_1LINE				= 0x30,
+	HD44780_CMD_8B_2LINES				= 0x38,
+	HD44780_CMD_SCROLLRIGHT				= 0x1E,
+	HD44780_CMD_SCROLLLEFT				= 0x18,
+	HD44780_CMD_UNDERLINECURSORON			= 0x0E,
+	HD44780_CMD_BLOCKCURSORON			= 0x0F,
+	HD44780_CMD_CURSOROFF				= 0x0C,
+	HD44780_CMD_SETCGRAM				= 0x40,
+	HD44780_NOP_DATA				= 0xFF,
+};
 
-/* Public functions */
+static const struct hd44780_conn pcf8574_con = {
+	HD44780_BUS_4B, 4, 1 << 0, 1 << 2, 1 << 3 };
+static const struct hd44780_conn mc74hC595_con = {
+	HD44780_BUS_4B, 4, 1 << 2, 1 << 3, 3 };
 
-HD44780_StructTypeDef * HD44780_Driver (HD44780_StructTypeDef * HD44780_InitStruct)
-{
-  if (HD44780_InitStruct) //assign driver if defined
-    HD44780 = HD44780_InitStruct;
-  return HD44780;
-}
+static struct hd44780_lcd *dev = 0;
+static void (*wr)(uint8_t data, uint8_t cmd);
 
-void HD44780_Init (HD44780_StructTypeDef * HD44780_InitStruct)
-{
-  if (HD44780_InitStruct == 0) return;
-  if (HD44780_InitStruct->HD44780_Connection == 0) return;
-  
-  /* Assign the driver */
-  HD44780 = HD44780_InitStruct;
-  
-  /* Assign interface function */
-  HD44780_Write = HD44780->HD44780_Connection->BUS ? 
-            HD44780_Write_8bit : HD44780_Write_4bit;
-
-	
-  if (HD44780->HD44780_Connection->BUS == BUS_4b)
-  {
-		/* 4 bit wide bus init */
-    HD44780_WriteToBus(0x03 << HD44780->HD44780_Connection->data_shift);
-    HD44780_WriteToBus(0x03 << HD44780->HD44780_Connection->data_shift);
-    HD44780_WriteToBus(0x03 << HD44780->HD44780_Connection->data_shift);
-    HD44780_WriteToBus(0x02 << HD44780->HD44780_Connection->data_shift);  
-  }
-	else
-
-  HD44780->Delay_Func(INIT_DELAY);	
-  HD44780_Write(HD44780_CMD_4b_2lines | HD44780->Font, 1);
-                                                                                                                                                                                                                                                            					
-  if (HD44780->LCD_Type == LCD_NORMAL)
-  {
-    // HD44780
-    HD44780_Cmd(HD44780_CMD_Home);
-    HD44780_Cmd(HD44780_CMD_Clear);
-    HD44780->Delay_Func(INIT_DELAY);	
-    HD44780_Cmd(HD44780_CMD_CursorOFF);
-  }
-  else
-  {
-    // OLED LCD TYPE		
-    HD44780_Cmd(HD44780_CMD_Blank);
-    HD44780_Cmd(HD44780_CMD_AutoIncrementOn);
-    HD44780_Cmd(HD44780_CMD_PowerON);
-    HD44780_Cmd(HD44780_CMD_Clear);
-    HD44780->Delay_Func(INIT_DELAY);	
-    HD44780_Cmd(HD44780_CMD_Home);	
-    HD44780_Cmd(HD44780_CMD_CursorOFF);	
-  }
-}
-
-void HD44780_StdConnectionInit (HD44780_Connection_TypeDef * HD44780_Connection,
-                                HD44780_KnowConnectionsTypeDef Connection)
-{
-  if (HD44780_Connection == 0) return;
-  switch (Connection)
-  {
-    case PCF8574_eBayPCB: 
-      memcpy(HD44780_Connection, &PCF8574_StdCon, sizeof(*HD44780_Connection));
-      break;
-    case mc74HC595:
-      memcpy(HD44780_Connection, &mc74HC595_StdCon, sizeof(*HD44780_Connection));
-      break;
-  }
-}
-
-void HD44780_SetPos (uint8_t row, uint8_t col)
-{
-	uint8_t position = 0x80;
-	if (row) position |= 0x40;
-	HD44780_Cmd ((HD44780_CMD_TypeDef)(position | col));
-}
-
-void HD44780_Print (char * string)
-{
-  while (* string)
-    HD44780_PutChar(* string++);
-}
-
-void HD44780_Clear (void)
-{
-  HD44780_Cmd(HD44780_CMD_Clear);
-  HD44780_Cmd(HD44780_CMD_Home);
-}
-
-void HD44780_PutChar (uint8_t data)
-{
-  if (data == '\n')
-    HD44780_Cmd((HD44780_CMD_TypeDef)(0x80 | 0x40)); 
-  else 
-  {
-    data = Translate(data);
-    HD44780_Write(data, 0);
-  }
-}
-
-void HD44780_Update (void)
-{
-  HD44780_Cmd(HD44780_NOP_DATA);
-}
-
-void HD44780_Cmd (HD44780_CMD_TypeDef CMD)
-{
-  HD44780_Write(CMD, 1);
-}
-
-void HD44780_CustomChar (uint8_t num, uint8_t * data)
-{
-	uint8_t cnt;
-	HD44780_Write (HD44780_CMD_SetCGRAM + num * 8, 1);
-	for (cnt = 0; cnt != 8; cnt++)
-		HD44780_Write(data[cnt], 0);
-
-	HD44780_Cmd (HD44780_CMD_Home);	
-}
-
-/* Internal functions */
-static uint8_t Translate (uint8_t dat)
-{
-  if (HD44780->Font != ENGLISH_RUSSIAN_FONT) return dat; //support only russian
-  if (dat < 0xC0) return dat;
-  
-  return HD44780_RusFont[dat - 0xC0];
-}
-
-static void HD44780_Write_4bit (uint8_t data, uint8_t cmd)
-{ 
-  /* Prepare SPI data */
-  uint8_t LatchData = 0;
-	
-  if (!cmd) LatchData = HD44780->HD44780_Connection->RS_Pin;
-
-  /* Set pin states */
-  if (HD44780->BackLightIsOn)
-    LatchData |= HD44780->HD44780_Connection->BackLightPin;
-
-  /* Add external connection if used */
-  if (HD44780->HD44780_ExtConnection)
-    LatchData |= HD44780->HD44780_ExtConnection->EXT1_Pin
-      | HD44780->HD44780_ExtConnection->EXT2_Pin;  
-
-	if (cmd == HD44780_NOP_DATA) 
-	{
-		HD44780->WriteData(LatchData);
-		return;
-	}	
-	
-	/* Send high nible */
-	HD44780_WriteToBus(LatchData | ((data & 0xF0) >> 4) << HD44780->HD44780_Connection->data_shift);
-	
-	/* Send low nible */
-	HD44780_WriteToBus(LatchData | ((data & 0x0F) >> 0) << HD44780->HD44780_Connection->data_shift);
-}
-
-static void HD44780_WriteToBus (uint8_t dat)
+static void write_to_bus(uint8_t dat)
 {
 	/* Send positive strobe */
-	dat |= HD44780->HD44780_Connection->E_Pin;
-	HD44780->WriteData(dat);
+	dat |= dev->conn->en_pin;
+	dev->write(dat);
 
 	/* Send negative strobe */
-	dat &= ~HD44780->HD44780_Connection->E_Pin;
-	HD44780->WriteData(dat);
+	dat &= ~dev->conn->en_pin;
+	dev->write(dat);
 }
 
-// data format MSB->DDDDDDDD->CCCCCCCC->LSB, C-ctrl, D-data pins
-static void HD44780_Write_8bit (uint8_t data, uint8_t cmd)
-{	
-  /* Backlight enable/disable and data prepare*/
-  uint16_t LatchData = (data << 8) | HD44780->BackLightIsOn; 
+static void wr4b(uint8_t data, uint8_t cmd)
+{ 
+	uint8_t latch = 0;
 
-  if (!cmd) LatchData |= HD44780->HD44780_Connection->RS_Pin;
- 
-  /* Add external connection if used */
-  if (HD44780->HD44780_ExtConnection)
-    LatchData |= HD44780->HD44780_ExtConnection->EXT1_Pin
-      | HD44780->HD44780_ExtConnection->EXT2_Pin;
+	if (!cmd)
+		latch = dev->conn->rs_pin;
 
-	if (cmd == HD44780_NOP_DATA) 
-	{
-		HD44780->WriteData(LatchData);
+	if (dev->is_backlight_enabled)
+		latch |= dev->conn->backlight_pin;
+
+	if (dev->ext_con)
+		latch |= dev->ext_con->ext_pin[0] | dev->ext_con->ext_pin[1];  
+
+	if (cmd == HD44780_NOP_DATA) {
+		dev->write(latch);
 		return;
 	}	
+
+	/* Send the high nible */
+	write_to_bus(latch | ((data & 0xF0) >> 4) << dev->conn->data_shift);
+	
+	/* Send the low nible */
+	write_to_bus(latch | ((data & 0x0F) >> 0) << dev->conn->data_shift);
+}
+
+static void wr8b(uint8_t data, uint8_t cmd)
+{
+	uint16_t latch = (data << 8) | dev->is_backlight_enabled; 
+
+	if (!cmd)
+		latch |= dev->conn->rs_pin;
+ 
+	if (dev->ext_con)
+		latch |= dev->ext_con->ext_pin[0] | dev->ext_con->ext_pin[1];
+
+	dev->write16(latch);
+}
+
+static void wr_cmd(enum lcd_cmd CMD)
+{
+	wr(CMD, 1);
+}
+
+static char translate(char dat)
+{
+	const char rus_font[] = {
+		'A', 0xA0, 'B', 0xA1, 0xE0,'E', 0xA3, 0xA4, 0xA5, 0xA6,'K',
+		0xA7,'M', 'H', 'O', 0xA8,'P', 'C', 'T', 0xA9, 0xAA,'X',
+		0xE1, 0xAB, 0xAC, 0xE2, 0xAD, 0xAE,'b', 0xA2, 0xB0, 0xB1,
+		'a', 0xB2, 0xB3, 0xB4, 0xE3,'e', 0xB6, 0xB7, 0xB8, 0xB9,
+		0xBA, 0xBB, 0xBC, 0xBD,'o', 0xBE,'p', 'c', 0xBF,'y', 0xE4,'x',
+		0xE5, 0xC0, 0xC1, 0xE6, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7
+	};
+
+	 /* support only russian for now */
+	if (dev->font != HD44780_ENGLISH_RUSSIAN_FONT)
+		return dat;
+	if (dat < 0xC0)
+		return dat;
   
-  /* Send data */	
-	HD44780_WriteToBus(LatchData);
+	return rus_font[dat - 0xC0];
+}
+
+struct hd44780_lcd *hd44780_init(struct hd44780_lcd *drv)
+{
+	if (!drv || !drv->conn)
+		return dev;
+
+	dev = drv;
+
+	wr = dev->conn->bus_type ? wr8b : wr4b;
+
+	if (dev->conn->bus_type == HD44780_BUS_4B) {
+		write_to_bus(0x03 << dev->conn->data_shift);
+		write_to_bus(0x03 << dev->conn->data_shift);
+		write_to_bus(0x03 << dev->conn->data_shift);
+		write_to_bus(0x02 << dev->conn->data_shift);  
+		dev->delay_func(INIT_DELAY);	
+		wr(HD44780_CMD_4B_2LINES | dev->font, 1);
+	}
+
+	if (dev->type == HD44780_TYPE_LCD) {
+		wr_cmd(HD44780_CMD_HOME);
+		wr_cmd(HD44780_CMD_CLEAR);
+		dev->delay_func(INIT_DELAY);	
+		wr_cmd(HD44780_CMD_CURSOROFF);
+	} else if (dev->type == HD44780_TYPE_OLED) {		
+		wr_cmd(HD44780_CMD_BLANK);
+		wr_cmd(HD44780_CMD_AUTOINCREMENTON);
+		wr_cmd(HD44780_CMD_POWERON);
+		wr_cmd(HD44780_CMD_CLEAR);
+		dev->delay_func(INIT_DELAY);	
+		wr_cmd(HD44780_CMD_HOME);	
+		wr_cmd(HD44780_CMD_CURSOROFF);	
+	}
+
+	return dev;
+}
+
+void hd44780_pcf8574_con_init(struct hd44780_lcd *drv)
+{
+	drv->conn = (void *)&pcf8574_con;
+}
+
+void hd44780_mc74hC595_con_init(struct hd44780_lcd *drv)
+{
+	drv->conn = (void *)&mc74hC595_con;
+}
+
+void hd44780_set_pos(uint8_t row, uint8_t col)
+{
+	uint8_t position = 0x80;
+
+	if (row)
+		position |= 0x40;
+
+	wr_cmd((enum lcd_cmd)(position | col));
+}
+
+void hd44780_print(char *string)
+{
+	while (*string)
+		hd44780_put_char(*string++);
+}
+
+void hd44780_clear(void)
+{
+	wr_cmd(HD44780_CMD_CLEAR);
+	wr_cmd(HD44780_CMD_HOME);
+}
+
+void hd44780_put_char(char data)
+{
+	if (data == '\n') {
+		wr_cmd((enum lcd_cmd)(0x80 | 0x40));
+		return;
+	}
+	
+	data = translate(data);
+	wr(data, 0);
+}
+
+void hd44780_update(void)
+{
+	wr_cmd(HD44780_NOP_DATA);
+}
+
+void hd44780_custom_char(uint8_t num, uint8_t *data)
+{
+	uint8_t cnt;
+
+	wr (HD44780_CMD_SETCGRAM + num * 8, 1);
+
+	for (cnt = 0; cnt != 8; cnt++)
+		wr(data[cnt], 0);
+
+	wr_cmd(HD44780_CMD_HOME);	
+}
+
+void hd44780_send_cmd(uint8_t cmd)
+{
+	wr_cmd((enum lcd_cmd)cmd);
 }
