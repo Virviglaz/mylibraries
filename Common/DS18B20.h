@@ -1,8 +1,10 @@
 #ifndef DS18B20_H
 #define DS18B20_H
 
-#include "CRC.h"
 #include <stdint.h>
+
+#define DS18B20_ERROR_RESULT_NOT_READY			0xE0
+#define DS18B20_ERROR_CRC_MISSMATCH			0xB0
 
 enum ds18b20_resolution {
 	Res_9bit,
