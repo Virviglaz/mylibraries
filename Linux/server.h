@@ -1,8 +1,10 @@
-#ifndef SERVER_H
-#define SERVER_H
+#ifndef __SERVER_H__
+#define __SERVER_H__
 
-typedef int(*srv_handler)(char *data, int size, int socket);
+typedef void(*srv_handler)(char *data, int size, int socket);
+typedef struct server_t *server_t;
 
-int server_start(int port, srv_handler handler, int size, int int_ms);
+server_t server_start(int port, srv_handler handler, int size, int int_ms);
+int server_stop(server_t server);
 
-#endif /* SERVER_H */
+#endif /* __SERVER_H__ */
