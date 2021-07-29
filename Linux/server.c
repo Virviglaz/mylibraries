@@ -1,34 +1,34 @@
 #include <unistd.h>
-#include <sys/types.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <errno.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include <string.h>
+#include <poll.h>
+#include <arpa/inet.h>
 #include "server.h"
 
 struct client_t {
 	int socket;
-	srv_handler handler;
+	struct sockaddr_in cli_addr;
+	rcv_handler handler;
 	pthread_t *thread;
-	int size;
-	int pooling_int_us;
+	size_t size;
 };
 
 struct server_t {
 	int socket;
 	pthread_t *thread;
 	socklen_t clilen;
-	srv_handler handler;
-	int size;
-	int pooling_int_us;
+	rcv_handler handler;
+	size_t size;
 };
 
 static void *client_handler(void *ptr)
 {
 	struct client_t *client = ptr;
-	char *buffer;
-	int size;
+	void *buffer;
 	int err;
 	socklen_t len = sizeof(err);
 
@@ -37,14 +37,25 @@ static void *client_handler(void *ptr)
 		goto err_nomem;
 
 	do {
+		struct pollfd fds = {
+			.fd = client->socket,
+			.events = POLLIN,
+		};
+
 		if (getsockopt(client->socket, SOL_SOCKET, SO_ERROR,
 			&err, &len))
 			break;
 
-		size = read(client->socket, buffer, client->size);
-		if (size)
-			client->handler(buffer, size, client->socket);
-		usleep(client->pooling_int_us);
+		err = poll(&fds, 1, -1);
+		if (err > 0) {
+			ssize_t size;
+			do {
+				size = read(client->socket, buffer,
+					client->size);
+				if (size)
+					client->handler(client, buffer, size);
+			} while (size > 0);
+		}
 
 	} while (!err);
 
@@ -64,25 +75,22 @@ static void *server_handler(void *ptr)
 
 	listen(server->socket, 10);
 	do {
-		struct client_t *clent;
-		struct sockaddr_in cli_addr = { 0 };
-		clientfd = accept(server->socket, (struct sockaddr *) &cli_addr,
-			&server->clilen);
+		client_t client = malloc(sizeof(*client));
+		if (!client)
+			return 0;
 
-		clent = malloc(sizeof(*clent));
-		if (!clent)
+		clientfd = accept(server->socket,
+			(struct sockaddr *)&client->cli_addr, &server->clilen);
+
+		client->handler = server->handler;
+		client->socket = clientfd;
+		client->size = server->size;
+		client->thread = malloc(sizeof(pthread_t));
+		if (!client->thread)
 			break;
 
-		clent->handler = server->handler;
-		clent->socket = clientfd;
-		clent->size = server->size;
-		clent->pooling_int_us = server->pooling_int_us * 1000;
-		clent->thread = malloc(sizeof(pthread_t));
-		if (!clent->thread)
-			break;
-
-		if (pthread_create(clent->thread, NULL,
-			client_handler, (void *)clent))
+		if (pthread_create(client->thread, NULL,
+			client_handler, (void *)client))
 			break;
 
 	} while (clientfd > 0 && server->socket > 0);
@@ -91,7 +99,7 @@ static void *server_handler(void *ptr)
 	return 0;
 }
 
-server_t server_start(int port, srv_handler handler, int size, int int_ms)
+server_t server_start(int port, rcv_handler handler, int size)
 {
 	int sockfd;
 	struct sockaddr_in serv_addr = { 0 };
@@ -119,7 +127,6 @@ server_t server_start(int port, srv_handler handler, int size, int int_ms)
 	server->socket = sockfd;
 	server->handler = handler;
 	server->size = size;
-	server->pooling_int_us = int_ms;
 	server->thread = malloc(sizeof(pthread_t));
 
 	if (pthread_create(server->thread, NULL, server_handler,
@@ -133,6 +140,23 @@ server_t server_start(int port, srv_handler handler, int size, int int_ms)
 err:
 	close(sockfd);
 	return 0;
+}
+
+int send_to_client(client_t client, void *msg, size_t size)
+{
+	int err = send(client->socket, msg, size, 0);
+
+	return err < 0 ? errno : 0;
+}
+
+char *get_client_ip(client_t client)
+{
+	return inet_ntoa(client->cli_addr.sin_addr);
+}
+
+int get_client_port(client_t client)
+{
+	return ntohs(client->cli_addr.sin_port);
 }
 
 int server_stop(server_t server)
