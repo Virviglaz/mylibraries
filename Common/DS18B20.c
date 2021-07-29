@@ -16,10 +16,19 @@
 #define DS18B20_STRATCHPAD_SIZE			0x09
 #define DefaultResolution			Res_12bit
 
-/**
-  * @brief  Search for sensor with corresponding serial number
-  * @param  DS18B20: Sensor to search for
-  */
+static uint8_t dallas_crc(uint8_t *buf, uint8_t len)
+{
+	uint8_t i, crc = 0;
+
+	while (len--) {
+		crc ^= *buf++;
+		for (i = 0; i < 8; i++)
+			crc = crc & 0x01 ? (crc >> 1) ^ 0x8C : crc >> 1;
+	}
+
+	return crc;
+}
+
 static void find_sensor(struct ds18b20_t *dev)
 {
 	uint8_t i;
@@ -88,7 +97,7 @@ uint8_t ds18b20_get_result(struct ds18b20_t *dev)
 	for (i = 0; i != DS18B20_STRATCHPAD_SIZE; i++)
 		buf[i] = dev->interface->read();
 
-	ret = Crc8Dallas(buf, DS18B20_STRATCHPAD_SIZE);
+	ret = dallas_crc(buf, DS18B20_STRATCHPAD_SIZE);
 	if (!ret) {
 		dev->temp = buf[0] | (buf[1] << 8);
 		dev->Th = buf[2];
@@ -124,18 +133,29 @@ uint8_t ds18b20_start_single(struct ds18b20_s *dev)
   */
 uint8_t ds18b20_read_single(struct ds18b20_s *dev)
 {
+	uint8_t buf[DS18B20_STRATCHPAD_SIZE];
 	int16_t rawvalue;
+
 	uint8_t ret = dev->interface->reset();
 	if (ret)
 		return ret;
 
-	dev->interface->write (DS18B20_SKIP_ROM);
-	dev->interface->write (DS18B20_READ_STRATCHPAD_CMD);
-	rawvalue = dev->interface->read();
-	rawvalue |= dev->interface->read() << 8;
-	
+	dev->interface->write(DS18B20_SKIP_ROM);
+	dev->interface->write(DS18B20_READ_STRATCHPAD_CMD);
+
+	for (ret = 0; ret != DS18B20_STRATCHPAD_SIZE; ret++)
+		buf[ret] = dev->interface->read();
+
+	if (dallas_crc(buf, sizeof(buf)))
+		return DS18B20_ERROR_CRC_MISSMATCH;
+
+	rawvalue = buf[0] | (buf[1] << 8);
+	if (rawvalue == 2495)
+		return DS18B20_ERROR_RESULT_NOT_READY;
+
 	dev->temp = (double)(rawvalue) / 16.0;
-	return ret;
+
+	return 0;
 }
 
 /**
