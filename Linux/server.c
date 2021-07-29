@@ -124,6 +124,7 @@ server_t server_start(int port, srv_handler handler, int size, int int_ms)
 
 	if (pthread_create(server->thread, NULL, server_handler,
 		(void *)server)) {
+		free(server->thread);
 		free(server);
 		goto err;
 	}
@@ -140,7 +141,8 @@ int server_stop(server_t server)
 		return EINVAL;
 
 	close(server->socket);
-	server->socket = -1;
+	free(server->thread);
+	free(server);
 
 	return 0;
 }
