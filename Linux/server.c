@@ -15,6 +15,7 @@ struct client_t {
 	rcv_handler handler;
 	pthread_t *thread;
 	size_t size;
+	void *user;
 };
 
 struct server_t {
@@ -23,6 +24,7 @@ struct server_t {
 	socklen_t clilen;
 	rcv_handler handler;
 	size_t size;
+	void *user;
 };
 
 static void *client_handler(void *ptr)
@@ -83,6 +85,7 @@ static void *server_handler(void *ptr)
 			(struct sockaddr *)&client->cli_addr, &server->clilen);
 
 		client->handler = server->handler;
+		client->user = server->user;
 		client->socket = clientfd;
 		client->size = server->size;
 		client->thread = malloc(sizeof(pthread_t));
@@ -99,7 +102,7 @@ static void *server_handler(void *ptr)
 	return 0;
 }
 
-server_t server_start(int port, rcv_handler handler, int size)
+server_t server_start(int port, rcv_handler handler, int size, void *user)
 {
 	int sockfd;
 	struct sockaddr_in serv_addr = { 0 };
@@ -127,6 +130,7 @@ server_t server_start(int port, rcv_handler handler, int size)
 	server->socket = sockfd;
 	server->handler = handler;
 	server->size = size;
+	server->user = user;
 	server->thread = malloc(sizeof(pthread_t));
 
 	if (pthread_create(server->thread, NULL, server_handler,
@@ -157,6 +161,11 @@ char *get_client_ip(client_t client)
 int get_client_port(client_t client)
 {
 	return ntohs(client->cli_addr.sin_port);
+}
+
+void *get_user_data(client_t client)
+{
+	return client->user;
 }
 
 int server_stop(server_t server)
