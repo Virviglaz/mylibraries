@@ -8,20 +8,27 @@
 #include <arpa/inet.h>
 #include "server.h"
 
+#ifndef LISTEN_BACKLOG_VALUE
+#define LISTEN_BACKLOG_VALUE			32
+#endif
+
+static const char *no_mem_err = "No memory";
+static const char *thread_err = "Thread create error";
+
 struct client_t {
 	int socket;
 	struct sockaddr_in cli_addr;
-	rcv_handler handler;
-	pthread_t *thread;
+	server_event_t *ops;
+	pthread_t thread;
 	size_t size;
 	void *user;
 };
 
 struct server_t {
 	int socket;
-	pthread_t *thread;
+	pthread_t thread;
 	socklen_t clilen;
-	rcv_handler handler;
+	server_event_t *ops;
 	size_t size;
 	void *user;
 };
@@ -29,24 +36,35 @@ struct server_t {
 static void *client_handler(void *ptr)
 {
 	struct client_t *client = ptr;
-	void *buffer;
+	server_event_t *ops = client->ops;
+	void *buffer = malloc(client->size);
 	ssize_t size;
 
-	buffer = malloc(client->size);
-	if (!buffer)
+	if (!buffer) {
+		if (ops->error)
+			ops->error(no_mem_err, ENOMEM, client->user);
 		goto err_nomem;
+	}
+
+	if (ops->connected && ops->connected(client))
+		goto err_free;
 
 	do {
 		size = read(client->socket, buffer,
 			client->size);
-		if (size)
-			client->handler(client, buffer, size);
+
+		if (size && ops->receive && ops->receive(client, buffer, size))
+			break;
 	} while (size > 0);
 
+err_free:
 	free(buffer);
 err_nomem:
 	close(client->socket);
-	free(client->thread);
+
+	if (ops->disconnected)
+		ops->disconnected(client);
+
 	free(client);
 
 	return 0;
@@ -56,74 +74,106 @@ static void *server_handler(void *ptr)
 {
 	struct server_t *server = ptr;
 	int clientfd;
+	server_event_t *ops = server->ops;
+	int res;
 
-	listen(server->socket, 10);
+	listen(server->socket, LISTEN_BACKLOG_VALUE);
+
 	do {
 		client_t client = malloc(sizeof(*client));
-		if (!client)
-			return 0;
+		if (!client) {
+			if (ops->error)
+				ops->error(no_mem_err, ENOMEM, server->user);
+			break;
+		}
 
 		clientfd = accept(server->socket,
 			(struct sockaddr *)&client->cli_addr, &server->clilen);
+		if (clientfd < 0) {
+			res = errno;
+			if (ops->error)
+				ops->error("Socket accept error", res,
+					server->user);
+			free(client);
+			break;
+		}
 
-		client->handler = server->handler;
+		client->ops = server->ops;
 		client->user = server->user;
 		client->socket = clientfd;
 		client->size = server->size;
-		client->thread = malloc(sizeof(pthread_t));
-		if (!client->thread)
-			break;
 
-		if (pthread_create(client->thread, NULL,
-			client_handler, (void *)client))
+		res = pthread_create(&client->thread, NULL, client_handler,
+			(void *)client);
+		if (res) {
+			if (ops->error)
+				ops->error(thread_err, res, server->user);
+			close(clientfd);
+			free(client);
 			break;
+		}
 
 	} while (clientfd > 0 && server->socket > 0);
+
 	close(server->socket);
 
 	return 0;
 }
 
-server_t server_start(int port, rcv_handler handler, int size, void *user)
+server_t server_start(int port, server_event_t *ops, int size, void *user)
 {
-	int sockfd;
-	struct sockaddr_in serv_addr = { 0 };
-	server_t server;
+	server_t server = malloc(sizeof(*server));
 
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	serv_addr.sin_port = htons(port);
+	struct sockaddr_in serv_addr = {
+		.sin_family = AF_INET,
+		.sin_addr.s_addr = htonl(INADDR_ANY),
+		.sin_port = htons(port),
+	};
+	int sockfd;
+	int res;
+
+	if (!ops)
+		return 0;
+
+	if (!server) {
+		if (ops->error)
+			ops->error(no_mem_err, ENOMEM, user);
+		return 0;
+	}
 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockfd < 0) {
-		return 0;
+		res = errno;
+		if (ops->error)
+			ops->error("Open socket error", res, user);
+		goto err_free;
 	}
 
 	if (bind(sockfd, (struct sockaddr *) &serv_addr,
 		sizeof(serv_addr)) < 0) {
-		close(sockfd);
-		return 0;
+		res = errno;
+		if (ops->error)
+			ops->error("Bind socked error", res, user);
+		goto err_close;
 	}
 
-	server = malloc(sizeof(*server));
-	if (!server)
-		goto err;
-
 	server->socket = sockfd;
-	server->handler = handler;
+	server->ops = ops;
 	server->size = size;
 	server->user = user;
-	server->thread = malloc(sizeof(pthread_t));
 
-	if (pthread_create(server->thread, NULL, server_handler,
-		(void *)server)) {
-		free(server->thread);
-		free(server);
-		goto err;
+	res = pthread_create(&server->thread, NULL, server_handler,
+		(void *)server);
+	if (res) {
+		if (ops->error)
+			ops->error(thread_err, res, user);
+		goto err_free;
 	}
 
 	return server;
-err:
+err_free:
+	free(server);
+err_close:
 	close(sockfd);
 	return 0;
 }
@@ -135,7 +185,7 @@ int send_to_client(client_t client, void *msg, size_t size)
 	return err < 0 ? errno : 0;
 }
 
-char *get_client_ip(client_t client)
+const char *get_client_ip(client_t client)
 {
 	return inet_ntoa(client->cli_addr.sin_addr);
 }
@@ -156,7 +206,6 @@ int server_stop(server_t server)
 		return EINVAL;
 
 	close(server->socket);
-	free(server->thread);
 	free(server);
 
 	return 0;
