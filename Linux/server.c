@@ -5,7 +5,6 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
-#include <poll.h>
 #include <arpa/inet.h>
 #include "server.h"
 
@@ -31,35 +30,18 @@ static void *client_handler(void *ptr)
 {
 	struct client_t *client = ptr;
 	void *buffer;
-	int err;
-	socklen_t len = sizeof(err);
+	ssize_t size;
 
 	buffer = malloc(client->size);
 	if (!buffer)
 		goto err_nomem;
 
 	do {
-		struct pollfd fds = {
-			.fd = client->socket,
-			.events = POLLIN,
-		};
-
-		if (getsockopt(client->socket, SOL_SOCKET, SO_ERROR,
-			&err, &len))
-			break;
-
-		err = poll(&fds, 1, -1);
-		if (err > 0) {
-			ssize_t size;
-			do {
-				size = read(client->socket, buffer,
-					client->size);
-				if (size)
-					client->handler(client, buffer, size);
-			} while (size > 0);
-		}
-
-	} while (!err);
+		size = read(client->socket, buffer,
+			client->size);
+		if (size)
+			client->handler(client, buffer, size);
+	} while (size > 0);
 
 	free(buffer);
 err_nomem:
