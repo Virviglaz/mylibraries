@@ -67,6 +67,7 @@ err_nomem:
 
 	free(client);
 
+	pthread_exit(0);
 	return 0;
 }
 
@@ -117,6 +118,7 @@ static void *server_handler(void *ptr)
 
 	close(server->socket);
 
+	pthread_exit(0);
 	return 0;
 }
 
