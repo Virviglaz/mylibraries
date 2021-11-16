@@ -24,29 +24,28 @@ static pthread_mutex_t lock;
 void log_to_file(const char *filename, const char *format, ...)
 {
 	va_list arg;
-	char timestamp[32];
+	int fd;
+	char buf[1024];
+	size_t size;
 
 	pthread_mutex_lock(&lock);
 
-	FILE *file = fopen(filename, "aw");
-	if (!file) {
+	fd = open(filename, O_CREAT | O_WRONLY, S_IRUSR);
+	if (fd <= 0) {
 		int err = errno;
 		fprintf(stderr, "Write file %s error: %s\n",
 			filename, strerror(err));
-		pthread_mutex_unlock(&lock);
-		return;
+		goto exit;
 	}
 
-	get_timestamp(timestamp, sizeof(timestamp));
-	strcpy(timestamp + strlen(timestamp), ": ");
-
-	fwrite(timestamp, 1, strlen(timestamp), file);
+	get_timestamp(buf, sizeof(buf));
+	size = strlen(buf);
 
 	va_start(arg, format);
-	vfprintf(file, format, arg);
+	vsnprintf(buf + size, sizeof(buf) - size - 1,  format, arg);
 	va_end(arg);
 
-	fclose(file);
-
+	close(fd);
+exit:
 	pthread_mutex_unlock(&lock);
 }
