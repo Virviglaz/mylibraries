@@ -30,7 +30,7 @@ void log_to_file(const char *filename, const char *format, ...)
 
 	pthread_mutex_lock(&lock);
 
-	fd = open(filename, O_CREAT | O_WRONLY, S_IRUSR);
+	fd = open(filename, O_CREAT | O_WRONLY | O_APPEND, S_IWUSR | S_IRUSR | S_IRGRP | S_IWGRP);
 	if (fd <= 0) {
 		int err = errno;
 		fprintf(stderr, "Write file %s error: %s\n",
@@ -44,6 +44,8 @@ void log_to_file(const char *filename, const char *format, ...)
 	va_start(arg, format);
 	vsnprintf(buf + size, sizeof(buf) - size - 1,  format, arg);
 	va_end(arg);
+
+	write(fd, buf, strlen(buf));
 
 	close(fd);
 exit:
