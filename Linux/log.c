@@ -40,6 +40,8 @@ void log_to_file(const char *filename, const char *format, ...)
 
 	get_timestamp(buf, sizeof(buf));
 	size = strlen(buf);
+	buf[size++] = ':';
+	buf[size++] = ' ';
 
 	va_start(arg, format);
 	vsnprintf(buf + size, sizeof(buf) - size - 1,  format, arg);
