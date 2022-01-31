@@ -1,5 +1,6 @@
 #include "framebuffer.h"
 #include <string.h>
+#include <stdlib.h>
 
 struct fb_var_screeninfo vinfo; //can be used as public
 
