@@ -161,6 +161,20 @@ server_t server_start(int port, server_event_t *ops, int size, void *user)
 		goto err_close;
 	}
 
+#ifdef SOCKET_TIMEOUT
+	{
+		struct timeval timeout = {
+			.tv_sec = SOCKET_TIMEOUT,
+			.tv_usec = 0,
+		};
+
+		setsockopt (sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
+				sizeof timeout);
+		setsockopt (sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout,
+				sizeof timeout);
+	}
+#endif /* SOCKET_TIMEOUT */
+
 	server->socket = sockfd;
 	server->ops = ops;
 	server->size = size;
