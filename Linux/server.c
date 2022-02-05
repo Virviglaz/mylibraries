@@ -79,14 +79,21 @@ static void *server_handler(void *ptr)
 	server_event_t *ops = server->ops;
 	int res;
 
-	listen(server->socket, LISTEN_BACKLOG_VALUE);
+	res = listen(server->socket, LISTEN_BACKLOG_VALUE);
+	if (res) {
+		res = errno;
+		if (ops->error)
+                                ops->error("Socket listen error", res, server->user);
+		goto err;
+	}
 
 	do {
 		client_t client = malloc(sizeof(*client));
 		if (!client) {
+			res = ENOMEM;
 			if (ops->error)
 				ops->error(no_mem_err, ENOMEM, server->user);
-			break;
+			goto err;
 		}
 
 		clientfd = accept(server->socket,
@@ -97,8 +104,22 @@ static void *server_handler(void *ptr)
 				ops->error("Socket accept error", res,
 					server->user);
 			free(client);
-			break;
+			goto err;
 		}
+
+#ifdef SOCKET_TIMEOUT
+        {
+                struct timeval timeout = {
+                        .tv_sec = SOCKET_TIMEOUT,
+                        .tv_usec = 0,
+                };
+
+                setsockopt(clientfd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
+                                sizeof timeout);
+                setsockopt(clientfd, SOL_SOCKET, SO_SNDTIMEO, &timeout,
+                                sizeof timeout);
+        }
+#endif /* SOCKET_TIMEOUT */
 
 		client->ops = server->ops;
 		client->user = server->user;
@@ -112,15 +133,15 @@ static void *server_handler(void *ptr)
 				ops->error(thread_err, res, server->user);
 			close(clientfd);
 			free(client);
-			break;
+			goto err;
 		}
 
 	} while (clientfd > 0 && server->socket > 0);
 
+err:
 	close(server->socket);
 
-	pthread_detach(pthread_self());
-	pthread_exit(0);
+	pthread_exit(&res);
 	return 0;
 }
 
@@ -160,20 +181,6 @@ server_t server_start(int port, server_event_t *ops, int size, void *user)
 			ops->error("Bind socked error", res, user);
 		goto err_close;
 	}
-
-#ifdef SOCKET_TIMEOUT
-	{
-		struct timeval timeout = {
-			.tv_sec = SOCKET_TIMEOUT,
-			.tv_usec = 0,
-		};
-
-		setsockopt (sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
-				sizeof timeout);
-		setsockopt (sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout,
-				sizeof timeout);
-	}
-#endif /* SOCKET_TIMEOUT */
 
 	server->socket = sockfd;
 	server->ops = ops;
@@ -224,7 +231,23 @@ int server_stop(server_t server)
 		return EINVAL;
 
 	close(server->socket);
-	free(server);
 
-	return 0;
+	return server_wait_for_err(server);
 }
+
+int server_wait_for_err(server_t server)
+{
+	int res;
+	union {
+		void *retval;
+		int err;
+	} ret;
+
+        if (!server)
+                return EINVAL;
+
+	res = pthread_join(server->thread, &ret.retval);
+
+	return res ? res : ret.err;
+}
+

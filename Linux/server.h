@@ -19,5 +19,6 @@ const char *get_client_ip(client_t client);
 int get_client_port(client_t client);
 void *get_user_data(client_t client);
 int server_stop(server_t server);
+int server_wait_for_err(server_t server);
 
 #endif /* __SERVER_H__ */
