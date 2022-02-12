@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2021 Pavel Nadein
+ * Copyright (c) 2022 Pavel Nadein
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -79,7 +79,7 @@ struct hd44780_conn {
 struct hd44780_lcd {
 	void (*write)(uint8_t data);	/* for 4 bit connection */
 	void (*write16)(uint16_t data);	/* for 8 bit connection */
-	void (*delay_func)(uint16_t ms);
+	void (*delay_us)(uint16_t us);
   
 	/* Settings */
 	uint8_t is_backlight_enabled;
@@ -90,6 +90,10 @@ struct hd44780_lcd {
 	struct hd44780_conn *conn;
 	struct hd44780_ext_con *ext_con;
 };
+
+#ifdef __cplusplus
+ extern "C" {
+#endif
 
 /**
  * Initialize the device and store the pointer to the configuration structure.
@@ -158,5 +162,9 @@ void hd44780_custom_char(uint8_t num, uint8_t *data);
  * @param cmd custom command code.
  */
 void hd44780_send_cmd(uint8_t cmd);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __HD44780_H__ */
