@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2021 Pavel Nadein
+ * Copyright (c) 2022 Pavel Nadein
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -48,8 +48,6 @@
 #define BIT(x)						(1 << x)
 #endif
 
-#define INIT_DELAY					10
-
 enum lcd_cmd {
 	HD44780_CMD_NOP					= 0x00,
 	HD44780_CMD_CLEAR				= 0x01,
@@ -73,6 +71,14 @@ enum lcd_cmd {
 	HD44780_NOP_DATA				= 0xFF,
 };
 
+#ifndef LCD_DELAY_LOW
+#define LCD_DELAY_LOW					50
+#endif
+
+#ifndef LCD_DELAY_HIGH
+#define LCD_DELAY_HIGH					2000
+#endif
+
 static const struct hd44780_conn pcf8574_con = {
 	HD44780_BUS_4B, 4, 1 << 0, 1 << 2, 1 << 3 };
 static const struct hd44780_conn mc74hC595_con = {
@@ -87,9 +93,13 @@ static void write_to_bus(uint8_t dat)
 	dat |= dev->conn->en_pin;
 	dev->write(dat);
 
+	dev->delay_us(LCD_DELAY_LOW);
+
 	/* Send negative strobe */
 	dat &= ~dev->conn->en_pin;
 	dev->write(dat);
+
+	dev->delay_us(LCD_DELAY_LOW);
 }
 
 static void wr4b(uint8_t data, uint8_t cmd)
@@ -103,7 +113,7 @@ static void wr4b(uint8_t data, uint8_t cmd)
 		latch |= dev->conn->backlight_pin;
 
 	if (dev->ext_con)
-		latch |= dev->ext_con->ext_pin[0] | dev->ext_con->ext_pin[1];  
+		latch |= dev->ext_con->ext_pin[0] | dev->ext_con->ext_pin[1];
 
 	if (cmd == HD44780_NOP_DATA) {
 		dev->write(latch);
@@ -119,7 +129,7 @@ static void wr4b(uint8_t data, uint8_t cmd)
 
 static void wr8b(uint8_t data, uint8_t cmd)
 {
-	uint16_t latch = (data << 8) | dev->is_backlight_enabled; 
+	uint16_t latch = (data << 8) | dev->is_backlight_enabled;
 
 	if (!cmd)
 		latch |= dev->conn->rs_pin;
@@ -133,6 +143,8 @@ static void wr8b(uint8_t data, uint8_t cmd)
 static void wr_cmd(enum lcd_cmd CMD)
 {
 	wr(CMD, 1);
+
+	dev->delay_us(LCD_DELAY_HIGH);
 }
 
 static char translate(char dat)
@@ -168,24 +180,24 @@ struct hd44780_lcd *hd44780_init(struct hd44780_lcd *drv)
 		write_to_bus(0x03 << dev->conn->data_shift);
 		write_to_bus(0x03 << dev->conn->data_shift);
 		write_to_bus(0x03 << dev->conn->data_shift);
-		write_to_bus(0x02 << dev->conn->data_shift);  
-		dev->delay_func(INIT_DELAY);	
+		write_to_bus(0x02 << dev->conn->data_shift);
+		dev->delay_us(LCD_DELAY_HIGH);
 		wr(HD44780_CMD_4B_2LINES | dev->font, 1);
 	}
 
 	if (dev->type == HD44780_TYPE_LCD) {
 		wr_cmd(HD44780_CMD_HOME);
 		wr_cmd(HD44780_CMD_CLEAR);
-		dev->delay_func(INIT_DELAY);	
+		dev->delay_us(LCD_DELAY_HIGH);
 		wr_cmd(HD44780_CMD_CURSOROFF);
-	} else if (dev->type == HD44780_TYPE_OLED) {		
+	} else if (dev->type == HD44780_TYPE_OLED) {
 		wr_cmd(HD44780_CMD_BLANK);
 		wr_cmd(HD44780_CMD_AUTOINCREMENTON);
 		wr_cmd(HD44780_CMD_POWERON);
 		wr_cmd(HD44780_CMD_CLEAR);
-		dev->delay_func(INIT_DELAY);	
-		wr_cmd(HD44780_CMD_HOME);	
-		wr_cmd(HD44780_CMD_CURSOROFF);	
+		dev->delay_us(LCD_DELAY_HIGH);
+		wr_cmd(HD44780_CMD_HOME);
+		wr_cmd(HD44780_CMD_CURSOROFF);
 	}
 
 	return dev;
@@ -220,7 +232,12 @@ void hd44780_print(char *string)
 void hd44780_clear(void)
 {
 	wr_cmd(HD44780_CMD_CLEAR);
+
+	dev->delay_us(LCD_DELAY_HIGH);
+
 	wr_cmd(HD44780_CMD_HOME);
+
+	dev->delay_us(LCD_DELAY_HIGH);
 }
 
 void hd44780_put_char(char data)
@@ -248,7 +265,7 @@ void hd44780_custom_char(uint8_t num, uint8_t *data)
 	for (cnt = 0; cnt != 8; cnt++)
 		wr(data[cnt], 0);
 
-	wr_cmd(HD44780_CMD_HOME);	
+	wr_cmd(HD44780_CMD_HOME);
 }
 
 void hd44780_send_cmd(uint8_t cmd)
