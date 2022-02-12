@@ -119,7 +119,6 @@ uint8_t ds18b20_start_single(struct ds18b20_s *dev)
 		return ret;
 	
 	/* Start conversion skipping ROM */
-	dev->interface->reset();	
 	dev->interface->write(DS18B20_SKIP_ROM);
 	dev->interface->write(DS18B20_CONVERT_T_CMD);
 
