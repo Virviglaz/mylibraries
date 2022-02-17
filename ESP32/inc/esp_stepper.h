@@ -65,11 +65,16 @@ public:
 	void move_to(int32_t new_pos);
 	void move(int32_t dist);
 	void wait_for_stop();
+	void stop();
+	void set_limit_check(bool (*func)(void *param), void *param);
 
 private:
 	esp_err_t gpio_config(gpio_num_t g);
 	void calc_next_step();
 	static void handler(void *param);
+
+	bool (*check_limit)(void *param);
+	void *limit_func_param;
 
 	gpio_num_t clk_pin;
 	gpio_num_t dir_pin;
@@ -87,6 +92,7 @@ private:
 	int8_t direction;
 	bool target_reached = true;
 	bool init_done = false;
+	bool force_stop = false;
 
 	TaskHandle_t handle = NULL;
 	TaskHandle_t caller = NULL;
