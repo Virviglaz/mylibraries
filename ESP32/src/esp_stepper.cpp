@@ -238,7 +238,7 @@ void inline stepper::calc_next_step()
 	if (speed_up_flag) {
 		/* StepPeriod = StepPeriod(1 - a * StepPeriod ^ 2) */
 		next_step_per_us = cur_step_per_in_us - acc_step_per_us *
-																											 cur_per_sqrt * cur_step_per_in_us;
+			cur_per_sqrt * cur_step_per_in_us;
 		if (next_step_per_us < period_us_per_step)
 			next_step_per_us = period_us_per_step;
 	}
@@ -246,8 +246,7 @@ void inline stepper::calc_next_step()
 	/* check if decelerating */
 	if (slow_down_flag) {
 		next_step_per_us = cur_step_per_in_us + dec_step_per_us *
-																											 cur_per_sqrt * cur_step_per_in_us;
-
+			cur_per_sqrt * cur_step_per_in_us;
 		if (next_step_per_us > per_slowest_step)
 			next_step_per_us = per_slowest_step;
 	}
@@ -301,11 +300,15 @@ bool stepper::run()
 
 	GPIO_SET(clk_pin, 0);
 
-	if (cur_pos_steps == pos_dir_steps) {
-		if (next_step_per_us >= min_per_for_stop) {
+	if (check_limit)
+		force_stop = check_limit(limit_func_param);
+
+	if (cur_pos_steps == pos_dir_steps || force_stop) {
+		if (next_step_per_us >= min_per_for_stop || force_stop) {
 			cur_step_per_in_us = 0.0;
 			next_step_per_us = 0.0;
 			direction = 0;
+			force_stop = false;
 
 			if (target_reached)
 				target_reached = false;
@@ -376,4 +379,24 @@ void stepper::wait_for_stop()
 
 	caller = xTaskGetCurrentTaskHandle();
 	vTaskSuspend(NULL);
+}
+
+/*
+ * Stops the motor immediately.
+ */
+void stepper::stop()
+{
+	force_stop = true;
+}
+
+/*
+ * Assign the check limit switch callback function.
+ * If true is returned, the motor stop immediately.
+ * @param func		Callback function 'bool func(void *param).
+ * @param param		Pointer to the userdata.
+ */
+void stepper::set_limit_check(bool (*func)(void *param), void *param)
+{
+	check_limit = func;
+	limit_func_param = param;
 }
