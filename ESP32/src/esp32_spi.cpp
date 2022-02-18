@@ -45,6 +45,7 @@
 #include "esp32_spi.h"
 #include "esp_log.h"
 #include "driver/gpio.h"
+#include <cstring>
 
 static const char *tag = "SPI";
 static bool in_use[2] = { false, false };
@@ -66,6 +67,7 @@ spi_bus::spi_bus(int mosi, int miso, int msck, enum spi_num bus)
 
 	spi_num = (spi_host_device_t)bus;
 	spi_bus_config_t pincfg;
+	memset(&pincfg, 0, sizeof(pincfg));
 	pincfg.mosi_io_num = mosi;
 	pincfg.miso_io_num = miso;
 	pincfg.sclk_io_num = msck;
@@ -86,13 +88,15 @@ spi_bus::spi_bus(int mosi, int miso, int msck, enum spi_num bus)
 		return;
 	}
 
+	lock = xSemaphoreCreateMutex();
+
 	in_use[bus - HSPI] = true;
 }
 
 spi_bus::~spi_bus()
 {
+	vSemaphoreDelete(lock);
 	spi_bus_free(spi_num);
-
 	in_use[spi_num - HSPI] = false;
 }
 
@@ -109,6 +113,7 @@ spi_dev::spi_dev(spi_bus *bus, int cs, enum spi_freq freq,
 		enum spi_clk_mode clk_mode, uint8_t addr_bits)
 {
 	spi_device_interface_config_t dev_cfg;
+	memset(&dev_cfg, 0, sizeof(dev_cfg));
 	dev_cfg.clock_speed_hz = freq;
 	dev_cfg.mode = 0;
 	dev_cfg.spics_io_num = cs;
@@ -125,6 +130,8 @@ spi_dev::spi_dev(spi_bus *bus, int cs, enum spi_freq freq,
 	dev_cfg.cs_ena_posttrans = 0;
 
 	gpio_reset_pin((gpio_num_t)cs);
+
+	lock = bus->lock;
 
 	esp_err_t res = spi_bus_add_device(bus->spi_num, &dev_cfg, &handle);
 	if (res) {
@@ -149,7 +156,9 @@ esp_err_t spi_dev::transmit(uint32_t a, uint8_t *tx, uint8_t *rx, uint32_t size)
 	msg.addr = a;
 	msg.flags = 0;
 
+	xSemaphoreTake(lock, portMAX_DELAY);
 	esp_err_t res = spi_device_polling_transmit(handle, &msg);
+	xSemaphoreGive(lock);
 	if (res)
 		ESP_LOGE(tag, "SPI transmit error: %s", esp_err_to_name(res));
 

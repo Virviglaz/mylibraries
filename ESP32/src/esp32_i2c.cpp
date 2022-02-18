@@ -45,6 +45,7 @@
 #include "esp32_i2c.h"
 #include "esp_log.h"
 #include "driver/gpio.h"
+#include <cstring>
 
 /*
  * Initialize the I2c bus.
@@ -68,6 +69,7 @@ i2c::i2c(int sda_pin, int scl_pin, enum i2c_freq freq, bool pullup, int bus_num)
 	bus_name[4] = 0;
 
 	i2c_config_t cfg;
+	memset(&cfg, 0, sizeof(cfg));
 	cfg.mode = I2C_MODE_MASTER;
 	cfg.sda_io_num = sda_pin;
 	cfg.sda_pullup_en = pullup;
@@ -92,16 +94,14 @@ i2c::i2c(int sda_pin, int scl_pin, enum i2c_freq freq, bool pullup, int bus_num)
 		return;
 	}
 
-	handle = i2c_cmd_link_create();
-	if (!handle)
-		ESP_LOGE(bus_name, "driver install failed: no memory");
+	lock = xSemaphoreCreateMutex();
 
 	bus = bus_num;
 }
 
 i2c::~i2c()
 {
-	i2c_cmd_link_delete(handle);
+	vSemaphoreDelete(lock);
 	i2c_driver_delete(bus);
 }
 
@@ -117,10 +117,18 @@ i2c::~i2c()
 esp_err_t i2c::write(uint8_t addr, uint8_t *reg, uint16_t reg_size,
 	uint8_t *buf, uint16_t size)
 {
+	xSemaphoreTake(lock, portMAX_DELAY);
+
+	i2c_cmd_handle_t handle = i2c_cmd_link_create();
+	if (!handle) {
+		ESP_LOGE(bus_name, "driver install failed: no memory");
+		return ESP_ERR_NO_MEM;
+	}
+
 	esp_err_t res = i2c_master_start(handle);
 	if (res) {
 		ESP_LOGE(bus_name, "start error: %s", esp_err_to_name(res));
-		return res;
+		goto ret;
 	}
 
 	res = i2c_master_write_byte(handle, addr | I2C_MASTER_WRITE,
@@ -128,27 +136,27 @@ esp_err_t i2c::write(uint8_t addr, uint8_t *reg, uint16_t reg_size,
 	if (res) {
 		ESP_LOGE(bus_name, "I2C write address error: %s",
 			esp_err_to_name(res));
-		return res;
+		goto ret;
 	}
 
 	res = i2c_master_write(handle, reg, reg_size, I2C_MASTER_ACK);
 	if (res) {
 		ESP_LOGE(bus_name, "I2C write error: %s",
 			esp_err_to_name(res));
-		return res;
+		goto ret;
 	}
 
 	res = i2c_master_write(handle, buf, size, I2C_MASTER_ACK);
 	if (res) {
 		ESP_LOGE(bus_name, "I2C write error: %s",
 			esp_err_to_name(res));
-		return res;
+		goto ret;
 	}
 
 	res = i2c_master_stop(handle);
 	if (res) {
 		ESP_LOGE(bus_name, "I2C stop error: %s", esp_err_to_name(res));
-		return res;
+		goto ret;
 	}
 
 	res = i2c_master_cmd_begin(bus, handle, portMAX_DELAY);
@@ -156,6 +164,9 @@ esp_err_t i2c::write(uint8_t addr, uint8_t *reg, uint16_t reg_size,
 		ESP_LOGE(bus_name, "I2C reading failed: %s",
 			esp_err_to_name(res));
 
+ret:
+	i2c_cmd_link_delete(handle);
+	xSemaphoreGive(lock);
 	return res;
 }
 
@@ -182,10 +193,18 @@ esp_err_t i2c::write_reg(uint8_t addr, uint8_t reg, uint8_t *buf, uint16_t size)
  */
 esp_err_t i2c::read_reg(uint8_t addr, uint8_t reg, uint8_t *buf, uint16_t size)
 {
+	xSemaphoreTake(lock, portMAX_DELAY);
+
+	i2c_cmd_handle_t handle = i2c_cmd_link_create();
+	if (!handle) {
+		ESP_LOGE(bus_name, "driver install failed: no memory");
+		return ESP_ERR_NO_MEM;
+	}
+
 	esp_err_t res = i2c_master_start(handle);
 	if (res) {
 		ESP_LOGE(bus_name, "I2C start error: %s", esp_err_to_name(res));
-		return res;
+		goto ret;
 	}
 
 	/* write address */
@@ -194,7 +213,7 @@ esp_err_t i2c::read_reg(uint8_t addr, uint8_t reg, uint8_t *buf, uint16_t size)
 	if (res) {
 		ESP_LOGE(bus_name, "I2C write address error: %s",
 			esp_err_to_name(res));
-		return res;
+		goto ret;
 	}
 
 	/* write destanation */
@@ -202,7 +221,7 @@ esp_err_t i2c::read_reg(uint8_t addr, uint8_t reg, uint8_t *buf, uint16_t size)
 	if (res) {
 		ESP_LOGE(bus_name, "I2C write byte error: %s",
 			esp_err_to_name(res));
-		return res;
+		goto ret;
 	}
 
 	/* repeated start */
@@ -210,7 +229,7 @@ esp_err_t i2c::read_reg(uint8_t addr, uint8_t reg, uint8_t *buf, uint16_t size)
 	if (res) {
 		ESP_LOGE(bus_name, "I2C repeated start error: %s",
 			esp_err_to_name(res));
-		return res;
+		goto ret;
 	}
 
 	/* write address for reading */
@@ -222,7 +241,7 @@ esp_err_t i2c::read_reg(uint8_t addr, uint8_t reg, uint8_t *buf, uint16_t size)
 		if (res) {
 			ESP_LOGE(bus_name, "I2C reading error: %s",
 				esp_err_to_name(res));
-			return res;
+			goto ret;
 		}
 		buf += size - 1;
 		size = 1;
@@ -234,21 +253,23 @@ esp_err_t i2c::read_reg(uint8_t addr, uint8_t reg, uint8_t *buf, uint16_t size)
 		if (res) {
 			ESP_LOGE(bus_name, "I2C reading error: %s",
 				esp_err_to_name(res));
-			return res;
+			goto ret;
 		}
 	}
 
 	res = i2c_master_stop(handle);
 	if (res) {
 		ESP_LOGE(bus_name, "I2C stop error: %s", esp_err_to_name(res));
-		return res;
+		goto ret;
 	}
 
 	res = i2c_master_cmd_begin(bus, handle, portMAX_DELAY);
 	if (res)
 		ESP_LOGE(bus_name, "I2C reading failed: %s",
 			esp_err_to_name(res));
-
+ret:
+	i2c_cmd_link_delete(handle);
+	xSemaphoreGive(lock);
 	return res;
 }
 

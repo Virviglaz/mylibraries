@@ -50,12 +50,16 @@ enum spi_num { HSPI = 2, VSPI = 3 };
 #include <stdint.h>
 #include "driver/spi_master.h"
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+
 class spi_bus
 {
 public:
 	spi_bus(int mosi, int miso, int msck, enum spi_num bus = HSPI);
 	~spi_bus();
 	spi_host_device_t spi_num;
+	SemaphoreHandle_t lock;
 };
 
 enum spi_freq {
@@ -83,11 +87,12 @@ public:
 		enum spi_clk_mode clk_mode, uint8_t addr_bits = 8);
 	~spi_dev();
 
-	esp_err_t wr_reg(uint32_t reg, uint8_t *buf, uint32_t size);
+	esp_err_t wr_reg(uint32_t reg, uint8_t *buf = 0, uint32_t size = 0);
 	esp_err_t rd_reg(uint32_t reg, uint8_t *buf, uint32_t size);
 private:
 	esp_err_t transmit(uint32_t a, uint8_t *tx, uint8_t *rx, uint32_t size);
 	spi_device_handle_t handle = NULL;
+	SemaphoreHandle_t lock;
 };
 
 #endif /* __ESP32_SPI_H__ */
