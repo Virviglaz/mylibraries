@@ -15,7 +15,15 @@ struct lm75_t {
 	
 };
 
+#ifdef __cplusplus
+ extern "C" {
+#endif
+
 uint8_t lm75_init(struct lm75_t *dev, bool enable);
 uint8_t lm75_get_result(struct lm75_t *dev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
