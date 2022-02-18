@@ -36,45 +36,58 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * ESP32 i2c driver
+ * ESP32 spi driver
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
-#ifndef __ESP32_I2C_H__
-#define __ESP32_I2C_H__
+#ifndef __ESP32_SPI_H__
+#define __ESP32_SPI_H__
+
+enum spi_num { HSPI = 2, VSPI = 3 };
 
 #include <stdint.h>
-#include "driver/i2c.h"
+#include "driver/spi_master.h"
 
-enum i2c_freq {
-	I2C_FREQ_100K = 100000UL,
-	I2C_FREQ_400K = 400000UL,
-	I2C_FREQ_800K = 800000UL,
-};
-
-class i2c
+class spi_bus
 {
 public:
-	i2c(int sda_pin, int scl_pin, enum i2c_freq freq = I2C_FREQ_100K,
-		bool pullup = true, int bus_num = 0);
-	~i2c();
-
-	esp_err_t write(uint8_t addr, uint8_t *reg, uint16_t reg_size,
-	uint8_t *buf, uint16_t size);
-
-	esp_err_t write_reg(uint8_t addr, uint8_t reg,
-		uint8_t *buf, uint16_t size);
-
-	esp_err_t read_reg(uint8_t addr, uint8_t reg,
-		uint8_t *buf, uint16_t size);
-
-	const char *get_bus_name();
-private:
-	i2c_port_t bus;
-	i2c_cmd_handle_t handle = NULL;
-	char bus_name[5];
+	spi_bus(int mosi, int miso, int msck, enum spi_num bus = HSPI);
+	~spi_bus();
+	spi_host_device_t spi_num;
 };
 
-#endif /* __ESP32_I2C_H__ */
+enum spi_freq {
+	SPI_CLK_8MHZ	= SPI_MASTER_FREQ_8M,
+	SPI_CLK_9MHZ	= SPI_MASTER_FREQ_9M,
+	SPI_CLK_10MHZ	= SPI_MASTER_FREQ_10M,
+	SPI_CLK_11MHZ	= SPI_MASTER_FREQ_11M,
+	SPI_CLK_13MHZ	= SPI_MASTER_FREQ_13M,
+	SPI_CLK_16MHZ	= SPI_MASTER_FREQ_16M,
+	SPI_CLK_20MHZ	= SPI_MASTER_FREQ_20M,
+	SPI_CLK_26MHZ	= SPI_MASTER_FREQ_26M,
+	SPI_CLK_40MHZ	= SPI_MASTER_FREQ_40M,
+	SPI_CLK_80MHZ	= SPI_MASTER_FREQ_80M,
+};
+
+enum spi_clk_mode {
+	SPI_IDLE_CLOCK_LOW	= 0,
+	SPI_IDLE_CLOCK_HIGH	= 3,
+};
+
+class spi_dev
+{
+public:
+	spi_dev(spi_bus *bus, int cs, enum spi_freq freq,
+		enum spi_clk_mode clk_mode, uint8_t addr_bits = 8);
+	~spi_dev();
+
+	esp_err_t wr_reg(uint32_t reg, uint8_t *buf, uint32_t size);
+	esp_err_t rd_reg(uint32_t reg, uint8_t *buf, uint32_t size);
+private:
+	esp_err_t transmit(uint32_t a, uint8_t *tx, uint8_t *rx, uint32_t size);
+	spi_device_handle_t handle = NULL;
+};
+
+#endif /* __ESP32_SPI_H__ */
