@@ -44,6 +44,7 @@
 
 #include "esp32_i2c.h"
 #include "esp_log.h"
+#include "driver/gpio.h"
 
 /*
  * Initialize the I2c bus.
@@ -73,6 +74,9 @@ i2c::i2c(int sda_pin, int scl_pin, enum i2c_freq freq, bool pullup, int bus_num)
 	cfg.scl_io_num = scl_pin;
 	cfg.scl_pullup_en = pullup;
 	cfg.master = { .clk_speed = freq };
+
+	gpio_reset_pin((gpio_num_t)sda_pin);
+	gpio_reset_pin((gpio_num_t)scl_pin);
 
 	esp_err_t res = i2c_param_config(bus_num, &cfg);
 	if (res) {
