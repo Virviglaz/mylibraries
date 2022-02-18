@@ -48,6 +48,9 @@
 #include <stdint.h>
 #include "driver/i2c.h"
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+
 enum i2c_freq {
 	I2C_FREQ_100K = 100000UL,
 	I2C_FREQ_400K = 400000UL,
@@ -73,8 +76,8 @@ public:
 	const char *get_bus_name();
 private:
 	i2c_port_t bus;
-	i2c_cmd_handle_t handle = NULL;
 	char bus_name[5];
+	SemaphoreHandle_t lock;
 };
 
 #endif /* __ESP32_I2C_H__ */
