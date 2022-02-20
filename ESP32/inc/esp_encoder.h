@@ -58,18 +58,23 @@ public:
 	int32_t get_value();
 	void set_step(int32_t new_step = 1);
 	void invert();
+	void set_value(int32_t new_value);
+	void set_limits(int32_t new_min, int32_t new_max);
 
 private:
 	static void isr_a(void *params);
 	static void isr_b(void *params);
+	static void check_limit(encoder *e);
 
 	bool init_done = false;
 	gpio_num_t enc_a;
 	gpio_num_t enc_b;
 	int32_t value = 0;
 	int32_t step = 1;
-	enum { ENC_A, ENC_B } prev;
+	enum { ENC_A, ENC_B } prev = ENC_A;
 	uint8_t seq = 0;
+	int32_t min = INT32_MIN;
+	int32_t max = INT32_MAX;
 };
 
 #endif /* __ENCODER_H__ */

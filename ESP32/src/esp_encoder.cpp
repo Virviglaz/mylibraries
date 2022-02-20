@@ -70,6 +70,14 @@ static esp_err_t gpio_config(gpio_num_t g)
 	return res;
 }
 
+IRAM_ATTR void encoder::check_limit(encoder *e)
+{
+	if (e->value > e->max)
+		e->value = e->max;
+	if (e->value < e->min)
+		e->value = e->min;
+}
+
 IRAM_ATTR void encoder::isr_a(void *params)
 {
 	encoder *e = static_cast<encoder *>(params);
@@ -84,6 +92,8 @@ IRAM_ATTR void encoder::isr_a(void *params)
 
 	if (e->seq == 4)
 		e->value += e->step;
+
+	check_limit(e);
 }
 
 IRAM_ATTR void encoder::isr_b(void *params)
@@ -100,6 +110,8 @@ IRAM_ATTR void encoder::isr_b(void *params)
 
 	if (e->seq == 8)
 		e->value -= e->step;
+
+	check_limit(e);
 }
 
 #define ERR_RTN(x)	if (x) return;
@@ -108,6 +120,7 @@ encoder::encoder(gpio_num_t a, gpio_num_t b)
 	enc_a = a;
 	enc_b = b;
 
+	gpio_uninstall_isr_service();
 	ERR_RTN(gpio_install_isr_service(0));
 	ERR_RTN(gpio_config(enc_a));
 	ERR_RTN(gpio_config(enc_b));
@@ -147,4 +160,24 @@ void encoder::set_step(int32_t new_step)
 void encoder::invert()
 {
 	step = -step;
+}
+
+/*
+ * Update the current value
+ * @param new_value	New value.
+ */
+void encoder::set_value(int32_t new_value)
+{
+	value = new_value;
+}
+
+/*
+ * Set the limits.
+ * @param new_min	Minimum value.
+ * @param new_max	Maximum value.
+ */
+void encoder::set_limits(int32_t new_min, int32_t new_max)
+{
+	min = new_min;
+	max = new_max;
 }
