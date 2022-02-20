@@ -107,7 +107,8 @@ void buttons::handler(void *param)
 {
 	buttons *s = static_cast<buttons *>(param);
 	/* should always sleep first call (contructor) */
-	vTaskSuspend(NULL);
+	if (!s->first)
+		vTaskSuspend(NULL);
 
 	while (1) {
 		button *btn = s->first;
