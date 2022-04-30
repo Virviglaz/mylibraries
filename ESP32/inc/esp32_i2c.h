@@ -64,6 +64,8 @@ public:
 		bool pullup = true, int bus_num = 0);
 	~i2c();
 
+	void scan(uint8_t *dst = NULL);
+
 	esp_err_t write(uint8_t addr, uint8_t *reg, uint16_t reg_size,
 	uint8_t *buf, uint16_t size);
 
