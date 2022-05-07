@@ -81,6 +81,13 @@ static void get_next_page(client_t client, void *data, size_t size)
 	send_to_client(client, data, msg->page_size + sizeof(*msg));
 }
 
+static int connected(client_t client)
+{
+	printf("Client connected from %s\n", get_client_ip(client));
+
+	return 0;
+}
+
 static int handler(client_t client, void *data, size_t size)
 {
 	struct ota_version_header *msg = data;
@@ -110,10 +117,15 @@ static void error(const char *str, int error, void *user)
 	fprintf(stderr, "Error: %s, %s\n", str, strerror(error));
 }
 
+static void disconnected(client_t client)
+{
+	printf("Client %s disconnected\n", get_client_ip(client));
+}
+
 static server_event_t server_ops = {
-	.connected = 0,
+	.connected = connected,
 	.receive = handler,
-	.disconnected = 0,
+	.disconnected = disconnected,
 	.error = error,
 };
 
@@ -181,6 +193,14 @@ int main(int argc, char** argv)
 		goto err_free;
 	}
 
+	/* For ESP32 we can extract the version string from the binary */
+	if (!strcmp(ota_ops.version_string, "ESP32") ||
+		!strcmp(ota_ops.version_string, "esp32")) {
+		static char esp32_vers[32];
+		strcpy(esp32_vers, (char *)ota_ops.firmware + 48);
+		ota_ops.version_string = esp32_vers;
+	}
+
 	printf("Server parameters:\n");
 	printf("File: %s\n", ota_ops.filename);
 	printf("File size: %u bytes\n", ota_ops.filesize);
@@ -202,7 +222,7 @@ int main(int argc, char** argv)
 
 input_err:
 	fprintf(stderr, "Usage: %s (file name) (port) " \
-		"(magic word) (version string)\n", argv[0]);
+		"(magic word) (version string or ESP32)\n", argv[0]);
 	return EINVAL;
 error:
 	return res;
