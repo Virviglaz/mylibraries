@@ -21,3 +21,5 @@ test: clean all
 clean:
 	rm -f $(OBJ) $(TRG)
 
+install: all
+	sudo cp ota /usr/bin/
