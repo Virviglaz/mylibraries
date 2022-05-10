@@ -105,6 +105,48 @@ i2c::~i2c()
 	i2c_driver_delete(bus);
 }
 
+void i2c::scan(uint8_t *dst)
+{
+	xSemaphoreTake(lock, portMAX_DELAY);
+
+	for (int addr = 1; addr != 0x7F; addr++) {
+
+		i2c_cmd_handle_t handle = i2c_cmd_link_create();
+		if (!handle) {
+			ESP_LOGE(bus_name, "driver install failed: no memory");
+			break;
+		}
+
+		esp_err_t res = i2c_master_start(handle);
+		if (res) {
+			ESP_LOGE(bus_name, "start error: %s",
+				esp_err_to_name(res));
+			goto ret;
+		}
+
+		res = i2c_master_write_byte(handle,
+			(addr << 1) | I2C_MASTER_WRITE, I2C_MASTER_NACK);
+		if (res) {
+			ESP_LOGE(bus_name, "I2C write address error: %s",
+				esp_err_to_name(res));
+			goto ret;
+		}
+
+		i2c_master_stop(handle);
+
+		res = i2c_master_cmd_begin(bus, handle, portMAX_DELAY);
+		if (res == ESP_OK) {
+			ESP_LOGI(bus_name, "Device found at 0x%.2X", addr);
+			if (dst)
+				*dst++ = addr;
+		}
+ret:
+		i2c_cmd_link_delete(handle);
+	}
+
+	xSemaphoreGive(lock);
+}
+
 /*
  * Write data from buffer to device register reg at bus address addr.
  *
@@ -117,21 +159,22 @@ i2c::~i2c()
 esp_err_t i2c::write(uint8_t addr, uint8_t *reg, uint16_t reg_size,
 	uint8_t *buf, uint16_t size)
 {
+	esp_err_t res;
 	xSemaphoreTake(lock, portMAX_DELAY);
 
 	i2c_cmd_handle_t handle = i2c_cmd_link_create();
 	if (!handle) {
-		ESP_LOGE(bus_name, "driver install failed: no memory");
-		return ESP_ERR_NO_MEM;
+		res = ESP_ERR_NO_MEM;
+		goto no_mem;
 	}
 
-	esp_err_t res = i2c_master_start(handle);
+	res = i2c_master_start(handle);
 	if (res) {
 		ESP_LOGE(bus_name, "start error: %s", esp_err_to_name(res));
 		goto ret;
 	}
 
-	res = i2c_master_write_byte(handle, addr | I2C_MASTER_WRITE,
+	res = i2c_master_write_byte(handle, (addr << 1) | I2C_MASTER_WRITE,
 		I2C_MASTER_ACK);
 	if (res) {
 		ESP_LOGE(bus_name, "I2C write address error: %s",
@@ -139,18 +182,20 @@ esp_err_t i2c::write(uint8_t addr, uint8_t *reg, uint16_t reg_size,
 		goto ret;
 	}
 
-	res = i2c_master_write(handle, reg, reg_size, I2C_MASTER_ACK);
+	res = i2c_master_write(handle, reg, reg_size, I2C_MASTER_NACK);
 	if (res) {
 		ESP_LOGE(bus_name, "I2C write error: %s",
 			esp_err_to_name(res));
 		goto ret;
 	}
 
-	res = i2c_master_write(handle, buf, size, I2C_MASTER_ACK);
-	if (res) {
-		ESP_LOGE(bus_name, "I2C write error: %s",
-			esp_err_to_name(res));
-		goto ret;
+	if (buf && size) {
+		res = i2c_master_write(handle, buf, size, I2C_MASTER_LAST_NACK);
+		if (res) {
+			ESP_LOGE(bus_name, "I2C write error: %s",
+				esp_err_to_name(res));
+			goto ret;
+		}
 	}
 
 	res = i2c_master_stop(handle);
@@ -166,6 +211,7 @@ esp_err_t i2c::write(uint8_t addr, uint8_t *reg, uint16_t reg_size,
 
 ret:
 	i2c_cmd_link_delete(handle);
+no_mem:
 	xSemaphoreGive(lock);
 	return res;
 }
@@ -193,23 +239,26 @@ esp_err_t i2c::write_reg(uint8_t addr, uint8_t reg, uint8_t *buf, uint16_t size)
  */
 esp_err_t i2c::read_reg(uint8_t addr, uint8_t reg, uint8_t *buf, uint16_t size)
 {
+	esp_err_t res;
 	xSemaphoreTake(lock, portMAX_DELAY);
 
 	i2c_cmd_handle_t handle = i2c_cmd_link_create();
 	if (!handle) {
+
 		ESP_LOGE(bus_name, "driver install failed: no memory");
-		return ESP_ERR_NO_MEM;
+		res = ESP_ERR_NO_MEM;
+		goto no_mem;
 	}
 
-	esp_err_t res = i2c_master_start(handle);
+	res = i2c_master_start(handle);
 	if (res) {
 		ESP_LOGE(bus_name, "I2C start error: %s", esp_err_to_name(res));
 		goto ret;
 	}
 
 	/* write address */
-	res = i2c_master_write_byte(handle, addr | I2C_MASTER_WRITE,
-		I2C_MASTER_ACK);
+	res = i2c_master_write_byte(handle, (addr << 1) | I2C_MASTER_WRITE,
+		I2C_MASTER_NACK);
 	if (res) {
 		ESP_LOGE(bus_name, "I2C write address error: %s",
 			esp_err_to_name(res));
@@ -217,7 +266,7 @@ esp_err_t i2c::read_reg(uint8_t addr, uint8_t reg, uint8_t *buf, uint16_t size)
 	}
 
 	/* write destanation */
-	res = i2c_master_write_byte(handle, reg, I2C_MASTER_ACK);
+	res = i2c_master_write_byte(handle, reg, I2C_MASTER_NACK);
 	if (res) {
 		ESP_LOGE(bus_name, "I2C write byte error: %s",
 			esp_err_to_name(res));
@@ -233,8 +282,8 @@ esp_err_t i2c::read_reg(uint8_t addr, uint8_t reg, uint8_t *buf, uint16_t size)
 	}
 
 	/* write address for reading */
-	res = i2c_master_write_byte(handle, addr | I2C_MASTER_READ,
-		I2C_MASTER_ACK);
+	res = i2c_master_write_byte(handle, (addr << 1) | I2C_MASTER_READ,
+		I2C_MASTER_NACK);
 	
 	if (size > 1) {
 		res = i2c_master_read(handle, buf, size - 1, I2C_MASTER_ACK);
@@ -248,7 +297,7 @@ esp_err_t i2c::read_reg(uint8_t addr, uint8_t reg, uint8_t *buf, uint16_t size)
 	}
 
 	/* last byte read with NACK */
-	if (size) {
+	if (buf && size) {
 		res = i2c_master_read(handle, buf, 1, I2C_MASTER_NACK);
 		if (res) {
 			ESP_LOGE(bus_name, "I2C reading error: %s",
@@ -269,6 +318,7 @@ esp_err_t i2c::read_reg(uint8_t addr, uint8_t reg, uint8_t *buf, uint16_t size)
 			esp_err_to_name(res));
 ret:
 	i2c_cmd_link_delete(handle);
+no_mem:
 	xSemaphoreGive(lock);
 	return res;
 }
