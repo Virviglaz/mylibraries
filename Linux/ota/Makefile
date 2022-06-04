@@ -11,15 +11,15 @@ LIB		+= -lpthread
 # Compile C files
 %.o: %.c
 	@echo 'Compiling $@...'
-	$(CC) -c -o $@ $< $(CFLAGS) $(INC) $(DEF)
+	@$(CC) -c -o $@ $< $(CFLAGS) $(INC) $(DEF)
 
 all: $(OBJ)
-	$(CC) $(OBJ) -o $(TRG) $(CFLAGS) $(LIB)
+	@$(CC) $(OBJ) -o $(TRG) $(CFLAGS) $(LIB)
 
 test: clean all
 
 clean:
-	rm -f $(OBJ) $(TRG)
+	@rm -f $(OBJ) $(TRG)
 
 install: all
-	sudo cp ota /usr/bin/
+	@sudo cp ota /usr/bin/
