@@ -43,6 +43,7 @@
  */
 
 #include "esp_buttons.h"
+#include "hal/gpio_ll.h"
 #include <errno.h>
 
 #ifndef BUTTONS_TASK_SIZE
@@ -50,6 +51,7 @@
 #endif
 
 #define _delay_ms(x)			vTaskDelay(pdMS_TO_TICKS(x))
+#define GPIO_GET(pin)			gpio_ll_get_level(&GPIO, pin)
 
 class button
 {
@@ -116,7 +118,7 @@ void buttons::handler(void *param)
 		_delay_ms(s->interval_ms);
 
 		do {
-			bool state = gpio_get_level(btn->pin);
+			bool state = GPIO_GET(btn->pin);
 			if (btn->prev_state != state) {
 				if (state != (btn->trig == NEGEDGE))
 					btn->callback(btn->param);

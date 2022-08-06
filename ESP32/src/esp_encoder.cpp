@@ -44,6 +44,9 @@
 
 #include "esp_encoder.h"
 #include "esp_err.h"
+#include "hal/gpio_ll.h"
+
+#define GPIO_GET(pin)		gpio_ll_get_level(&GPIO, pin)
 
 static esp_err_t gpio_config(gpio_num_t g)
 {
@@ -87,7 +90,7 @@ IRAM_ATTR void encoder::isr_a(void *params)
 	e->prev = ENC_A;
 
 	e->seq <<= 2;
-	e->seq |= gpio_get_level(e->enc_b) << 1;
+	e->seq |= GPIO_GET(e->enc_b) << 1;
 	e->seq &= 0xF;
 
 	if (e->seq == 4)
@@ -105,7 +108,7 @@ IRAM_ATTR void encoder::isr_b(void *params)
 	e->prev = ENC_B;
 
 	e->seq <<= 2;
-	e->seq |= gpio_get_level(e->enc_a) << 0;
+	e->seq |= GPIO_GET(e->enc_a) << 0;
 	e->seq &= 0xF;
 
 	if (e->seq == 8)
