@@ -45,13 +45,14 @@
 #include "esp_stepper.h"
 #include "esp_timer.h"
 #include "esp_log.h"
+#include "hal/gpio_ll.h"
 #include <math.h>
 
 #ifndef STEPPER_TASK_SIZE
 #define STEPPER_TASK_SIZE		2048
 #endif
 
-#define GPIO_SET(p, s)			gpio_set_level(p, s)
+#define GPIO_SET(pin, state)		gpio_ll_set_level(&GPIO, pin, state)
 
 #define ERR_RTN(x)	if (x) return;
 /*
@@ -127,7 +128,7 @@ esp_err_t stepper::gpio_config(gpio_num_t g)
 	if (res)
 		return res;
 
-	res = GPIO_SET(g, 0);
+	GPIO_SET(g, 0);
 	return res;
 }
 
@@ -371,6 +372,9 @@ void stepper::move(int32_t dist)
  */
 void stepper::wait_for_stop()
 {
+	if (cur_pos_steps == pos_dir_steps)
+		return;
+
 	/* Polling */
 	if (!handle) {
 		while (run()) { }
