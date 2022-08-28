@@ -45,36 +45,182 @@
 #ifndef __ENCODER_H__
 #define __ENCODER_H__
 
-#include <stdint.h>
-
+#include "esp_err.h"
+#include "esp_check.h"
 /* ESP32 drivers */
 #include "driver/gpio.h"
+#include "hal/gpio_ll.h"
 
+#include <stdint.h>
+#include <limits>
+
+#ifndef ERR_CHK
+#define ERR_CHK(x)		if (x) return;
+#endif
+
+#ifndef ERR_RTN
+#define ERR_RTN(x)		res = x; if (res) return res;
+#endif
+
+#define GPIO_GET(pin)		gpio_ll_get_level(&GPIO, pin)
+
+template <class T>
 class encoder
 {
 public:
-	encoder(gpio_num_t a, gpio_num_t b);
-	~encoder();
-	int32_t get_value();
-	void set_step(int32_t new_step = 1);
-	void invert();
-	void set_value(int32_t new_value);
-	void set_limits(int32_t new_min, int32_t new_max);
+	/**
+	 * @brief Construct a new encoder object
+	 *
+	 * @param a	GPIO number of ENC_A input
+	 * @param b	GPIO number of ENC_B input
+	 * @param min	Optional limit minimum value
+	 * @param max	Optional limit maxinum value
+	 * @param int_type	Optional interrupt trigger direction
+	 */
+	encoder(gpio_num_t a, gpio_num_t b,
+		T min = std::numeric_limits<T>::min(),
+		T max = std::numeric_limits<T>::max(),
+		gpio_int_type_t int_type = GPIO_INTR_NEGEDGE) {
+		enc_a = a;
+		enc_b = b;
+		min_val = min;
+		max_val = max;
+		gpio_uninstall_isr_service();
+		ERR_CHK(gpio_install_isr_service(0));
+		ERR_CHK(gpio_config(enc_a, int_type));
+		ERR_CHK(gpio_config(enc_b, int_type));
+		ERR_CHK(gpio_isr_handler_add(a, encoder::isr_a, this));
+		ERR_CHK(gpio_isr_handler_add(b, encoder::isr_b, this));
+	}
 
+	/**
+	 * @brief Destroy the encoder object
+	 */
+	~encoder() {
+		gpio_isr_handler_remove(enc_a);
+		gpio_reset_pin(enc_a);
+		gpio_reset_pin(enc_b);
+	}
+
+	/**
+	 * @brief Read the current value.
+	 *
+	 * @return Returns the actual value.
+	 */
+	T get_value() {
+		T tmp;
+		portDISABLE_INTERRUPTS();
+		tmp = value;
+		portENABLE_INTERRUPTS();
+		return tmp;
+	}
+
+	/**
+	 * @brief Read the noise counter value.
+	 *
+	 * @return Returns noise counter value.
+	 */
+	T get_noise_level() {
+		T tmp;
+		portDISABLE_INTERRUPTS();
+		tmp = noise;
+		portENABLE_INTERRUPTS();
+		return tmp;
+	}
+
+	/**
+	 * @brief Define the encoder step size.
+	 *
+	 * @param new_step	Set the single step value.
+	 */
+	void set_step(T new_step = 1) {
+		portDISABLE_INTERRUPTS();
+		step = new_step;
+		portENABLE_INTERRUPTS();
+	}
+
+	/**
+	 * @brief Invert the encoder direction
+	 */
+	void invert() {
+		portDISABLE_INTERRUPTS();
+		step = -step;
+		portENABLE_INTERRUPTS();
+	}
+
+	/**
+	 * @brief Update the current value.
+	 *
+	 * @param new_value	New value.
+	 */
+	void set_value(T new_value) {
+		portDISABLE_INTERRUPTS();
+		value = new_value;
+		portENABLE_INTERRUPTS();
+	}
+
+	/**
+	 * @brief Set the limits.
+	 *
+	 * @param new_min	Minimum value.
+	 * @param new_max	Maximum value.
+	 */
+	void set_limits(T new_min, T new_max) {
+		portDISABLE_INTERRUPTS();
+		min_val = new_min;
+		max_val = new_max;
+		portENABLE_INTERRUPTS();
+	}
 private:
-	static void isr_a(void *params);
-	static void isr_b(void *params);
-	static void check_limit(encoder *e);
+	static esp_err_t gpio_config(gpio_num_t g, gpio_int_type_t int_type)
+	{
+		esp_err_t res;
+		ERR_RTN(gpio_reset_pin(g));
+		ERR_RTN(gpio_set_direction(g, GPIO_MODE_INPUT));
+		ERR_RTN(gpio_set_pull_mode(g, GPIO_PULLUP_ONLY));
+		ERR_RTN(gpio_pullup_en(g));
+		ERR_RTN(gpio_set_intr_type(g, int_type));
+		return 0;
+	}
 
-	bool init_done = false;
+	IRAM_ATTR static void isr_a(void *par)
+	{
+		encoder *e = static_cast<encoder *>(par);
+		if (e->prev == ENC_A) {
+			e->noise++;
+			return;
+		}
+		e->prev = ENC_A;
+
+		if (GPIO_GET(e->enc_b))
+			e->value += e->step;
+		else
+			e->value -= e->step;
+
+		if (e->value > e->max_val)
+			e->value = e->max_val;
+		else if (e->value < e->min_val)
+			e->value = e->min_val;
+	}
+
+	IRAM_ATTR static void isr_b(void *par)
+	{
+		encoder *e = static_cast<encoder *>(par);
+		if (e->prev == ENC_B) {
+			e->noise++;
+			return;
+		}
+		e->prev = ENC_B;
+	}
+
+	enum { ENC_A, ENC_B } prev;
 	gpio_num_t enc_a;
 	gpio_num_t enc_b;
-	int32_t value = 0;
-	int32_t step = 1;
-	enum { ENC_A, ENC_B } prev = ENC_A;
-	uint8_t seq = 0;
-	int32_t min = INT32_MIN;
-	int32_t max = INT32_MAX;
+	T value = 0;
+	T step = 1;
+	T min_val;
+	T max_val;
+	T noise = 0;
 };
 
 #endif /* __ENCODER_H__ */
