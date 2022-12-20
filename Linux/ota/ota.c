@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <time.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
 
@@ -138,16 +139,17 @@ static server_t ota_server;
  * @param server port
  * @param magic word
  * @param version string
- * @example ./ota test.bin 5006 0xDEADBEEF
+ * @param service (start as service)
+ * @example ./ota test.bin 5006 0xDEADBEEF service
  */
 int main(int argc, char** argv)
 {
 	int res;
 
-	if (argc != 5)
+	if (argc < 5)
 		goto input_err;
 
-	if (strlen(argv[1]) <= 4	/* filename */
+	if (strlen(argv[1]) <= 2	/* filename */
 		|| strlen(argv[2]) <= 2	/* port */
 		|| strlen(argv[3]) <= 6 /* magic word */
 		|| strlen(argv[4]) < 2)	/* version string */
@@ -156,9 +158,11 @@ int main(int argc, char** argv)
 	ota_ops.port = strtoul(argv[2], NULL, 0);
 	ota_ops.magic_word = strtoul(argv[3], NULL, 0);
 	ota_ops.version_string = argv[4];
+	const char *is_service = argc == 6 ? argv[5] : NULL;
 
 	/* file size */
 	struct stat st;
+	time_t timestamp;
 	if (stat(ota_ops.filename, &st)) {
 		res = errno;
 		fprintf(stderr, "File %s stat failed: %s\n",
@@ -166,6 +170,7 @@ int main(int argc, char** argv)
 		goto error;
 	}
 	ota_ops.filesize = st.st_size;
+	timestamp = st.st_mtime;
 
 	/* get a memory for the file */
 	ota_ops.firmware = malloc(ota_ops.filesize);
@@ -210,6 +215,7 @@ int main(int argc, char** argv)
 
 	signal(SIGCHLD, SIG_IGN);
 
+	/* start server */
 	ota_server = server_start(ota_ops.port, &server_ops,
 		OTA_HEADER_SIZE, 0);
 	if (!ota_server) {
@@ -218,11 +224,26 @@ int main(int argc, char** argv)
 		goto err_free;
 	}
 
-	return server_wait_for_err(ota_server);
+	if (is_service && !strncmp(is_service, "service", 7)) {
+		printf("Service is running...\n");
+		do {
+			stat(ota_ops.filename, &st);
+			if (timestamp != st.st_mtime)
+				break;
+			usleep(1000000);
+		} while (1);
+
+		res = server_stop(ota_server);
+		goto err_free;
+	} else {
+		printf("Server is running...\n");
+		res = server_wait_for_err(ota_server);
+		goto err_free;
+	}
 
 input_err:
 	fprintf(stderr, "Usage: %s (file name) (port) " \
-		"(magic word) (version string or ESP32)\n", argv[0]);
+		"(magic word) (version string or ESP32) [service]\n", argv[0]);
 	return EINVAL;
 error:
 	return res;
