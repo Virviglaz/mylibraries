@@ -1,3 +1,5 @@
+#include "wifi.h"
+
 /* FreeRTOS */
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -5,20 +7,23 @@
 /* STD */
 #include <stdint.h>
 #include <string.h>
+#include <errno.h>
 
 /* ESP32 */
 #include "esp_wifi.h"
 #include "esp_check.h"
 #include "nvs_flash.h"
+#include "lwip/api.h"
+#include "lwip/sockets.h"
 
-#include "wifi.h"
+#define MAX_CON_FAILS			100
+
 static const char *tag = "wifi";
 static bool init_done = false;
 static bool is_connected = false;
 static struct {
 	const char *uuid;
 	const char *pass;
-	const char *host;
 } credentials;
 
 static esp_event_handler_instance_t instance_any_id;
@@ -99,9 +104,6 @@ static void handler(void *param)
 	strcpy((char *)sta_cfg.sta.ssid, credentials.uuid);
 	strcpy((char *)sta_cfg.sta.password, credentials.pass);
 
-	ESP_GOTO_ON_ERROR(tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA,
-		credentials.host), err, tag, "failed to set hostname");
-
 	ESP_GOTO_ON_ERROR(esp_wifi_set_mode(WIFI_MODE_STA), err, tag,
 		"failed to set STA mode");
 
@@ -119,11 +121,28 @@ err:
 	vTaskDelete(NULL);
 }
 
-int wifi_init(const char *uuid, const char *pass, const char *hostname)
+int connect_to_server(int *socketfd, const char *server, uint32_t port)
+{
+	struct sockaddr_in dest = {
+		.sin_family = AF_INET,
+		.sin_port = htons(port),
+	};
+
+	dest.sin_addr.s_addr = inet_addr(server);
+
+	*socketfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (*socketfd < 0)
+		return errno;
+
+	if (connect(*socketfd, (struct sockaddr *)&dest, sizeof(dest)))
+		return errno;
+	return 0;
+}
+
+int wifi_init(const char *uuid, const char *pass)
 {
 	credentials.uuid = uuid;
 	credentials.pass = pass;
-	credentials.host = hostname;
 
 	return xTaskCreate(handler, tag, 0x1000, 0, 1, NULL);
 }

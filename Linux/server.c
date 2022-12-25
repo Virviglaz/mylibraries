@@ -15,7 +15,7 @@
 static const char *no_mem_err = "No memory";
 static const char *thread_err = "Thread create error";
 
-struct client_t {
+struct client {
 	int socket;
 	struct sockaddr_in cli_addr;
 	server_event_t *ops;
@@ -24,7 +24,7 @@ struct client_t {
 	void *user;
 };
 
-struct server_t {
+struct server {
 	int socket;
 	pthread_t thread;
 	socklen_t clilen;
@@ -35,10 +35,10 @@ struct server_t {
 
 static void *client_handler(void *ptr)
 {
-	struct client_t *client = ptr;
+	client_t client = (client_t)ptr;
 	server_event_t *ops = client->ops;
 	void *buffer = malloc(client->size);
-	ssize_t size;
+	size_t size;
 
 	if (!buffer) {
 		if (ops->error)
@@ -50,7 +50,7 @@ static void *client_handler(void *ptr)
 		goto err_free;
 
 	do {
-		size = read(client->socket, buffer,
+		size = (size_t)read(client->socket, buffer,
 			client->size);
 
 		if (size && ops->receive && ops->receive(client, buffer, size))
@@ -74,7 +74,7 @@ err_nomem:
 
 static void *server_handler(void *ptr)
 {
-	struct server_t *server = ptr;
+	server_t server = (server_t)ptr;
 	int clientfd;
 	server_event_t *ops = server->ops;
 	int res;
@@ -108,17 +108,17 @@ static void *server_handler(void *ptr)
 		}
 
 #ifdef SOCKET_TIMEOUT
-        {
-                struct timeval timeout = {
-                        .tv_sec = SOCKET_TIMEOUT,
-                        .tv_usec = 0,
-                };
+	{
+		struct timeval timeout = {
+			.tv_sec = SOCKET_TIMEOUT,
+			.tv_usec = 0,
+	};
 
-                setsockopt(clientfd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
-                                sizeof timeout);
-                setsockopt(clientfd, SOL_SOCKET, SO_SNDTIMEO, &timeout,
-                                sizeof timeout);
-        }
+		setsockopt(clientfd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
+		sizeof timeout);
+		setsockopt(clientfd, SOL_SOCKET, SO_SNDTIMEO, &timeout,
+		sizeof timeout);
+	}
 #endif /* SOCKET_TIMEOUT */
 
 		client->ops = server->ops;
@@ -145,9 +145,9 @@ err:
 	return 0;
 }
 
-server_t server_start(int port, server_event_t *ops, int size, void *user)
+server_t server_start(uint16_t port, server_event_t *ops, size_t size, void *user)
 {
-	server_t server = malloc(sizeof(*server));
+	server_t server = (server_t)malloc(sizeof(*server));
 
 	struct sockaddr_in serv_addr = {
 		.sin_family = AF_INET,
@@ -158,12 +158,12 @@ server_t server_start(int port, server_event_t *ops, int size, void *user)
 	int res;
 
 	if (!ops)
-		return 0;
+		return NULL;
 
 	if (!server) {
 		if (ops->error)
 			ops->error(no_mem_err, ENOMEM, user);
-		return 0;
+		return NULL;
 	}
 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -200,12 +200,12 @@ err_free:
 	free(server);
 err_close:
 	close(sockfd);
-	return 0;
+	return NULL;
 }
 
 int send_to_client(client_t client, void *msg, size_t size)
 {
-	int err = send(client->socket, msg, size, 0);
+	int err = (int)send(client->socket, msg, size, 0);
 
 	return err < 0 ? errno : 0;
 }

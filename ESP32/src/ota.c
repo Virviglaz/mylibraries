@@ -8,6 +8,7 @@
 #include "lwip/sockets.h"
 #include "esp_ota_ops.h"
 #include "esp_check.h"
+#include "esp_timer.h"
 #include "nvs_flash.h"
 
 /* STD */
@@ -200,7 +201,7 @@ static void start_update_process(int sockfd)
 
 		uint64_t new_timestamp_s = esp_timer_get_time() / 1000000u;
 		if (new_timestamp_s != prev_timestamp_s) {
-			ESP_LOGI(tag, "Updating SW %u bytes -> %u/%u",
+			ESP_LOGI(tag, "Updating SW %lu bytes -> %lu/%lu",
 				msg->page_size, bytes_written, fw_size);
 			prev_timestamp_s = new_timestamp_s;
 		}
@@ -292,7 +293,7 @@ int ota_start(ota_t *settings)
 
 	if (!s->version) {
 		static char vers[32];
-		const esp_app_desc_t *app_desc = esp_ota_get_app_description();
+		const esp_app_desc_t *app_desc = esp_app_get_description();
 		strcpy(vers, app_desc->version);
 		s->version = vers;
 	}
