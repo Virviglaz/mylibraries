@@ -1,32 +1,27 @@
 #include "logger.h"
 #include "wifi.h"
 #include "esp_netif.h"
+#include "esp_log.h"
 #include "lwip/sockets.h"
 #include "free_rtos_h.h"
 #include <stdarg.h>
 
-#define MESSAGE_QUEUE_SIZE			1000
-#define MESSAGE_SERVER_POLL_TIMEOUT		10000
-#define VPRINTF_BUFFER_SIZE			256
-#define MINIMUM_FREE_MEMORY_SIZE		0x6000 /* 24KB */
-
+static logger_init_t *conf = NULL;
 static QueueHandle_t msg_queue = 0;
-static const char *log_server = NULL;
-static uint32_t server_port;
 static int sockfd = 0;
 
 static void send_to_server(void)
 {
 	char *msg;
 
-	if (!sockfd && connect_to_server(&sockfd, log_server, server_port)) {
-		delay(MESSAGE_SERVER_POLL_TIMEOUT);
+	if (!sockfd && connect_to_server(&sockfd, conf->server, conf->port)) {
+		delay(conf->server_poll_timeout);
 		sockfd = 0;
 		return;
 	}
 
 	while (xQueuePeek(msg_queue, &msg,
-		pdMS_TO_TICKS(MESSAGE_SERVER_POLL_TIMEOUT)) == pdTRUE) {
+		pdMS_TO_TICKS(conf->server_poll_timeout)) == pdTRUE) {
 		int size = strlen(msg) + 1;
 		if (write(sockfd, msg, size) == size) {
 			uint32_t ack = 0;
@@ -51,16 +46,17 @@ static void handler(void *args)
 		if (wifi_is_connected() && uxQueueMessagesWaiting(msg_queue))
 			send_to_server();
 		else
-			delay(MESSAGE_SERVER_POLL_TIMEOUT);
+			delay(conf->server_poll_timeout);
 	}
 }
 
-static void send_message_to_server(const char *msg, int max_size)
+static void send_message_to_server(void *buf, int max_size)
 {
+	const char *msg = (const char *)buf;
 	char *p;
 	int size;
 
-	if (!msg_queue || !log_server)
+	if (!msg_queue || !conf)
 		return;
 
 	size = strlen(msg) + 1;
@@ -78,8 +74,8 @@ static void send_message_to_server(const char *msg, int max_size)
 	}
 
 	/* queue is full or memory is low, drop the last message */
-	if (uxQueueMessagesWaiting(msg_queue) == MESSAGE_QUEUE_SIZE ||
-		xPortGetFreeHeapSize() <= MINIMUM_FREE_MEMORY_SIZE) {
+	if (uxQueueMessagesWaiting(msg_queue) == conf->message_queue_size ||
+		xPortGetFreeHeapSize() <= conf->minimum_free_memory) {
 		char *d;
 		xQueueReceive(msg_queue, &d, 0);
 		free(d);
@@ -98,16 +94,19 @@ static void send_message_to_server(const char *msg, int max_size)
 static int server_vprintf(const char *format, va_list arg)
 {
 	static SemaphoreHandle_t lock = NULL;
-	static char buf[VPRINTF_BUFFER_SIZE];
+	static void *buf = NULL;
 	int res;
+
+	if (!buf)
+		buf = malloc(conf->printf_buffer_size);
 
 	if (!lock)
 		lock = xSemaphoreCreateMutex();
 	xSemaphoreTake(lock, portMAX_DELAY);
 
-	res = vsnprintf((void *)buf, sizeof(buf), format, arg);
+	res = vsnprintf(buf, conf->printf_buffer_size, format, arg);
 
-	send_message_to_server(buf, sizeof(buf));
+	send_message_to_server(buf, conf->printf_buffer_size);
 
 	xSemaphoreGive(lock);
 
@@ -125,7 +124,8 @@ static void clean_queue(void)
 static void init_queue(void)
 {
 	if (!msg_queue)
-		msg_queue = queue_create(MESSAGE_QUEUE_SIZE, sizeof(void *));
+		msg_queue = queue_create(conf->message_queue_size,
+			sizeof(void *));
 }
 
 static bool forced_to_use_remote = false;
@@ -145,22 +145,24 @@ void switch_printf(bool remote)
 	esp_log_set_vprintf(remote ? server_vprintf : vprintf);
 }
 
-void message_logger_init(const char *server, uint32_t port)
+void message_logger_init(logger_init_t *init)
 {
-	log_server = server;
-	server_port = port;
+	if (conf) /* check init is already done */
+		return;
 
+	conf = init;
 	init_queue();
 
-	task_create(handler, "msg_log", 0x1000, 0, 1, 0);
+	task_create(handler, __FILE__, conf->task_heap_size, 0, 1, 0);
 }
 
 /* switch to remote logging without initializing the handling task */
-void message_logger_early_init(const char *server, uint32_t port)
+void message_logger_early_init(logger_init_t *init)
 {
-	log_server = server;
-	server_port = port;
+	if (conf) /* check init is already done */
+		return;
 
+	conf = init;
 	init_queue();
 
 	switch_printf(true);
