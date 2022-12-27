@@ -5,6 +5,7 @@
 #include "lwip/sockets.h"
 #include "free_rtos_h.h"
 #include <stdarg.h>
+#include <errno.h>
 
 static logger_init_t *conf = NULL;
 static QueueHandle_t msg_queue = 0;
@@ -95,18 +96,29 @@ static int server_vprintf(const char *format, va_list arg)
 {
 	static SemaphoreHandle_t lock = NULL;
 	static void *buf = NULL;
+	static void *buf_token; /* same buffer excluding token */
 	int res;
-
-	if (!buf)
-		buf = malloc(conf->printf_buffer_size);
 
 	if (!lock)
 		lock = xSemaphoreCreateMutex();
 	xSemaphoreTake(lock, portMAX_DELAY);
 
+	if (!buf) {
+		int size = conf->printf_buffer_size;
+		if (conf->token)
+			size += sizeof(uint32_t);
+		buf = malloc(size);
+		if (!buf)
+			return ENOMEM;
+		buf_token = buf;
+		if (conf->token) /* if set, use token */
+			*(uint32_t *)buf = conf->token;
+		buf = (uint32_t *)buf + 1;
+	}
+
 	res = vsnprintf(buf, conf->printf_buffer_size, format, arg);
 
-	send_message_to_server(buf, conf->printf_buffer_size);
+	send_message_to_server(buf_token, conf->printf_buffer_size);
 
 	xSemaphoreGive(lock);
 
