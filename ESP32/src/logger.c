@@ -9,10 +9,10 @@
 
 static logger_init_t *conf = NULL;
 static QueueHandle_t msg_queue = 0;
-static int sockfd = 0;
 
 static void send_to_server(void)
 {
+	static int sockfd = 0;
 	char *msg;
 
 	if (!sockfd && connect_to_server(&sockfd, conf->server, conf->port)) {
@@ -26,12 +26,14 @@ static void send_to_server(void)
 		int size = strlen(msg) + 1;
 		if (write(sockfd, msg, size) == size) {
 			uint32_t ack = 0;
-			read(sockfd, &ack, sizeof(ack));
-			if (!ack)
-				break;
+			if (read(sockfd, &ack, sizeof(ack)) != sizeof(ack)) {
+				if (!ack)
+					break;
+			}
+
 			/* Remove message from the queue */
-			xQueueReceive(msg_queue, &msg, 0);
-			free(msg);
+			if (xQueueReceive(msg_queue, &msg, 0) == pdTRUE)
+				free(msg);
 		} else {
 			/* Fail to send, retry next time */
 			close(sockfd);
