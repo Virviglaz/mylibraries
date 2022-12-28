@@ -94,14 +94,9 @@ static void send_message_to_server(void *buf, int max_size)
  */
 static int server_vprintf(const char *format, va_list arg)
 {
-	static SemaphoreHandle_t lock = NULL;
 	static void *buf = NULL;
 	static void *buf_token; /* same buffer excluding token */
 	int res;
-
-	if (!lock)
-		lock = xSemaphoreCreateMutex();
-	xSemaphoreTake(lock, portMAX_DELAY);
 
 	if (!buf) {
 		int size = conf->printf_buffer_size;
@@ -119,8 +114,6 @@ static int server_vprintf(const char *format, va_list arg)
 	res = vsnprintf(buf, conf->printf_buffer_size, format, arg);
 
 	send_message_to_server(buf_token, conf->printf_buffer_size);
-
-	xSemaphoreGive(lock);
 
 	return res;
 }
