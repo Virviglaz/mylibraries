@@ -91,20 +91,21 @@ static void *server_handler(void *ptr)
 		client_t client = malloc(sizeof(*client));
 		if (!client) {
 			res = ENOMEM;
-			if (ops->error)
-				ops->error(no_mem_err, ENOMEM, server->user);
-			goto err;
+			if (ops->error && ops->error(no_mem_err, ENOMEM, server->user))
+				goto err;
+			continue;
 		}
 
 		clientfd = accept(server->socket,
 			(struct sockaddr *)&client->cli_addr, &server->clilen);
 		if (clientfd < 0) {
 			res = errno;
-			if (ops->error)
-				ops->error("Socket accept error", res,
-					server->user);
-			free(client);
-			goto err;
+			if (ops->error && ops->error("Socket accept error", res,
+				server->user)) {
+				free(client);
+				goto err;
+			}
+			continue;
 		}
 
 #ifdef SOCKET_TIMEOUT
@@ -205,7 +206,7 @@ err_close:
 
 int send_to_client(client_t client, void *msg, size_t size)
 {
-	int err = (int)send(client->socket, msg, size, 0);
+	int err = (int)send(client->socket, msg, size, MSG_NOSIGNAL);
 
 	return err < 0 ? errno : 0;
 }

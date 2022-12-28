@@ -10,11 +10,13 @@
 static int err;
 static const char* dst;
 static uint32_t token;
-static void error(const char* str, int error, void* user)
+static int error(const char* str, int error, void* user)
 {
 	err = error;
 
 	fprintf(stderr, "Error: %s, %s\n", str, strerror(error));
+
+	return 0;
 }
 
 static int receive(client_t client, void* data, size_t size)

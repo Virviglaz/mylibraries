@@ -15,7 +15,7 @@ typedef struct {
 	int (*connected)(client_t client);
 	int (*receive)(client_t client, void *data, size_t size);
 	void (*disconnected)(client_t client);
-	void (*error)(const char *str, int error, void *user);
+	int (*error)(const char *str, int error, void *user);
 } server_event_t;
 
 server_t server_start(uint16_t port, server_event_t *ops, size_t size, void *user);
