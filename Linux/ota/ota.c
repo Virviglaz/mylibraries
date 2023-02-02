@@ -18,12 +18,12 @@
 #define OTA_HEADER_SIZE	(OTA_PAGE_SIZE + sizeof(struct ota_version_header))
 
 struct {
-	const char *filename;
+	char *filename;
 	uint32_t port;
 	uint32_t magic_word;
 	uint32_t filesize;
 	uint8_t *firmware;
-	const char *version_string;
+	char *version_string;
 } ota_ops;
 
 struct ota_version_header {
@@ -113,9 +113,10 @@ static int handler(client_t client, void *data, size_t size)
 	return 0;
 }
 
-static void error(const char *str, int error, void *user)
+static int error(const char *str, int error, void *user)
 {
 	fprintf(stderr, "Error: %s, %s\n", str, strerror(error));
+	return error;
 }
 
 static void disconnected(client_t client)
@@ -130,7 +131,79 @@ static server_event_t server_ops = {
 	.error = error,
 };
 
+static char *version(uint8_t *firmware)
+{
+	return (char *)firmware + 48;
+}
+
 static server_t ota_server;
+static void abort_handler(int sig)
+{
+	(void)sig;
+	server_stop(ota_server);
+	free(ota_ops.firmware);
+	printf("Server terminated\n");
+	exit(0);
+}
+
+static int get_firmware(const char *name, uint8_t **firmware, uint32_t *size)
+{
+	uint8_t *tmp;
+	int res;
+
+	/* file size */
+	struct stat st;
+	if (stat(name, &st)) {
+		res = errno;
+		fprintf(stderr, "%s stat failed: %s\n", name, strerror(res));
+		return res;
+	}
+
+	tmp = malloc(st.st_size);
+	if (!tmp) {
+		fprintf(stderr, "No memory!\n");
+		return ENOMEM;
+	}
+
+	if (size)
+		*size = st.st_size;
+
+	/* open file */
+	int fd = open(name, O_RDONLY);
+	if (fd < 0) {
+		res = errno;
+		fprintf(stderr,
+			"Error opening file %s: %s\n", name, strerror(res));
+		free(tmp);
+		return res;
+	}
+
+	/* read file */
+	uint32_t ret = read(fd, tmp, st.st_size);
+	close(fd);
+
+	if (ret != st.st_size) {
+		fprintf(stderr, "Unexpected file read size!\n");
+		free(tmp);
+		return EINVAL;
+	}
+
+	*firmware = tmp;
+	return 0;
+}
+
+static char *fetch_version(const char *name)
+{
+	static char vers[32] = { 0 };
+	uint8_t *firmware;
+	int res = get_firmware(name, &firmware, NULL);
+	if (res)
+		return 0;
+
+	strncpy(vers, version(firmware), sizeof(vers));
+	free(firmware);
+	return vers;
+}
 
 /**
  * @brief OTA server
@@ -138,73 +211,47 @@ static server_t ota_server;
  * @param binary file path
  * @param server port
  * @param magic word
- * @param version string
- * @param service (start as service)
- * @example ./ota test.bin 5006 0xDEADBEEF service
+ * @example ./ota test.bin 5006 0xDEADBEEF
  */
 int main(int argc, char** argv)
 {
 	int res;
 
-	if (argc < 5)
-		goto input_err;
-
-	if (strlen(argv[1]) <= 2	/* filename */
+	if (argc != 4 || strlen(argv[1]) <= 2	/* filename */
 		|| strlen(argv[2]) <= 2	/* port */
-		|| strlen(argv[3]) <= 6 /* magic word */
-		|| strlen(argv[4]) < 2)	/* version string */
-		goto input_err;
+		|| strlen(argv[3]) <= 6) { /* magic word */
+		fprintf(stderr, "Usage: %s (file name) (port) " \
+			"(magic word)\n", argv[0]);
+		return EINVAL;
+	}
+
 	ota_ops.filename = argv[1];
 	ota_ops.port = strtoul(argv[2], NULL, 0);
 	ota_ops.magic_word = strtoul(argv[3], NULL, 0);
-	ota_ops.version_string = argv[4];
-	const char *is_service = argc == 6 ? argv[5] : NULL;
 
-	/* file size */
-	struct stat st;
-	time_t timestamp;
-	if (stat(ota_ops.filename, &st)) {
-		res = errno;
-		fprintf(stderr, "File %s stat failed: %s\n",
-			ota_ops.filename, strerror(res));
-		goto error;
-	}
-	ota_ops.filesize = st.st_size;
-	timestamp = st.st_mtime;
-
-	/* get a memory for the file */
-	ota_ops.firmware = malloc(ota_ops.filesize);
-	if (!ota_ops.firmware) {
-		fprintf(stderr, "No memory to store the firmare\n");
-		res = ENOMEM;
-		goto error;
+	res = get_firmware(ota_ops.filename, &ota_ops.firmware,
+		&ota_ops.filesize);
+	if (res) {
+		free(ota_ops.firmware);
+		return res;
 	}
 
-	/* open file */
-	int fd = open(ota_ops.filename, O_RDONLY);
-	if (fd < 0) {
-		res = errno;
-		fprintf(stderr, "Error opening file %s: %s\n",
-			ota_ops.filename, strerror(res));
-		goto err_free;
+
+	signal(SIGCHLD, SIG_IGN);
+	signal(SIGABRT, abort_handler);
+	signal(SIGINT, abort_handler);
+
+	/* start server */
+	ota_server = server_start(ota_ops.port, &server_ops,
+		OTA_HEADER_SIZE, 0);
+	if (!ota_server) {
+		fprintf(stderr, "Start OTA server failed\n");
+		free(ota_ops.firmware);
+		return EFAULT;
 	}
 
-	/* read file */
-	uint32_t ret = read(fd, ota_ops.firmware, ota_ops.filesize);
-	close(fd);
-	if (ret != ota_ops.filesize) {
-		fprintf(stderr, "Unexpected file read size!\n");
-		res = EINVAL;
-		goto err_free;
-	}
-
-	/* For ESP32 we can extract the version string from the binary */
-	if (!strcmp(ota_ops.version_string, "ESP32") ||
-		!strcmp(ota_ops.version_string, "esp32")) {
-		static char esp32_vers[32];
-		strcpy(esp32_vers, (char *)ota_ops.firmware + 48);
-		ota_ops.version_string = esp32_vers;
-	}
+restart:
+	ota_ops.version_string = version(ota_ops.firmware);
 
 	printf("Server parameters:\n");
 	printf("File: %s\n", ota_ops.filename);
@@ -213,41 +260,20 @@ int main(int argc, char** argv)
 	printf("Magic word: 0x%.8X\n", ota_ops.magic_word);
 	printf("Version string: %s\n", ota_ops.version_string);
 
-	signal(SIGCHLD, SIG_IGN);
+	do {
+		const char *vers = fetch_version(ota_ops.filename);
+		if (vers && strcmp(vers, ota_ops.version_string)) {
+			free(ota_ops.firmware);
+			res = get_firmware(ota_ops.filename, &ota_ops.firmware,
+				&ota_ops.filesize);
+			goto restart;
+		}
 
-	/* start server */
-	ota_server = server_start(ota_ops.port, &server_ops,
-		OTA_HEADER_SIZE, 0);
-	if (!ota_server) {
-		fprintf(stderr, "Start OTA server failed\n");
-		res = EINVAL;
-		goto err_free;
-	}
+		sleep(1);
+	} while (!res);
 
-	if (is_service && !strncmp(is_service, "service", 7)) {
-		printf("Service is running...\n");
-		do {
-			stat(ota_ops.filename, &st);
-			if (timestamp != st.st_mtime)
-				break;
-			usleep(1000000);
-		} while (1);
+	res = server_wait_for_err(ota_server);
 
-		res = server_stop(ota_server);
-		goto err_free;
-	} else {
-		printf("Server is running...\n");
-		res = server_wait_for_err(ota_server);
-		goto err_free;
-	}
-
-input_err:
-	fprintf(stderr, "Usage: %s (file name) (port) " \
-		"(magic word) (version string or ESP32) [service]\n", argv[0]);
-	return EINVAL;
-error:
-	return res;
-err_free:
 	free(ota_ops.firmware);
 	return res;
 }

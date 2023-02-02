@@ -14,6 +14,7 @@ LIB		+= -lpthread
 	@$(CC) -c -o $@ $< $(CFLAGS) $(INC) $(DEF)
 
 all: $(OBJ)
+	@echo 'Linking $@...'
 	@$(CC) $(OBJ) -o $(TRG) $(CFLAGS) $(LIB)
 
 test: clean all
