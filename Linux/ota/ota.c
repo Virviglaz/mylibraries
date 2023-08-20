@@ -8,6 +8,8 @@
 #include <time.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <stdbool.h>
+#include <sys/inotify.h>
 
 #include "server.h"
 
@@ -137,11 +139,11 @@ static char *version(uint8_t *firmware)
 }
 
 static server_t ota_server;
+static int is_running = 1;
 static void abort_handler(int sig)
 {
 	(void)sig;
-	server_stop(ota_server);
-	free(ota_ops.firmware);
+	is_running = 0;
 	printf("Server terminated\n");
 	exit(0);
 }
@@ -192,19 +194,6 @@ static int get_firmware(const char *name, uint8_t **firmware, uint32_t *size)
 	return 0;
 }
 
-static char *fetch_version(const char *name)
-{
-	static char vers[32] = { 0 };
-	uint8_t *firmware;
-	int res = get_firmware(name, &firmware, NULL);
-	if (res)
-		return 0;
-
-	strncpy(vers, version(firmware), sizeof(vers));
-	free(firmware);
-	return vers;
-}
-
 /**
  * @brief OTA server
  * 
@@ -216,6 +205,15 @@ static char *fetch_version(const char *name)
 int main(int argc, char** argv)
 {
 	int res;
+	int watch_desc;
+	size_t bufsiz;
+	int inotfd = inotify_init();
+	if (inotfd < 0) {
+		int err = errno;
+		fprintf(stderr, "inotify_init failed: %s\n",
+			strerror(err));
+		return err;
+	}
 
 	if (argc != 4 || strlen(argv[1]) <= 2	/* filename */
 		|| strlen(argv[2]) <= 2	/* port */
@@ -229,6 +227,10 @@ int main(int argc, char** argv)
 	ota_ops.port = strtoul(argv[2], NULL, 0);
 	ota_ops.magic_word = strtoul(argv[3], NULL, 0);
 
+	watch_desc = inotify_add_watch(inotfd, ota_ops.filename, IN_MODIFY);
+	bufsiz = sizeof(struct inotify_event) + 0xff + 1;
+	struct inotify_event* event = malloc(bufsiz);
+
 	res = get_firmware(ota_ops.filename, &ota_ops.firmware,
 		&ota_ops.filesize);
 	if (res) {
@@ -241,6 +243,7 @@ int main(int argc, char** argv)
 	signal(SIGABRT, abort_handler);
 	signal(SIGINT, abort_handler);
 
+restart:
 	/* start server */
 	ota_server = server_start(ota_ops.port, &server_ops,
 		OTA_HEADER_SIZE, 0);
@@ -250,7 +253,6 @@ int main(int argc, char** argv)
 		return EFAULT;
 	}
 
-restart:
 	ota_ops.version_string = version(ota_ops.firmware);
 
 	printf("Server parameters:\n");
@@ -260,20 +262,22 @@ restart:
 	printf("Magic word: 0x%.8X\n", ota_ops.magic_word);
 	printf("Version string: %s\n", ota_ops.version_string);
 
-	do {
-		const char *vers = fetch_version(ota_ops.filename);
-		if (vers && strcmp(vers, ota_ops.version_string)) {
-			free(ota_ops.firmware);
-			res = get_firmware(ota_ops.filename, &ota_ops.firmware,
-				&ota_ops.filesize);
-			goto restart;
-		}
-
-		sleep(1);
-	} while (!res);
-
-	res = server_wait_for_err(ota_server);
+	while (!res) {
+		/* wait for an event to occur */
+		if (read(inotfd, event, bufsiz) < 0)
+			break;
+		printf("Firmware file modified, restarting server\n");
+		server_stop(ota_server);
+		usleep(1000000);
+		goto restart;
+	}
 
 	free(ota_ops.firmware);
+	res = server_stop(ota_server);
+	close(watch_desc);
+	close(inotfd);
+
+	if (res)
+		fprintf(stderr, "Error: %s\n", strerror(res));
 	return res;
 }
