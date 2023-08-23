@@ -38,7 +38,7 @@ static void *client_handler(void *ptr)
 	client_t client = (client_t)ptr;
 	server_event_t *ops = client->ops;
 	void *buffer = malloc(client->size);
-	size_t size;
+	ssize_t size;
 
 	if (!buffer) {
 		if (ops->error)
@@ -49,11 +49,38 @@ static void *client_handler(void *ptr)
 	if (ops->connected && ops->connected(client))
 		goto err_free;
 
+	if (ops->read_timeout_s) {
+		struct timeval tv;
+		tv.tv_sec = ops->read_timeout_s;
+		tv.tv_usec = 0;
+		if (setsockopt(client->socket, SOL_SOCKET, SO_RCVTIMEO,
+			(void *)&tv, sizeof tv)) {
+			if (ops->error)
+				ops->error("Socket setsockopt error", errno,
+					client->user);
+			goto err_free;
+		}
+	}
+
+	if (ops->read_timeout_s) {
+		struct timeval tv;
+		tv.tv_sec = ops->read_timeout_s;
+		tv.tv_usec = 0;
+		if (setsockopt(client->socket, SOL_SOCKET, SO_RCVTIMEO,
+			(void *)&tv, sizeof tv)) {
+			if (ops->error)
+				ops->error("Socket setsockopt error", errno,
+					client->user);
+			goto err_free;
+		}
+	}
+
 	do {
-		size = (size_t)read(client->socket, buffer,
+		size = read(client->socket, buffer,
 			client->size);
 
-		if (size && ops->receive && ops->receive(client, buffer, size))
+		if (size > 0 && ops->receive &&
+			ops->receive(client, buffer, size))
 			break;
 	} while (size > 0);
 
