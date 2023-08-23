@@ -16,6 +16,7 @@ typedef struct {
 	int (*receive)(client_t client, void *data, size_t size);
 	void (*disconnected)(client_t client);
 	int (*error)(const char *str, int error, void *user);
+	size_t read_timeout_s;
 } server_event_t;
 
 server_t server_start(uint16_t port, server_event_t *ops, size_t size, void *user);

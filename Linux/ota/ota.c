@@ -26,7 +26,9 @@ struct {
 	uint32_t filesize;
 	uint8_t *firmware;
 	char *version_string;
-} ota_ops;
+} ota_ops = {
+	.firmware = NULL,
+};
 
 struct ota_version_header {
 	uint32_t magic_word;
@@ -131,6 +133,7 @@ static server_event_t server_ops = {
 	.receive = handler,
 	.disconnected = disconnected,
 	.error = error,
+	.read_timeout_s = 0,
 };
 
 static char *version(uint8_t *firmware)
@@ -139,13 +142,14 @@ static char *version(uint8_t *firmware)
 }
 
 static server_t ota_server;
-static int is_running = 1;
+static bool is_running = true;
+static int inotfd;
 static void abort_handler(int sig)
 {
 	(void)sig;
-	is_running = 0;
+	is_running = false;
+	close(inotfd);
 	printf("Server terminated\n");
-	exit(0);
 }
 
 static int get_firmware(const char *name, uint8_t **firmware, uint32_t *size)
@@ -207,7 +211,7 @@ int main(int argc, char** argv)
 	int res;
 	int watch_desc;
 	size_t bufsiz;
-	int inotfd = inotify_init();
+	inotfd = inotify_init();
 	if (inotfd < 0) {
 		int err = errno;
 		fprintf(stderr, "inotify_init failed: %s\n",
@@ -231,6 +235,12 @@ int main(int argc, char** argv)
 	bufsiz = sizeof(struct inotify_event) + 0xff + 1;
 	struct inotify_event* event = malloc(bufsiz);
 
+	signal(SIGCHLD, SIG_IGN);
+	signal(SIGABRT, abort_handler);
+	signal(SIGINT, abort_handler);
+
+restart:
+	free(ota_ops.firmware);
 	res = get_firmware(ota_ops.filename, &ota_ops.firmware,
 		&ota_ops.filesize);
 	if (res) {
@@ -238,12 +248,6 @@ int main(int argc, char** argv)
 		return res;
 	}
 
-
-	signal(SIGCHLD, SIG_IGN);
-	signal(SIGABRT, abort_handler);
-	signal(SIGINT, abort_handler);
-
-restart:
 	/* start server */
 	ota_server = server_start(ota_ops.port, &server_ops,
 		OTA_HEADER_SIZE, 0);
@@ -262,20 +266,18 @@ restart:
 	printf("Magic word: 0x%.8X\n", ota_ops.magic_word);
 	printf("Version string: %s\n", ota_ops.version_string);
 
-	while (!res) {
+	while (is_running) {
 		/* wait for an event to occur */
 		if (read(inotfd, event, bufsiz) < 0)
 			break;
 		printf("Firmware file modified, restarting server\n");
 		server_stop(ota_server);
-		usleep(1000000);
 		goto restart;
 	}
 
 	free(ota_ops.firmware);
 	res = server_stop(ota_server);
 	close(watch_desc);
-	close(inotfd);
 
 	if (res)
 		fprintf(stderr, "Error: %s\n", strerror(res));
