@@ -12,8 +12,14 @@
 #define LISTEN_BACKLOG_VALUE			32
 #endif
 
+#ifndef MAX_CLIENTS
+#define MAX_CLIENTS				128
+#endif
+
 static const char *no_mem_err = "No memory";
 static const char *thread_err = "Thread create error";
+static int client_socket_list[MAX_CLIENTS] = { 0 };
+static pthread_mutex_t lock;
 
 struct client {
 	int socket;
@@ -32,6 +38,48 @@ struct server {
 	size_t size;
 	void *user;
 };
+
+static int add_client_to_list(int new_socket)
+{
+	int i;
+
+	pthread_mutex_lock(&lock);
+
+	for (i = 0; i != MAX_CLIENTS; i++)
+		if (client_socket_list[i] == 0) {
+			client_socket_list[i] = new_socket;
+			pthread_mutex_unlock(&lock);
+			return 0;
+		}
+
+	pthread_mutex_unlock(&lock);
+	return EAGAIN;
+}
+
+static void remove_client_from_list(int old_socket)
+{
+	int i;
+
+	pthread_mutex_lock(&lock);
+	for (i = 0; i != MAX_CLIENTS; i++)
+		if (client_socket_list[i] == old_socket) {
+			client_socket_list[i] = 0;
+			pthread_mutex_unlock(&lock);
+			return;
+		}
+	pthread_mutex_unlock(&lock);
+}
+
+static void terminate_all_clients(void)
+{
+	int i;
+
+	pthread_mutex_lock(&lock);
+	for (i = 0; i != MAX_CLIENTS; i++)
+		if (client_socket_list[i])
+			close(client_socket_list[i]);
+	pthread_mutex_unlock(&lock);
+}
 
 static void *client_handler(void *ptr)
 {
@@ -88,6 +136,7 @@ err_free:
 	free(buffer);
 err_nomem:
 	close(client->socket);
+	remove_client_from_list(client->socket);
 
 	if (ops->disconnected)
 		ops->disconnected(client);
@@ -154,12 +203,19 @@ static void *server_handler(void *ptr)
 		client->socket = clientfd;
 		client->size = server->size;
 
+		res = add_client_to_list(clientfd);
+		if (res) {
+			free(client);
+			goto err;
+		}
+
 		res = pthread_create(&client->thread, NULL, client_handler,
 			(void *)client);
 		if (res) {
 			if (ops->error)
 				ops->error(thread_err, res, server->user);
 			close(clientfd);
+			remove_client_from_list(clientfd);
 			free(client);
 			goto err;
 		}
@@ -258,6 +314,7 @@ int server_stop(server_t server)
 	if (!server)
 		return EINVAL;
 
+	terminate_all_clients();
 	close(server->socket);
 
 	return server_wait_for_err(server);
