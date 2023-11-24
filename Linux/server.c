@@ -75,9 +75,12 @@ static void terminate_all_clients(void)
 	int i;
 
 	pthread_mutex_lock(&lock);
-	for (i = 0; i != MAX_CLIENTS; i++)
-		if (client_socket_list[i])
+	for (i = 0; i != MAX_CLIENTS; i++) {
+		if (client_socket_list[i]) {
+			shutdown(client_socket_list[i], SHUT_RD);
 			close(client_socket_list[i]);
+		}
+	}
 	pthread_mutex_unlock(&lock);
 }
 
