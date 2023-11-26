@@ -57,6 +57,10 @@
 #include <vector>
 #include <memory>
 #include <atomic>
+#include <algorithm>
+#include <mutex>
+
+static std::mutex lock;
 
 namespace TCP
 {
@@ -67,8 +71,9 @@ namespace TCP
 		class Client
 		{
 		public:
-			Client(int new_clientfd, struct Event_ops *ops) noexcept {
+			Client(int new_clientfd, struct Event_ops *ops, std::vector<int> *clients_list) noexcept {
 				clientfd = new_clientfd;
+				clientsfd = clients_list;
 				event_ops = ops;
 				client_thread = std::thread([&] {
 					void *buffer = malloc(event_ops->buffer_size);
@@ -101,8 +106,14 @@ namespace TCP
 			}
 
 			void Terminate() noexcept {
-				if (clientfd >= 0)
+				if (clientfd >= 0) {
 					close(clientfd);
+					lock.lock();
+					auto i = std::find(clientsfd->begin(), clientsfd->end(), clientfd);
+					if (i != clientsfd->end())
+						clientsfd->erase(i);
+					lock.unlock();
+				}
 				delete(this);
 			}
 
@@ -134,6 +145,7 @@ namespace TCP
 			int clientfd = -1;
 			struct Event_ops *event_ops;
 			std::thread client_thread;
+			std::vector<int> *clientsfd;
 		};
 
 		Server(uint16_t port,
@@ -179,9 +191,11 @@ namespace TCP
 						&& listen(serverfd, max_conn) == 0) {
 					int clientfd = accept(serverfd, 0, 0);
 					if (clientfd >= 0) {
-						Client *new_client = new Client(clientfd, &event_ops);
+						Client *new_client = new Client(clientfd, &event_ops, &clientsfd_list);
 						(void)new_client;
+						lock.lock();
 						clientsfd_list.push_back(clientfd);
+						lock.unlock();
 					}
 				}
 			});
@@ -193,12 +207,14 @@ namespace TCP
 			if (!is_running)
 				return;
 			is_running.store(false, std::memory_order_release);
+			lock.lock();
 			for (const int clientfd: clientsfd_list) {
 				if (clientfd < 0)
 					continue;
 				shutdown(clientfd, SHUT_RD);
 				close(clientfd);
 			}
+			lock.unlock();
 			shutdown(serverfd, SHUT_RD);
 			close(serverfd);
 		}
