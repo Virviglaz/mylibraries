@@ -1,12 +1,10 @@
-#ifndef FLASH_H
-#define FLASH_H
+#ifndef __STM32_FLASH_H__
+#define __STM32_FLASH_H__
 
 #include "stm32f0xx.h"                  // Device header
 #include "stm32f0xx_flash.h"
-#include <stdbool.h>
 #include <stdint.h>
-#include <string.h>
-#include <stdlib.h>
+#include <stdbool.h>
 
 #define FLASH_PAGE_SIZE				0x400
 
@@ -27,4 +25,5 @@ uint32_t flashAreaCRC32 (flash_t * area);
 void eraseFlashArea (flash_t * area);
 void writeFlashPage (flash_t * area, uint16_t pageNum, uint8_t * data);
 void copyFlashArea (flash_t * source, flash_t * dest);
-#endif
+
+#endif /* __STM32_FLASH_H__ */
