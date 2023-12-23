@@ -1,5 +1,5 @@
 #include "flash.h"
-#include "CRC.h"
+#include "crc_generic.h"
 
 FLASH_Status FlashPagesErase (uint32_t Address, uint8_t Pages, const uint32_t PageSize)
 {
