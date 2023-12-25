@@ -1,5 +1,5 @@
 #include "1-wire.h"
-#include "CRC.h"
+#include "crc_generic.h"
 
 /* DS1822 Commands list */
 #define DS1822_READ_ROM									0x33
