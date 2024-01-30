@@ -16,7 +16,7 @@ static uint16_t SW_I2C_Clock(void);
 static uint16_t SW_I2C_Write(uint8_t data);
 static uint16_t SW_I2C_Read (uint8_t ack);
 
-I2C_Result SW_I2C_ASSIGN (SW_I2C_DriverStructTypeDef * SW_I2C_DriverToAssign)
+I2C_Result SW_I2C_ASSIGN(SW_I2C_DriverStructTypeDef * SW_I2C_DriverToAssign)
 {
 	SW_I2C_Driver = SW_I2C_DriverToAssign;
 	
@@ -28,7 +28,7 @@ SW_I2C_DriverStructTypeDef * SW_I2C_GetDriver (void)
 	return SW_I2C_Driver;
 }
 
-void SW_I2C_RESET_BUS (void)
+void SW_I2C_RESET_BUS(void)
 {
 	SW_I2C_Driver->IO_SDA_Write(LOW);
 	SW_I2C_Driver->IO_SCL_Write(LOW);
@@ -45,30 +45,31 @@ void SW_I2C_RESET_BUS (void)
 		SW_I2C_Driver->Delay_func(SW_I2C_Driver->DelayValue);	
 }
 
-I2C_Result SW_I2C_WR (uint8_t address, uint8_t * reg, uint8_t reglen, uint8_t * buf, uint16_t size)
+I2C_Result SW_I2C_WR(uint8_t address, uint8_t *reg, uint8_t reglen, uint8_t *buf, uint16_t size)
 {
-  I2C_Result Result = I2C_ADD_NOT_EXIST;
+	I2C_Result Result = I2C_ADD_NOT_EXIST;
 	
 	/* Check interface exist */
-	if (SW_I2C_Driver == 0) return I2C_INTERFACE_ERROR;
+	if (SW_I2C_Driver == 0)
+		return I2C_INTERFACE_ERROR;
 	
 	/* Check BUS */
-  if (SW_I2C_Start() != I2C_SUCCESS) return I2C_BUS_BUSY;
+	if (SW_I2C_Start() != I2C_SUCCESS)
+		return I2C_BUS_BUSY;
 	
 	/* Send device address for write */
-  if (SW_I2C_Write(address & 0xFE) == ACK) //if device respond, procceed
-  {
+	if (SW_I2C_Write(address & 0xFE) == ACK) {
 		Result = I2C_SUCCESS;
 		
 		while (reglen--) //send reg value
-			Result = (I2C_Result)SW_I2C_Write (* reg++);
+			Result = (I2C_Result)SW_I2C_Write (*reg++);
 		
 		while(size-- && Result == I2C_SUCCESS) //send buffer
 			Result = (I2C_Result)SW_I2C_Write(* buf++);
-  }
+	}
 	
-  SW_I2C_Stop();  
-  return Result;
+	SW_I2C_Stop();  
+	return Result;
 }
 
 I2C_Result SW_I2C_RD (uint8_t address, uint8_t * reg, uint8_t reglen, uint8_t * buf, uint16_t size)
@@ -76,30 +77,31 @@ I2C_Result SW_I2C_RD (uint8_t address, uint8_t * reg, uint8_t reglen, uint8_t * 
 	I2C_Result Result = I2C_ADD_NOT_EXIST;
 
 	/* Check interface exist */
-	if (SW_I2C_Driver == 0) return I2C_INTERFACE_ERROR;
+	if (SW_I2C_Driver == 0)
+		return I2C_INTERFACE_ERROR;
 	
 	/* Check BUS */
-	if (SW_I2C_Start() != I2C_SUCCESS) return I2C_BUS_BUSY;
+	if (SW_I2C_Start() != I2C_SUCCESS)
+		return I2C_BUS_BUSY;
 
 	/* Send device address for write */
-  if (SW_I2C_Write(address & 0xFE) == ACK) //if device respond, procceed
-  {
-    Result = (I2C_Result)ACK;
+	if (SW_I2C_Write(address & 0xFE) == ACK) {
+		Result = (I2C_Result)ACK;
 		
-    while(reglen--)
-      Result = (I2C_Result)SW_I2C_Write (* reg++);
+		while(reglen--)
+			Result = (I2C_Result)SW_I2C_Write (* reg++);
 		
-      SW_I2C_ReStart();
+		SW_I2C_ReStart();
 
-      if (SW_I2C_Write(address | 0x01) == I2C_SUCCESS)
-      {
-        while (size--)
-          * buf++ = SW_I2C_Read(size ? 1 : 0);  //read to buffer
-        Result = I2C_SUCCESS;
-      }   
-  }
-  SW_I2C_Stop();
-  return Result;
+		if (SW_I2C_Write(address | 0x01) == I2C_SUCCESS) {
+			while (size--)
+			*buf++ = SW_I2C_Read(size ? 1 : 0);  //read to buffer
+			Result = I2C_SUCCESS;
+		}   
+	}
+
+	SW_I2C_Stop();
+	return Result;
 }
 
 I2C_Result SW_I2C_FAST_RD (uint8_t address, uint8_t * buf, uint16_t size)
@@ -107,20 +109,21 @@ I2C_Result SW_I2C_FAST_RD (uint8_t address, uint8_t * buf, uint16_t size)
 	I2C_Result Result = I2C_ADD_NOT_EXIST;
 
 	/* Check interface exist */
-	if (SW_I2C_Driver == 0) return I2C_INTERFACE_ERROR;
+	if (SW_I2C_Driver == 0)
+		return I2C_INTERFACE_ERROR;
 	
 	/* Check BUS */
-	if (SW_I2C_Start() != I2C_SUCCESS) return I2C_BUS_BUSY;
+	if (SW_I2C_Start() != I2C_SUCCESS)
+		return I2C_BUS_BUSY;
 
-	if (SW_I2C_Write(address | 0x01) == ACK)
-	{
+	if (SW_I2C_Write(address | 0x01) == ACK) {
 		while (size--)
 			* buf++ = SW_I2C_Read(size ? 1 : 0);  //read to buffer
 		Result = I2C_SUCCESS;
 	}   
   
-  SW_I2C_Stop();
-  return Result;
+	SW_I2C_Stop();
+	return Result;
 }
 
 I2C_Result SW_I2C_RD_POOLING_ACK (uint8_t address, uint8_t reg, uint8_t * buf, uint16_t size, uint8_t attempts)
@@ -128,67 +131,69 @@ I2C_Result SW_I2C_RD_POOLING_ACK (uint8_t address, uint8_t reg, uint8_t * buf, u
 	I2C_Result Result = I2C_ADD_NOT_EXIST;
 
 	/* Check interface exist */
-	if (SW_I2C_Driver == 0) return I2C_INTERFACE_ERROR;
+	if (SW_I2C_Driver == 0)
+		return I2C_INTERFACE_ERROR;
 	
 	/* Check BUS */
-	if (SW_I2C_Start() != I2C_SUCCESS) return I2C_BUS_BUSY;
+	if (SW_I2C_Start() != I2C_SUCCESS)
+		return I2C_BUS_BUSY;
 
 	/* Send device address for write */
-  if (SW_I2C_Write(address & 0xFE) == ACK) //if device respond, procceed
-  {
+	if (SW_I2C_Write(address & 0xFE) == ACK) //if device respond, procceed
+	{
 		SW_I2C_Write(reg);
-		do
-		{
+		do {
 			SW_I2C_ReStart();
 			Result = (I2C_Result)SW_I2C_Write(address | 0x01);
-		}while (Result && --attempts);
+		} while (Result && --attempts);
 		
-		if (attempts) 
-		{
+		if (attempts) {
 			while (size--)
 				* buf++ = SW_I2C_Read(size ? 1 : 0);  //read to buffer
-		}
-		else
+		} else
 			Result = I2C_TIMEOUT;
 	}
 
-  SW_I2C_Stop();
-  return Result;
+	SW_I2C_Stop();
+	return Result;
 }
 
 uint8_t SW_I2C_WriteWithFlagPooling (uint8_t address, uint8_t reg, uint8_t * value, uint8_t attempts, uint8_t flagToPooling)
 {
 	uint8_t res = I2C_SUCCESS;
+	uint8_t ret;
 
 	/* Check interface exist */
-	if (SW_I2C_Driver == 0) return I2C_INTERFACE_ERROR;
+	if (SW_I2C_Driver == 0)
+		return I2C_INTERFACE_ERROR;
 	
 	/* Check BUS */
-	if (SW_I2C_Start() != I2C_SUCCESS) return I2C_BUS_BUSY;
+	if (SW_I2C_Start() != I2C_SUCCESS)
+		return I2C_BUS_BUSY;
 	
 	/* Send device address for write */
-  if (SW_I2C_Write(address & 0xFE) == I2C_SUCCESS) //if device respond, procceed
-	{
+	if (SW_I2C_Write(address & 0xFE) == I2C_SUCCESS) {
 		/* Choose register if needed */
-		if (reg) SW_I2C_Write(reg);
+		if (reg)
+			SW_I2C_Write(reg);
 		
 		if (value) //write value if needed
-			SW_I2C_Write(* value);	
+			SW_I2C_Write(*value);	
 			
 		SW_I2C_ReStart();
 		SW_I2C_Write(address | 0x01);
 		
-		do //flag pooling
-		{
-			* value = SW_I2C_Read(1);
-		}while(--attempts && ((* value & flagToPooling) == 0));
+		do {
+			ret = SW_I2C_Read(1);
+		} while(--attempts && ((ret & flagToPooling) == 0));
 		
 		SW_I2C_Read(0);
 	}
 	
 	SW_I2C_Stop();
 	
-	if (attempts == 0) return I2C_TIMEOUT;
+	if (attempts == 0)
+		return I2C_TIMEOUT;
 
 	return res;
 }
@@ -224,30 +229,30 @@ static I2C_Result SW_I2C_Start (void)
 	if (SW_I2C_Driver->Delay_func)
 		SW_I2C_Driver->Delay_func(SW_I2C_Driver->DelayValue);
 	
-  return I2C_SUCCESS;
+	return I2C_SUCCESS;
 }
 
 static void SW_I2C_ReStart (void)
 {
-  //Release SDA
-  SW_I2C_Driver->IO_SDA_Write(HIGH);
+	//Release SDA
+	SW_I2C_Driver->IO_SDA_Write(HIGH);
   
-  //Release SCL - do the same as START, but no BUS checking
-  SW_I2C_Driver->IO_SCL_Write(HIGH);
-  
-	//Some delay if needed
-	if (SW_I2C_Driver->Delay_func)
-		SW_I2C_Driver->Delay_func(SW_I2C_Driver->DelayValue);
-  
-  //Force down SDA
-  SW_I2C_Driver->IO_SDA_Write(LOW);
+	//Release SCL - do the same as START, but no BUS checking
+	SW_I2C_Driver->IO_SCL_Write(HIGH);
   
 	//Some delay if needed
 	if (SW_I2C_Driver->Delay_func)
 		SW_I2C_Driver->Delay_func(SW_I2C_Driver->DelayValue);
   
-  //Force down SCL
-  SW_I2C_Driver->IO_SCL_Write(LOW);
+	//Force down SDA
+	SW_I2C_Driver->IO_SDA_Write(LOW);
+  
+	//Some delay if needed
+	if (SW_I2C_Driver->Delay_func)
+		SW_I2C_Driver->Delay_func(SW_I2C_Driver->DelayValue);
+  
+	//Force down SCL
+	SW_I2C_Driver->IO_SCL_Write(LOW);
 }
 
 static void SW_I2C_Stop (void)
@@ -256,18 +261,18 @@ static void SW_I2C_Stop (void)
 	if (SW_I2C_Driver->Delay_func)
 		SW_I2C_Driver->Delay_func(SW_I2C_Driver->DelayValue);
 	
-  //Force down SDA
-  SW_I2C_Driver->IO_SDA_Write(LOW);
+	//Force down SDA
+	SW_I2C_Driver->IO_SDA_Write(LOW);
 	
 	//Release SCL
-  SW_I2C_Driver->IO_SCL_Write(HIGH);
+	SW_I2C_Driver->IO_SCL_Write(HIGH);
   
 	//Some delay if needed
 	if (SW_I2C_Driver->Delay_func)
 		SW_I2C_Driver->Delay_func(SW_I2C_Driver->DelayValue);
 	
 	//Release SDA
-  SW_I2C_Driver->IO_SDA_Write(HIGH);  
+	SW_I2C_Driver->IO_SDA_Write(HIGH);  
 
 	//Some delay if needed
 	if (SW_I2C_Driver->Delay_func)
@@ -276,64 +281,59 @@ static void SW_I2C_Stop (void)
 
 static uint16_t SW_I2C_Clock(void)
 {
-  uint16_t Result;
+	uint16_t Result;
 	
 	//Release SCL
-  SW_I2C_Driver->IO_SCL_Write(HIGH);
+	SW_I2C_Driver->IO_SCL_Write(HIGH);
 	
 	//Some delay if needed
 	if (SW_I2C_Driver->Delay_func)
 		SW_I2C_Driver->Delay_func(SW_I2C_Driver->DelayValue);
 	
-  Result = SW_I2C_Driver->IO_SDA_Read();
+	Result = SW_I2C_Driver->IO_SDA_Read();
 	
-  //Force down SCL
-  SW_I2C_Driver->IO_SCL_Write(LOW);
+	//Force down SCL
+	SW_I2C_Driver->IO_SCL_Write(LOW);
 	
 	//Some delay if needed
 	if (SW_I2C_Driver->Delay_func)
 		SW_I2C_Driver->Delay_func(SW_I2C_Driver->DelayValue);
 	
-  return Result;  
+	return Result;  
 }
 
 static uint16_t SW_I2C_Write(uint8_t data)
 {
-  uint8_t mask = 0x80;
+	uint8_t mask = 0x80;
 	
-  while (mask)
-  {
+	while (mask) {
 		(data & mask) ? SW_I2C_Driver->IO_SDA_Write(HIGH) : SW_I2C_Driver->IO_SDA_Write(LOW);
 		
-    SW_I2C_Clock();  
-    mask >>= 1;
-  }
+		SW_I2C_Clock();  
+		mask >>= 1;
+	}
 	
-  SW_I2C_Driver->IO_SDA_Write(HIGH);
-  return SW_I2C_Clock();
+	SW_I2C_Driver->IO_SDA_Write(HIGH);
+	return SW_I2C_Clock();
 }
 
 static uint16_t SW_I2C_Read (uint8_t ack)
 {
-  uint8_t data = 0, mask = 0x80;
+	uint8_t data = 0, mask = 0x80;
 	
-  while(mask)
-  {
-    if (SW_I2C_Clock()) data |= mask;
-    mask >>= 1;
-  }
+	while(mask) {
+		if (SW_I2C_Clock()) data |= mask;
+		mask >>= 1;
+	}
 	
-  if (ack)
-  {
+	if (ack) {
 		SW_I2C_Driver->IO_SDA_Write(LOW);	
-    SW_I2C_Clock();
+		SW_I2C_Clock();
 		SW_I2C_Driver->IO_SDA_Write(HIGH);
-  }
-  else
-  {
+	} else {
 		SW_I2C_Driver->IO_SDA_Write(HIGH);
-    SW_I2C_Clock();
-  }
+		SW_I2C_Clock();
+	}
 	
-  return data;
+	return data;
 }
