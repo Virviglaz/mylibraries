@@ -28,22 +28,19 @@ enum ds2482_bus_speed {
 #endif
 
 struct ds2482_t {
-	enum ds2482_active_pullup active_pullup;
-	enum ds2482_strong_pullup strong_pullup;
-	enum ds2482_bus_speed bus_speed;
-	uint8_t attemps; //10..100
+	const enum ds2482_active_pullup active_pullup;
+	const enum ds2482_strong_pullup strong_pullup;
+	const enum ds2482_bus_speed bus_speed;
 
 	/* I2C Interface Functions */
-	uint8_t (*write)(uint8_t reg, uint8_t *buf, uint8_t size);
-	uint8_t (*read)(uint8_t *reg, uint8_t regsize,
-		uint8_t *buf, uint8_t size);
-	uint8_t (*pooling_write) (uint8_t reg, uint8_t *value,
-		uint8_t attempts, uint8_t flagToPooling);
+	uint8_t (*write)(uint8_t *dst, uint8_t size);
+	uint8_t (*read)(uint8_t *dst, uint8_t size);
+	uint8_t (*read_at)(uint8_t *dst1, uint8_t size1,
+		uint8_t *dst2, uint8_t size2);
 };
 
-uint8_t ds2482_init(struct ds2482_t *dev);
-uint8_t ds2482_one_wire_reset(struct ds2482_t *dev);
-uint8_t ds2482_one_wire_write(struct ds2482_t *dev, uint8_t value);
-uint8_t ds2482_one_wire_read(struct ds2482_t *dev);
+uint8_t ds2482_one_wire_reset(const struct ds2482_t *dev);
+uint8_t ds2482_one_wire_write(const struct ds2482_t *dev, uint8_t value);
+uint8_t ds2482_one_wire_read(const struct ds2482_t *dev);
 
 #endif /* DS2482_H */
