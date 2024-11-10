@@ -73,8 +73,10 @@ void plbus_put(plbus_t *bus, uint8_t byte)
 		if (byte == PLBUS_TOKEN) {
 			bus->internal.in_sync = true;
 			bus->internal.rx_cnt = 1;
+		/* Discard */
+		} else {
+			bus->internal.rx_cnt = 0;
 		}
-		/* Sync or discard */
 		return;
 	}
 

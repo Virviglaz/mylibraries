@@ -23,6 +23,10 @@ typedef struct {
 	} internal;
 } plbus_t;
 
+#ifdef __cplusplus
+    extern "C" {
+#endif
+
 typedef uint16_t (*plbus_cb_t)(uint8_t *data, uint16_t size);
 
 void plbus_init(plbus_t *bus);
@@ -36,5 +40,9 @@ uint16_t plbus_send(plbus_t *bus,
 					uint8_t *data,
 					uint16_t size,
 					plbus_cb_t on_transmit);
+
+#ifdef __cplusplus
+    }
+#endif
 
 #endif /* __PLBUS_H__ */
