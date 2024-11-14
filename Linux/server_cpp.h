@@ -64,6 +64,7 @@
 
 class Server;
 class Client;
+enum class Protocol { TCP, UDP };
 
 /**
  * @brief Set of callback functions.
@@ -89,9 +90,22 @@ struct ServerEvents
  */
 class Client
 {
-	int _sockfd;
+	int _sockfd = -1;
+	bool _close_required { false };
 public:
+	/**
+	 * Constructor of client class to connect to server.
+	 */
+	Client() = default;
+
+	/**
+	 * Constructor used by Server when client is connected.
+	 *
+	 * @param sockfd	Socket of connected client.
+	 */
 	Client(int sockfd) : _sockfd(sockfd) {}
+
+	~Client() { Close(); }
 
 	/**
 	 * @brief Send data back to client.
@@ -138,11 +152,51 @@ public:
 		return Send(static_cast<const char *>(src.begin()), src.size());
 	}
 
+	int Connect(	const std::string& ip,
+			uint16_t port,
+			Protocol proto = Protocol::TCP) {
+		_sockfd = socket(AF_INET,
+			proto == Protocol::TCP ? SOCK_STREAM : SOCK_DGRAM, 0);
+		if (_sockfd < 0)
+			return errno;
+
+		struct sockaddr_in serv_addr;
+		serv_addr.sin_family = AF_INET;
+		serv_addr.sin_port = htons(port);
+
+		if (inet_pton(AF_INET, ip.c_str(), &serv_addr.sin_addr) <= 0) {
+			Close();
+			return errno;
+		}
+
+		if (connect(_sockfd, (struct sockaddr *)&serv_addr,
+				sizeof(serv_addr)) < 0) {
+			Close();
+			return errno;
+		}
+
+		_close_required = true;
+		return 0;
+	}
+
+	std::vector<char> Read(ssize_t max_size = 1500) {
+		assert(max_size > 0);
+		char buffer[max_size];
+		ssize_t s = read(_sockfd, buffer, max_size);
+		if (s <= 0)
+			return std::vector<char>{ };
+		return std::vector<char> { buffer, buffer + s };
+	}
+
 	/**
 	 * @brief Terminate current connection.
 	 */
 	void Close() {
-		close(_sockfd);
+		if (_close_required) {
+			close(_sockfd);
+			_sockfd = -1;
+			_close_required = false;
+		}
 	}
 };
 
@@ -160,14 +214,19 @@ public:
 	Server(	uint16_t port,
 		ServerEvents events,
 		std::size_t msg_size = 1500,
-		int max_connections = 32) :
+		int max_connections = 32,
+		Protocol protocol = Protocol::TCP) :
 		_port(port),
 		_events(std::move(events)),
 		_msg_size(msg_size),
-		_max_connections(max_connections) {
+		_max_connections(max_connections),
+		_protocol(protocol) {
+		assert(_max_connections > 0);
 		assert(port > 0);
 		assert(!events.on_receive);
 		assert(msg_size > 0);
+		 /* Only TCP is supported now */
+		assert(protocol != Protocol::UDP);
 	}
 
 	~Server() { Stop(); }
@@ -188,7 +247,8 @@ public:
 		}
 
 		/* Register socket */
-		_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+		_sockfd = socket(AF_INET,
+				_protocol == Protocol::TCP ? SOCK_STREAM : SOCK_DGRAM, 0);
 		if (_sockfd < 0) {
 			int res = errno;
 			if (_events.on_error)
@@ -213,12 +273,15 @@ public:
 		}
 
 		/* Start listening for incoming connections. */
-		int res = listen(_sockfd.value(), _max_connections);
-		if (res) {
-			res = errno;
-			if (_events.on_error)
-				_events.on_error("Socket listen error", res, *this);
-			return res;
+		if (_protocol == Protocol::TCP) {
+			int res = listen(_sockfd.value(), _max_connections);
+			if (res) {
+				res = errno;
+				if (_events.on_error)
+					_events.on_error("Socket listen error",
+							res, *this);
+				return res;
+			}
 		}
 
 		/* Start server thread */
@@ -275,6 +338,7 @@ private:
 	int _max_connections;
 	std::set<int> clients_list;
 	std::mutex guard;
+	Protocol _protocol;
 
 	static void close_socket(std::optional<int>& socket_fd) {
 		if (socket_fd.has_value())
@@ -309,8 +373,13 @@ private:
 			server->clients_list.insert(clientfd);
 			server->guard.unlock();
 
-			/* Create client thread */
-			std::thread(client_handler, server, clientfd).detach();
+			if (server->_max_connections == 1) {
+				/* For single connection use this thread */
+				client_handler(server, clientfd);
+			} else {
+				/* Create client thread */
+				std::thread(client_handler, server, clientfd).detach();
+			}
 		}
 
 		/* Unregister all clients */
