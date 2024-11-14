@@ -226,7 +226,7 @@ static void *server_handler(void *ptr)
 	} while (clientfd > 0 && server->socket > 0);
 
 err:
-	close(server->socket);
+	shutdown(server->socket, SHUT_RD);
 
 	pthread_exit(&res);
 	return 0;
