@@ -142,7 +142,7 @@ public:
 	 * @brief Terminate current connection.
 	 */
 	void Close() {
-		shutdown(_sockfd, SHUT_RD);
+		close(_sockfd);
 	}
 };
 
