@@ -82,7 +82,7 @@ struct ServerEvents
 	std::function<void(Client&& client, char *data, ssize_t size)> on_receive;
 
 	/** Called when on error. [Optional] */
-	std::function<void(const char *err_str, int err, Server& server)> on_error;
+	std::function<void(const char *err_str, int err)> on_error;
 };
 
 /**
@@ -94,12 +94,12 @@ class Client
 	bool _close_required { false };
 public:
 	/**
-	 * Constructor of client class to connect to server.
+	 * @brief Constructor of client class to connect to server.
 	 */
 	Client() = default;
 
 	/**
-	 * Constructor used by Server when client is connected.
+	 * @brief Constructor used by Server when client is connected.
 	 *
 	 * @param sockfd	Socket of connected client.
 	 */
@@ -112,17 +112,19 @@ public:
 	 *
 	 * @param src		Pointer to the buffer to send.
 	 * @param size		Amount of bytes to send.
-	 * @return		Amount of bytes being sent.
+	 *
+	 * @return		0 on success, error code on error.
 	 */
 	ssize_t Send(const char *src, ssize_t size) {
-		return write(_sockfd, src, size);
+		return write(_sockfd, src, size) == size ? 0 : errno;
 	}
 
 	/**
 	 * @brief Send data back to client.
 	 *
 	 * @param src		Source string.
-	 * @return		Amount of bytes being sent.
+	 *
+	 * @return		0 on success, error code on error.
 	 */
 	ssize_t Send(const std::string& src) {
 		return Send(src.c_str(), src.length() + 1);
@@ -132,7 +134,8 @@ public:
 	 * @brief Send vector of data to client.
 	 * @tparam T		Type of data (1-byte size).
 	 * @param src		Source vector.
-	 * @return		Amount of bytes being sent.
+	 *
+	 * @return		0 on success, error code on error.
 	 */
 	template <typename T = char>
 	ssize_t Send(const std::vector<T>& src) {
@@ -145,13 +148,23 @@ public:
 	 * @tparam T		Type of data (1-byte size).
 	 * @tparam S		Amount of bytes to send.
 	 * @param src		Source of byte array.
-	 * @return		Amount of bytes being sent.
+	 *
+	 * @return		0 on success, error code on error.
 	 */
 	template <typename T = char, std::size_t S>
 	ssize_t Send(const std::array<T, S>& src) {
 		return Send(static_cast<const char *>(src.begin()), src.size());
 	}
 
+	/**
+	 * @brief Connect to remote host by IP address.
+	 *
+	 * @param ip		IP address string { xxx.xxx.xxx.xxx }.
+	 * @param port		Post number.
+	 * @param proto		Protocol [TCP/UDP].
+	 *
+	 * @return		0 on success, error code on error.
+	 */
 	int Connect(	const std::string& ip,
 			uint16_t port,
 			Protocol proto = Protocol::TCP) {
@@ -179,6 +192,13 @@ public:
 		return 0;
 	}
 
+	/**
+	 * @brief Wait and read data from remote host.
+	 *
+	 * @param max_size	Amount of bytes to read;
+	 *
+	 * @return Vector with data.
+	 */
 	std::vector<char> Read(ssize_t max_size = 1500) {
 		assert(max_size > 0);
 		char buffer[max_size];
@@ -192,7 +212,7 @@ public:
 	 * @brief Terminate current connection.
 	 */
 	void Close() {
-		if (_close_required) {
+		if (_close_required && _sockfd >= 0) {
 			close(_sockfd);
 			_sockfd = -1;
 			_close_required = false;
@@ -225,15 +245,12 @@ public:
 		assert(port > 0);
 		assert(!events.on_receive);
 		assert(msg_size > 0);
-		 /* Only TCP is supported now */
-		assert(protocol != Protocol::UDP);
 	}
 
 	~Server() { Stop(); }
 
 	/**
-	 * @brief Start server at current thread.
-	 * @note This call will return only after server is terminated.
+	 * @brief Start server thread.
 	 *
 	 * @return 0 on success, error code on error.
 	 */
@@ -242,17 +259,17 @@ public:
 		if (_sockfd.has_value()) {
 			int res = EALREADY;
 			if (_events.on_error)
-				_events.on_error("Socket already opened", res, *this);
+				_events.on_error("Socket already opened", res);
 			return res;
 		}
 
 		/* Register socket */
 		_sockfd = socket(AF_INET,
 				_protocol == Protocol::TCP ? SOCK_STREAM : SOCK_DGRAM, 0);
-		if (_sockfd < 0) {
+		if (_sockfd.value() < 0) {
 			int res = errno;
 			if (_events.on_error)
-				_events.on_error("Open socket error", res, *this);
+				_events.on_error("Open socket error", res);
 			_sockfd.reset();
 			return res;
 		}
@@ -267,7 +284,7 @@ public:
 				sizeof(serv_addr)) < 0) {
 			int res = errno;
 			if (_events.on_error)
-				_events.on_error("Bind socked error", res, *this);
+				_events.on_error("Bind socked error", res);
 			close_socket(_sockfd);
 			return res;
 		}
@@ -278,8 +295,7 @@ public:
 			if (res) {
 				res = errno;
 				if (_events.on_error)
-					_events.on_error("Socket listen error",
-							res, *this);
+					_events.on_error("Socket listen error", res);
 				return res;
 			}
 		}
@@ -301,6 +317,8 @@ public:
 
 		if (_sockfd.has_value() == false) /* Not started */
 			return 0;
+
+		unregister_clients(this);
 
 		/* Terminate server socket */
 		close_socket(_sockfd);
@@ -350,9 +368,10 @@ private:
 	}
 
 	static int server_handler(Server *server) {
+		struct sockaddr_in cli_addr;
+
 		/* Accept the connection and create client (called in the loop) */
-		while(1) {
-			struct sockaddr_in cli_addr;
+		while (server->_protocol == Protocol::TCP) {
 			socklen_t socklen;
 			int clientfd = accept(server->_sockfd.value(),
 					(struct sockaddr *)&cli_addr, &socklen);
@@ -382,13 +401,42 @@ private:
 			}
 		}
 
+		while (server->_protocol == Protocol::UDP) {
+			char buffer[server->_msg_size];
+			socklen_t si_client_len = sizeof(cli_addr);
+			auto size = recvfrom(server->_sockfd.value(),
+					buffer, server->_msg_size, 0,
+					(struct sockaddr *)&cli_addr,
+					&si_client_len);
+
+			if (size > 0) {
+				std::string ip { inet_ntoa(cli_addr.sin_addr) };
+
+				/* Call event when connected */
+				if (server->_events.on_connect)
+					server->_events.on_connect(ip);
+
+				server->_events.on_receive(
+					std::move(Client(server->_sockfd.value())),
+					buffer, size);
+			} else {
+				if (server->_events.on_disconnect)
+					server->_events.on_disconnect();
+				break;
+			}
+		}
+
+		unregister_clients(server);
+
+		return 0;
+	}
+
+	static void unregister_clients(Server *server) {
 		/* Unregister all clients */
 		server->guard.lock();
 		for (const auto& client: server->clients_list)
 			close_socket(client);
 		server->guard.unlock();
-
-		return 0;
 	}
 
 	static void client_handler(Server *server, int sockfd) {
