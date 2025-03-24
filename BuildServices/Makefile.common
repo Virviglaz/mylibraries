@@ -1,0 +1,59 @@
+####################### SET FOLLOWING VARIABLES ################################
+#
+# BUILDDIR			destanation folder
+# TARGET			artifact name
+# ASMFLAGS			assembly flags
+# CFLAGS			C compile flags
+# CPPFLAGS			C++ compile flags
+# CROSS_COMPILE		toolchain path + index
+# SRC				list of source files including paths
+# INC				list of inlude folders
+# DEF				list of compile time definitions
+#
+################################################################################
+
+CC					:= $(CROSS_COMPILE)gcc
+CPP					:= $(CROSS_COMPILE)g++
+
+OBJS 				:= $(SRC:%=$(BUILDDIR)/$(TARGET)/%.o)
+INCD				:= $(addprefix -I,$(INC))
+DEFS				:= $(addprefix -D,$(DEF))
+
+RM = rm -rf -f
+MKDIR = mkdir -p
+
+# parallel build enabled
+MAKEFLAGS 			+= -j$(NUM_CORES)
+
+.PHONY: clean
+clean:
+	@$(RM) $(BUILDDIR)
+
+$(BUILDDIR)/$(TARGET)/%.s.o: %.s
+	@echo "Assembling $<"
+	@$(MKDIR) $(dir $@)
+	@$(CC) -o $@ $< $(ASMFLAGS)
+
+$(BUILDDIR)/$(TARGET)/%.c.o: %.c
+	@echo "Compiling C file $<"
+	@$(MKDIR) $(dir $@)
+	@$(CC) $(CFLAGS) -c $< -o $@ $(INCD) $(DEFS)
+
+$(BUILDDIR)/$(TARGET)/%.cpp.o: %.cpp
+	@echo "Compiling C++ file $<"
+	@$(MKDIR) $(dir $@)
+	@$(CCP) $(CPPFLAGS) -c $< -o $@ $(INCD) $(DEFS) 
+
+$(BUILDDIR)/$(TARGET).elf: | $(OBJS)
+	@echo "Linking $@"
+	@$(CC) -o $@ $(OBJS) $(LDFLAGS) -T$(LINKERFILE) -Wl,-Map=$(BUILDDIR)/$(TARGET).map,--cref
+
+$(BUILDDIR)/$(TARGET).hex: $(BUILDDIR)/$(TARGET).elf
+	@echo "Generating $@"
+	@$(CROSS_COMPILE)objcopy -O ihex $(BUILDDIR)/$(TARGET).elf $@
+
+report_size: $(BUILDDIR)/$(TARGET).hex
+	@$(CROSS_COMPILE)size $(BUILDDIR)/$(TARGET).elf
+
+.PHONY: all
+all: $(BUILDDIR)/$(TARGET).hex
