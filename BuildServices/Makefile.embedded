@@ -25,6 +25,10 @@ MKDIR = mkdir -p
 # parallel build enabled
 MAKEFLAGS 			+= -j$(NUM_CORES)
 
+ifneq ($(filter clean,$(MAKECMDGOALS)),)
+.NOTPARALLEL:
+endif
+
 .PHONY: clean
 clean:
 	@$(RM) $(BUILDDIR)
@@ -44,7 +48,7 @@ $(BUILDDIR)/$(TARGET)/%.cpp.o: %.cpp
 	@$(MKDIR) $(dir $@)
 	@$(CPP) $(CPPFLAGS) -c $< -o $@ $(INCD) $(DEFS)
 
-$(BUILDDIR)/$(TARGET).elf: | $(OBJS)
+$(BUILDDIR)/$(TARGET).elf: $(OBJS)
 	@echo "Linking $@"
 	@$(CPP) -o $@ $(OBJS) $(LDFLAGS) -T$(LINKERFILE) -Wl,-Map=$(BUILDDIR)/$(TARGET).map,--cref
 
