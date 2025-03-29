@@ -15,7 +15,7 @@
 CC					:= $(CROSS_COMPILE)gcc
 CPP					:= $(CROSS_COMPILE)g++
 
-OBJS 				:= $(SRC:%=$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.o)
+OBJS 				:= $(SRC:%=$(BUILDDIR)/$(TARGET)/%.o)
 INCD				:= $(addprefix -I,$(INC))
 DEFS				:= $(addprefix -D,$(DEF))
 
@@ -25,27 +25,35 @@ MKDIR = mkdir -p
 # parallel build enabled
 MAKEFLAGS 			+= -j$(NUM_CORES)
 
-.PHONY: clean all $(BUILDDIR)/$(TARGET)
+.PHONY: clean
 clean:
 	@$(RM) $(BUILDDIR)
 
-$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.s.o: %.s
+$(BUILDDIR)/$(TARGET)/%.s.o: %.s
 	@echo "Assembling $<"
 	@$(MKDIR) $(dir $@)
 	@$(CC) -o $@ $< $(ASMFLAGS)
 
-$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.c.o: %.c
+$(BUILDDIR)/$(TARGET)/%.c.o: %.c
 	@echo "Compiling C file $<"
 	@$(MKDIR) $(dir $@)
 	@$(CC) $(CFLAGS) -c $< -o $@ $(INCD) $(DEFS)
 
-$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.cpp.o: %.cpp
+$(BUILDDIR)/$(TARGET)/%.cpp.o: %.cpp
 	@echo "Compiling C++ file $<"
 	@$(MKDIR) $(dir $@)
-	@$(CPP) $(CPPFLAGS) -c $< -o $@ $(INCD) $(DEFS) 
+	@$(CPP) $(CPPFLAGS) -c $< -o $@ $(INCD) $(DEFS)
 
-$(BUILDDIR)/$(TARGET): | $(OBJS)
+$(BUILDDIR)/$(TARGET).elf: | $(OBJS)
 	@echo "Linking $@"
-	@$(CPP) -o $@ $(OBJS) $(LDFLAGS)
+	@$(CPP) -o $@ $(OBJS) $(LDFLAGS) -T$(LINKERFILE) -Wl,-Map=$(BUILDDIR)/$(TARGET).map,--cref
 
-all: $(BUILDDIR)/$(TARGET)
+$(BUILDDIR)/$(TARGET).hex: $(BUILDDIR)/$(TARGET).elf
+	@echo "Generating $@"
+	@$(CROSS_COMPILE)objcopy -O ihex $(BUILDDIR)/$(TARGET).elf $@
+
+report_size: $(BUILDDIR)/$(TARGET).hex
+	@$(CROSS_COMPILE)size $(BUILDDIR)/$(TARGET).elf
+
+.PHONY: all
+all: $(BUILDDIR)/$(TARGET).hex
