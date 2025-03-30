@@ -6,6 +6,7 @@
 # CFLAGS			C compile flags
 # CPPFLAGS			C++ compile flags
 # CROSS_COMPILE		toolchain path + index
+# LINKERFILE		linker file (.ld)
 # SRC				list of source files including paths
 # INC				list of inlude folders
 # DEF				list of compile time definitions
