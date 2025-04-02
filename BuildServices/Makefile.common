@@ -36,18 +36,20 @@ ifneq ($(filter clean,$(MAKECMDGOALS)),)
 .NOTPARALLEL:
 endif
 
+.PRECIOUS: %/.
+%/.:
+	@$(MKDIR) $*
+
 .PHONY: clean
 clean:
 	@$(RM) $(BUILDDIR)
 
-$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.c.o: %.c
+$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.c.o: %.c | $(BUILDDIR)/$(TARGET)_$(BUILDDIR)/.
 	@echo "Compiling C file $<"
-	@$(MKDIR) $(dir $@)
 	@$(CC) $(CFLAGS) $(EXTRAF) -c $< -o $@ $(INCD) $(DEFS)
 
-$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.cpp.o: %.cpp
-	@echo "Compiling C++ file $<"
-	@$(MKDIR) $(dir $@)
+$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.cpp.o: %.cpp | $(BUILDDIR)/$(TARGET)_$(BUILDDIR)/.
+	@echo "Compiling C++ file $<"a
 	@$(CPP) $(CPPFLAGS) $(EXTRAF) -c $< -o $@ $(INCD) $(DEFS)
 
 $(BUILDDIR)/$(TARGET): $(OBJS)
