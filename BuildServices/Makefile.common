@@ -2,22 +2,29 @@
 #
 # BUILDDIR			destanation folder
 # TARGET			artifact name
-# ASMFLAGS			assembly flags
 # CFLAGS			C compile flags
 # CPPFLAGS			C++ compile flags
 # CROSS_COMPILE		toolchain path + index
 # SRC				list of source files including paths
 # INC				list of inlude folders
 # DEF				list of compile time definitions
+# EXTRAF			additional compilation flags
 #
 ################################################################################
 
+.PHONY: all strip static_lib dynamic_lib show_symbols objdump
+
 CC					:= $(CROSS_COMPILE)gcc
 CPP					:= $(CROSS_COMPILE)g++
+STRIP				:= $(CROSS_COMPILE)strip
+AR					:= $(CROSS_COMPILE)ar
+NM					:= $(CROSS_COMPILE)nm
+OBJDUMP				:= $(CROSS_COMPILE)objdump
 
 OBJS 				:= $(SRC:%=$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.o)
 INCD				:= $(addprefix -I,$(INC))
 DEFS				:= $(addprefix -D,$(DEF))
+EXTRAF				?: -g
 
 RM = rm -rf -f
 MKDIR = mkdir -p
@@ -33,24 +40,42 @@ endif
 clean:
 	@$(RM) $(BUILDDIR)
 
-$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.s.o: %.s
-	@echo "Assembling $<"
-	@$(MKDIR) $(dir $@)
-	@$(CC) -o $@ $< $(ASMFLAGS)
-
 $(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.c.o: %.c
 	@echo "Compiling C file $<"
 	@$(MKDIR) $(dir $@)
-	@$(CC) $(CFLAGS) -c $< -o $@ $(INCD) $(DEFS)
+	@$(CC) $(CFLAGS) $(EXTRAF) -c $< -o $@ $(INCD) $(DEFS)
 
 $(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.cpp.o: %.cpp
 	@echo "Compiling C++ file $<"
 	@$(MKDIR) $(dir $@)
-	@$(CPP) $(CPPFLAGS) -c $< -o $@ $(INCD) $(DEFS)
+	@$(CPP) $(CPPFLAGS) $(EXTRAF) -c $< -o $@ $(INCD) $(DEFS)
 
 $(BUILDDIR)/$(TARGET): $(OBJS)
 	@echo "Linking $@"
 	@$(CPP) -o $@ $(OBJS) $(LDFLAGS)
 
-.PHONY: all
+$(BUILDDIR)/$(TARGET)_stripped: $(BUILDDIR)/$(TARGET)
+	@echo "Stripping $<"
+	@$(STRIP) $< -o $@
+
+$(BUILDDIR)/$(TARGET).o: $(OBJS)
+	@echo "Linking static library $@"
+	@$(AR) rcs $@ $<
+
+$(BUILDDIR)/$(TARGET).so: $(OBJS)
+	@echo "Linking dynamic library $@"
+	@$(CPP) -shared -o $@ $<
+
 all: $(BUILDDIR)/$(TARGET)
+
+strip: $(BUILDDIR)/$(TARGET)_stripped
+
+static_lib: $(BUILDDIR)/$(TARGET).o
+
+dynamic_lib: $(BUILDDIR)/$(TARGET).so
+
+show_symbols: $(BUILDDIR)/$(TARGET)
+	@$(NM) $(BUILDDIR)/$(TARGET)
+
+objdump: $(BUILDDIR)/$(TARGET)
+	@$(OBJDUMP) -T $(BUILDDIR)/$(TARGET)
