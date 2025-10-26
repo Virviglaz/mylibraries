@@ -16,12 +16,22 @@
 CC					:= $(CROSS_COMPILE)gcc
 CPP					:= $(CROSS_COMPILE)g++
 
+# Usefull flags (-MMD to generate dependencies)
+CFLAGS_EXTRA		?=	-MMD \
+						-Wall \
+						-Wextra \
+						-Wpedantic \
+						-Werror \
+						-Wno-unused-parameter
+CFLAGS				+= $(CFLAGS_EXTRA)
+CPPFLAGS			+= $(CFLAGS_EXTRA)
+
 OBJS 				:= $(SRC:%=$(BUILDDIR)/$(TARGET)/%.o)
 INCD				:= $(addprefix -I,$(INC))
 DEFS				:= $(addprefix -D,$(DEF))
 
 RM = rm -rf -f
-MKDIR = mkdir -p
+MKDIRP = mkdir -p
 
 # parallel build enabled
 MAKEFLAGS 			+= -j$(NUM_CORES)
@@ -32,21 +42,24 @@ endif
 
 .PRECIOUS: %/.
 %/.:
-	@$(MKDIR) $*
+	@$(MKDIRP) $*
 
 .PHONY: clean
 clean:
 	@$(RM) $(BUILDDIR)
 
-$(BUILDDIR)/$(TARGET)/%.s.o: %.s | $(BUILDDIR)/$(TARGET)/.
+$(BUILDDIR)/$(TARGET)/%.s.o: %.s
+	@$(MKDIRP) -p $(dir $@)
 	@echo "Assembling $<"
 	@$(CC) -o $@ $< $(ASMFLAGS)
 
-$(BUILDDIR)/$(TARGET)/%.c.o: %.c | $(BUILDDIR)/$(TARGET)/.
+$(BUILDDIR)/$(TARGET)/%.c.o: %.c
+	@$(MKDIRP) -p $(dir $@)
 	@echo "Compiling C file $<"
 	@$(CC) $(CFLAGS) -c $< -o $@ $(INCD) $(DEFS)
 
-$(BUILDDIR)/$(TARGET)/%.cpp.o: %.cpp | $(BUILDDIR)/$(TARGET)/.
+$(BUILDDIR)/$(TARGET)/%.cpp.o: %.cpp
+	@$(MKDIRP) -p $(dir $@)
 	@echo "Compiling C++ file $<"
 	@$(CPP) $(CPPFLAGS) -c $< -o $@ $(INCD) $(DEFS)
 
@@ -63,3 +76,5 @@ report_size: $(BUILDDIR)/$(TARGET).hex
 
 .PHONY: all
 all: $(BUILDDIR)/$(TARGET).hex
+
+-include $(OBJS:%.o=%.d)

@@ -26,8 +26,18 @@ INCD				:= $(addprefix -I,$(INC))
 DEFS				:= $(addprefix -D,$(DEF))
 EXTRAF				?: -g
 
+# Usefull flags (-MMD to generate dependencies)
+CFLAGS_EXTRA		?=	-MMD \
+						-Wall \
+						-Wextra \
+						-Wpedantic \
+						-Werror \
+						-Wno-unused-parameter
+CFLAGS				+= $(CFLAGS_EXTRA)
+CPPFLAGS			+= $(CFLAGS_EXTRA)
+
 RM = rm -rf -f
-MKDIR = mkdir -p
+MKDIRP = mkdir -p
 
 # parallel build enabled
 MAKEFLAGS 			+= -j$(NUM_CORES)
@@ -38,18 +48,20 @@ endif
 
 .PRECIOUS: %/.
 %/.:
-	@$(MKDIR) $*
+	@$(MKDIRP) $*
 
 .PHONY: clean
 clean:
 	@$(RM) $(BUILDDIR)
 
-$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.c.o: %.c | $(BUILDDIR)/$(TARGET)_$(BUILDDIR)/.
+$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.c.o: %.c
+	@$(MKDIRP) -p $(dir $@)
 	@echo "Compiling C file $<"
 	@$(CC) $(CFLAGS) $(EXTRAF) -c $< -o $@ $(INCD) $(DEFS)
 
-$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.cpp.o: %.cpp | $(BUILDDIR)/$(TARGET)_$(BUILDDIR)/.
-	@echo "Compiling C++ file $<"a
+$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.cpp.o: %.cpp
+	@$(MKDIRP) -p $(dir $@)
+	@echo "Compiling C++ file $<"
 	@$(CPP) $(CPPFLAGS) $(EXTRAF) -c $< -o $@ $(INCD) $(DEFS)
 
 $(BUILDDIR)/$(TARGET): $(OBJS)
@@ -81,3 +93,5 @@ show_symbols: $(BUILDDIR)/$(TARGET)
 
 objdump: $(BUILDDIR)/$(TARGET)
 	@$(OBJDUMP) -T $(BUILDDIR)/$(TARGET)
+
+-include $(OBJS:%.o=%.d)
