@@ -24,7 +24,7 @@ OBJDUMP				:= $(CROSS_COMPILE)objdump
 OBJS 				:= $(SRC:%=$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.o)
 INCD				:= $(addprefix -I,$(INC))
 DEFS				:= $(addprefix -D,$(DEF))
-EXTRAF				?: -g
+EXTRAF				?= -g
 
 # Usefull flags (-MMD to generate dependencies)
 CFLAGS_EXTRA		?=	-MMD \
