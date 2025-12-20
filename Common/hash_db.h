@@ -48,9 +48,6 @@
 #ifdef __cplusplus
 
 #include <stdint.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <string>
 
 /**
  * HashDB class providing simple hash based database functionality.
@@ -60,87 +57,68 @@ public:
     /**
      * Constructor allocating database memory.
      *
-     * @param name	        Name of the database.
      * @param max_size		Maximum size of the database in bytes.
+     * @param name_hash		Hash of the database name.
      */
-    HashDB(const char *name,
-        const uint32_t max_size)
-        : max_size_(max_size) {
-        location_ = (uint32_t *)malloc(max_size_);
-        initialize_database(name);
-    }
+    HashDB(uint32_t max_size,
+           uint32_t name_hash = 0);
 
     /**
-     * Constructor using preallocated memory.
+     * Constructor using preallocated database memory.
      *
-     * @param name		    Name of the database.
-     * @param location		Pointer to location where database is stored.
+     * @param location		Pointer to preallocated memory.
      * @param max_size		Maximum size of the database in bytes.
+     * @param name_hash		Hash of the database name.
      */
-    HashDB(const char *name,
-           uint32_t *location,
-           const uint32_t max_size)
-        : location_(location), max_size_(max_size) {
-            initialize_database(name);
-    }
+    HashDB(uint32_t *location,
+           uint32_t max_size,
+           uint32_t name_hash = 0);
 
     /**
      * Destructor freeing database memory.
      */
-    ~HashDB() {
-        free(location_);
+    ~HashDB();
+
+    /**
+     * Compute hash for a given string at compile time.
+     *
+     * @param s		String to hash.
+     *
+     * @return Computed hash value.
+     */
+    template <uint32_t N>
+    static constexpr uint32_t Hash(const char (&s)[N]) noexcept {
+        uint32_t h = 5381u;
+        for (uint32_t i = 0; i < N - 1; ++i) {
+            h = (h * 33u) ^ static_cast<uint8_t>(s[i]);
+        }
+        return h;
     }
 
     /**
      * Write data to hash database.
      *
-     * @param name		Name of the data entry.
-     * @param data		Reference to data to write.
+     * @param name_hash		Hash of the entry name.
+     * @param data          Data to write.
      *
      * @return 0 on success, errno code on failure.
      */
     template <class T>
-    int write(const char *name, const T& data) {
-        return write_int(name, (void *)&data, sizeof(data));
-    }
-
-    /**
-     * Write data to hash database.
-     *
-     * @param name		Name of the data entry.
-     * @param data		Reference to data to write.
-     *
-     * @return 0 on success, errno code on failure.
-     */
-    template <class T>
-    int write(const std::string& name, const T& data) {
-        return write<T>(name.c_str(), data);
+    int Write(uint32_t name_hash, const T& data) noexcept {
+        return write_int(name_hash, (void *)&data, sizeof(data));
     }
 
     /**
      * Read data from hash database.
      *
-     * @param name		Name of the data entry.
-     * @param data		Reference to data to read into.
+     * @param name_hash		Hash of the entry name.
+     * @param data          Reference to store read data.
      *
      * @return 0 on success, errno code on failure.
      */
     template <class T>
-    int read(const char *name, T &data) {
-        return read_int(name, &data, sizeof(data));
-    }
-
-    /**
-     * Read data from hash database.
-     *
-     * @param name		Name of the data entry.
-     * @param data		Reference to data to read into.
-     *
-     * @return 0 on success, errno code on failure.
-     */
-    template <class T>
-    int read(const std::string& name, T &data) {
-        return read<T>(name.c_str(), data);
+    int Read(uint32_t name_hash, T &data) noexcept {
+        return read_int(name_hash, &data, sizeof(data));
     }
 
     /**
@@ -148,7 +126,7 @@ public:
      *
      * @return Maximum size in bytes.
      */
-    uint32_t get_max_size() const {
+    uint32_t GetMaxSize() const {
         return max_size_;
     }
 
@@ -157,7 +135,7 @@ public:
      *
      * @return Used size in bytes.
      */
-    uint32_t get_used_size() const {
+    uint32_t GetUsedSize() const {
         db_header_t *header = reinterpret_cast<db_header_t *>(location_);
         return header->db_size;
     }
@@ -169,9 +147,9 @@ public:
      *
      * @return true if name matches, false otherwise.
      */
-    bool check_name(const char *name) {
+    bool CheckName(uint32_t name_hash) const noexcept {
         db_header_t *header = reinterpret_cast<db_header_t *>(location_);
-        return header->name_hash == hash(name);
+        return header->name_hash == name_hash;
     }
 
 private:
@@ -183,76 +161,9 @@ private:
         uint32_t db_size;
     };
 
-    void initialize_database(const char *name) {
-        db_header_t *header = reinterpret_cast<db_header_t *>(location_);
-        header->name_hash = name ? hash(name) : 0;
-        header->db_size = sizeof(db_header_t);
-    }
-
-    constexpr uint32_t hash(const char *s, const uint32_t off = 0) {
-        return !s[off] ? 5381 : (hash(s, off+1)*33) ^ s[off];
-    }
-
-    int write_int(const char *name, const void *data, const uint32_t size) {
-        db_header_t *header = reinterpret_cast<db_header_t *>(location_);
-        uint32_t name_hash = hash(name);
-        uint32_t offset = sizeof(db_header_t);
-        bool found = false;
-
-        // Check if entry already exists
-        while (offset < header->db_size) {
-            db_header_t *entry = reinterpret_cast<db_header_t *>(
-                reinterpret_cast<uint8_t *>(location_) + offset);
-            if (entry->name_hash == name_hash) {
-                found = true;
-                break; // Entry exists, will overwrite
-            }
-            offset += sizeof(db_header_t) + entry->db_size;
-        }
-
-        // Check if there is enough space
-        if (header->db_size + sizeof(db_header_t) + size > max_size_) {
-            return ENOSPC; // Not enough space
-        }
-
-        // Write new entry
-        db_header_t *new_entry = reinterpret_cast<db_header_t *>(
-            reinterpret_cast<uint8_t *>(location_) + offset);
-        new_entry->name_hash = name_hash;
-        new_entry->db_size = size;
-
-        memcpy(reinterpret_cast<uint8_t *>(new_entry) + sizeof(db_header_t),
-               data,
-               size);
-
-        if (!found)
-            header->db_size += sizeof(db_header_t) + size;
-
-        return 0; // Success
-    }
-
-    int read_int(const char *name, void *data, const uint32_t size) {
-        db_header_t *header = reinterpret_cast<db_header_t *>(location_);
-        uint32_t name_hash = hash(name);
-        uint32_t offset = sizeof(db_header_t);
-
-        while (offset < header->db_size) {
-            db_header_t *entry = reinterpret_cast<db_header_t *>(
-                reinterpret_cast<uint8_t *>(location_) + offset);
-            if (entry->name_hash == name_hash) {
-                if (entry->db_size != size)
-                    return EINVAL; // Size mismatch
-
-                memcpy(data,
-                       reinterpret_cast<uint8_t *>(entry) + sizeof(db_header_t),
-                       size);
-                return 0; // Success
-            }
-            offset += sizeof(db_header_t) + entry->db_size;
-        }
-
-        return ENOENT; // Entry not found
-    }
+    void initialize_database(const uint32_t name_hash);
+    int write_int(const uint32_t name_hash, const void *data, const uint32_t size);
+    int read_int(const uint32_t name_hash, void *data, const uint32_t size);
 };
 
 #endif /* __cplusplus */
