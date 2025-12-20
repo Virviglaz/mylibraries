@@ -197,12 +197,14 @@ private:
         db_header_t *header = reinterpret_cast<db_header_t *>(location_);
         uint32_t name_hash = hash(name);
         uint32_t offset = sizeof(db_header_t);
+        bool found = false;
 
         // Check if entry already exists
         while (offset < header->db_size) {
             db_header_t *entry = reinterpret_cast<db_header_t *>(
                 reinterpret_cast<uint8_t *>(location_) + offset);
             if (entry->name_hash == name_hash) {
+                found = true;
                 break; // Entry exists, will overwrite
             }
             offset += sizeof(db_header_t) + entry->db_size;
@@ -223,7 +225,8 @@ private:
                data,
                size);
 
-        header->db_size += sizeof(db_header_t) + size;
+        if (!found)
+            header->db_size += sizeof(db_header_t) + size;
 
         return 0; // Success
     }
