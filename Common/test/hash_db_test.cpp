@@ -4,6 +4,8 @@
 
 int do_hash_db_test()
 {
+    std::cout << "Starting HashDB [hash_db.cpp] test..." << std::endl;
+
     HashDB db(1024, HashDB::Hash("db1"));
     assert(db.Write<int>(HashDB::Hash("value1"), 42) == 0);
     assert(db.Write<int>(HashDB::Hash("value2"), 43) == 0);
@@ -57,6 +59,8 @@ int do_hash_db_test()
     std::cout << "Used size: " << db.GetUsedSize() << " / "
               << db.GetMaxSize() << std::endl;
     assert(db.CheckName(HashDB::Hash("db1")));
+
+    std::cout << "HashDB test completed successfully." << std::endl;
 
     return 0;
 }

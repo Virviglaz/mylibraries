@@ -13,8 +13,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: configure
-      run: ./configure
     - name: Setup GCC
       uses: Dup4/actions-setup-gcc@v1
       with:
