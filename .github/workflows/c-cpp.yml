@@ -1,0 +1,23 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: configure
+      run: ./configure
+    - name: Setup GCC
+      uses: Dup4/actions-setup-gcc@v1
+      with:
+        version: latest
+    - name: Built and test
+      run: make -C Common/test test
