@@ -11,7 +11,7 @@ static uint8_t swapbits(uint8_t a);
 /* CONST VARIABLES FOR INTERNAL USE */
 const uint8_t chRf[] = { 2, 26, 80 };
 const uint8_t chLe[] = { 37,38, 39 };
-const char pipe_adrs[] = { 0x71, 0x91, 0x7D, 0x6B };
+const uint8_t pipe_adrs[] = { 0x71, 0x91, 0x7D, 0x6B };
 
 /* LOCAL VARIABLES FOR INTERNAL USE */
 uint8_t ch = 0;
@@ -34,7 +34,7 @@ void NRF24L01_ConfgureForBLE (RF_InitTypeDef * RF_InitStruct, uint8_t * mac)
   RF_InitStruct->nRF_AddressLen = nRF_Setup_4_Byte_Adress;
   RF_InitStruct->nRF_TX_Power = nRF_TX_Power_High;
   RF_InitStruct->nRF_Data_Rate = nRF_Data_Rate_1Mbs;
-  RF_InitStruct->nRF_RX_Adress_Pipe0 = (char*)pipe_adrs;
+  RF_InitStruct->nRF_RX_Adress_Pipe0 = (uint8_t *)pipe_adrs;
   RF_InitStruct->nRF_RX_Adress_Pipe1 = 0;
   RF_InitStruct->nRF_TX_Adress = RF_InitStruct->nRF_RX_Adress_Pipe0;
   RF_InitStruct->nRF_Channel = 2;

@@ -55,8 +55,8 @@ typedef struct {
 	struct {
 		uint16_t size;	/* Payload size */
 		uint16_t error;	/* Error reply */
-		uint8_t payload[];
-	} payload;
+	} payload_spec;
+	uint8_t payload[];
 } __attribute__((packed)) plframe_t; /* 64 bit header */
 
 static const uint16_t crc16_tab[] = {
@@ -138,7 +138,7 @@ uint16_t plbus_poll(plbus_t *bus, plbus_cb_t on_receive)
 		return 0;
 
 	/* Receiving in progress */
-	if (frame->payload.size + sizeof(*frame) != bus->internal.rx_cnt)
+	if (frame->payload_spec.size + sizeof(*frame) != bus->internal.rx_cnt)
 		return 0;
 
 	/* Message not for us */
@@ -147,7 +147,7 @@ uint16_t plbus_poll(plbus_t *bus, plbus_cb_t on_receive)
 
 	/* crc also covers payload size and error value */
 	if (crc16((uint8_t *)&frame->payload,
-			frame->payload.size + \
+			frame->payload_spec.size + \
 			sizeof(frame->token) + \
 			sizeof(frame->address) + \
 			sizeof(frame->crc16))
@@ -161,8 +161,8 @@ uint16_t plbus_poll(plbus_t *bus, plbus_cb_t on_receive)
 	if (!on_receive)
 		return 0;
 
-	frame->payload.error = on_receive(frame->payload.payload,
-			frame->payload.size);
+	frame->payload_spec.error = on_receive(frame->payload,
+			frame->payload_spec.size);
 
 	return 0;
 }
@@ -177,11 +177,11 @@ uint16_t plbus_send(plbus_t *bus,
 
 	frame->token = PLBUS_TOKEN;
 	frame->address = dst;
-	frame->payload.size = size;
-	memcpy(frame->payload.payload, data, size);
+	frame->payload_spec.size = size;
+	memcpy(frame->payload, data, size);
 	frame->crc16 = crc16((uint8_t *)&frame->payload,
-			frame->payload.size + \
-			sizeof(frame->payload.size) + \
-			sizeof(frame->payload.error));
+			frame->payload_spec.size + \
+			sizeof(frame->payload_spec.size) + \
+			sizeof(frame->payload_spec.error));
 	return on_transmit(bus->rx_buffer, sizeof(*frame) + size);
 }

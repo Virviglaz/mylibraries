@@ -1,7 +1,7 @@
 #ifndef MAX7129_H
 #define MAX7219_H
 
-#include <stdio.h>
+#include <stdint.h>
 
 #define MAX7219_NODECODE	0x00
 #define MAX7219_ALLDECODE	0xFF

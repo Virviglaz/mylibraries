@@ -17,5 +17,7 @@ jobs:
       uses: Dup4/actions-setup-gcc@v1
       with:
         version: latest
+    - name: Compile only
+      run: make -C Common/compile all
     - name: Built and test
       run: make -C Common/test test

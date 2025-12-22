@@ -131,6 +131,9 @@ static uint16_t pec15_calc(uint8_t *data, uint8_t len)
 	return (remainder * 2);
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+
 static void write_data(uint16_t cmd, uint8_t *data, uint8_t size)
 {
 	uint16_t pec;
@@ -197,6 +200,8 @@ static int read_data(uint16_t cmd, uint8_t *data, uint8_t size, bool poll)
 
 	return 0;
 }
+
+#pragma GCC diagnostic pop
 
 int ltc6804_init(ltc6804_init_conf *cfg, io_func_t io_func, delay_ms_func wait)
 {

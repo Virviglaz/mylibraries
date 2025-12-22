@@ -147,9 +147,9 @@ static void wr_cmd(enum lcd_cmd CMD)
 	dev->delay_us(LCD_DELAY_HIGH);
 }
 
-static char translate(char dat)
+static char translate(unsigned char dat)
 {
-	const char rus_font[] = {
+	const unsigned char rus_font[] = {
 		'A', 0xA0, 'B', 0xA1, 0xE0,'E', 0xA3, 0xA4, 0xA5, 0xA6,'K',
 		0xA7,'M', 'H', 'O', 0xA8,'P', 'C', 'T', 0xA9, 0xAA,'X',
 		0xE1, 0xAB, 0xAC, 0xE2, 0xAD, 0xAE,'b', 0xA2, 0xB0, 0xB1,
@@ -240,7 +240,7 @@ void hd44780_clear(void)
 	dev->delay_us(LCD_DELAY_HIGH);
 }
 
-void hd44780_put_char(char data)
+void hd44780_put_char(unsigned char data)
 {
 	if (data == '\n') {
 		wr_cmd((enum lcd_cmd)(0x80 | 0x40));

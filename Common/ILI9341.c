@@ -51,7 +51,7 @@ ILI9341_t * ILI9341_Init (ILI9341_t * driver, uint8_t orientation)
 		ILI9341->wr_cmd(initSeq[i].cmd, (void*)initSeq[i].args, initSeq[i].argc);
 
 	const uint8_t orientation_reg_value[] = { 0x48, 0x28, 0x88, 0xE8 };
-		ILI9341->wr_cmd(ILI9341_MADCTL, (void*)orientation_reg_value + orientation, 1);
+	ILI9341->wr_cmd(ILI9341_MADCTL, (uint8_t*)orientation_reg_value + orientation, 1);
 	
 	if (orientation == 0 || orientation == 2)
 	{

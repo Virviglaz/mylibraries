@@ -1,4 +1,4 @@
-#include "ssd1289.h"
+#include "SSD1289.h"
 
 #define XSIZE 240
 #define YSIZE 320
@@ -44,10 +44,7 @@ uint16_t rgb2col(uint8_t r, uint8_t g, uint8_t b)
 
 struct ssd1289_t *ssd1289_init(struct ssd1289_t *dev)
 {
-	static const union reg_data {
-		uint32_t raw_data;
-		uint16_t reg_data_w[2];
-	} init_seq[] = {
+	const uint32_t init_seq_raw[] = {
 		0x00000001, 0x0003A8A4, 0x000C0000,
 		0x000D080C, 0x000E2B00, 0x001E00B0,
 		0x00012B3F, 0x00020600, 0x00100000,
@@ -65,7 +62,7 @@ struct ssd1289_t *ssd1289_init(struct ssd1289_t *dev)
 	};
 
 	const uint8_t size =
-		sizeof(init_seq) / sizeof(init_seq[0]);
+		sizeof(init_seq_raw) / sizeof(init_seq_raw[0]);
 	uint8_t i;
 
 	/* Assign driver to local structure */
@@ -74,9 +71,17 @@ struct ssd1289_t *ssd1289_init(struct ssd1289_t *dev)
 	else
 		return lcd;
 
-	for (i = 0; i < size; i++)
-		lcd->wr_reg(init_seq[i].reg_data_w[1],
-			init_seq[i].reg_data_w[0]);
+	for (i = 0; i < size; i++) {
+		union {
+			uint32_t raw_data;
+			uint16_t reg_data_w[2];
+		} init_seq;
+
+		init_seq.raw_data = init_seq_raw[i];
+
+		lcd->wr_reg(init_seq.reg_data_w[1],
+			init_seq.reg_data_w[0]);
+	}
 
 	lcd->wr_reg(1, 0x293F | \
 		(lcd->x_mirror ? 0x4000 : 0) | \

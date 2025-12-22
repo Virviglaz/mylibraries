@@ -93,7 +93,7 @@ enum mqtt_err_t mqtt_connect(struct mqtt_client_t *client)
 
 enum mqtt_err_t mqtt_ping(struct mqtt_client_t *client)
 {
-	const char ping_str[2] = { PINGREQ << 4, 0x00 };
+	const unsigned char ping_str[2] = { PINGREQ << 4, 0x00 };
 
 	memcpy((void*)client->buf, ping_str,
 		sizeof(ping_str));

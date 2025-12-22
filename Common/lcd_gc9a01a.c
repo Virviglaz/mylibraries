@@ -178,6 +178,6 @@ void lcd_gc9a01a_fill(uint16_t color)
 
 	for (i = 0; i != MAX_Y_SIZE; i++) {
 		lcd_gc9a01a_set_window(0, i, MAX_X_SIZE - 1, i);
-		lcd_gc9a01a_write(fill, sizeof(fill));
+		lcd_gc9a01a_write((uint8_t *)fill, sizeof(fill));
 	}
 }

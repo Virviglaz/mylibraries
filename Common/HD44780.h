@@ -141,7 +141,7 @@ void hd44780_clear(void);
  *
  * @param data character to print.
  */
-void hd44780_put_char(char data);
+void hd44780_put_char(unsigned char data);
 
 /**
  * Send nop command needed to update extension pins.

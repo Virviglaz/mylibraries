@@ -317,7 +317,7 @@ uint16_t enc28j60_packetReceive(uint8_t* buf, uint16_t buflen) //use 'buf = NULL
 
 void enc28j60_packetSend(uint8_t* buf, uint16_t buflen)
 {
-	while(!enc28j60_readOp(ENC28J60_READ_CTRL_REG, ECON1)&ECON1_TXRTS)
+	while(!(enc28j60_readOp(ENC28J60_READ_CTRL_REG, ECON1) & ECON1_TXRTS))
 	{
 		if(enc28j60_readRegByte(EIR)&EIR_TXERIF)
 		{

@@ -230,6 +230,8 @@ void stepper_isr2(struct stepper_t *dev)
 	case STEPPER_DECL:
 		dev->cur_speed -= task->dec;
 		break;
+	default:
+		break;
 	}
 
 	/* avoid mechanical impact */

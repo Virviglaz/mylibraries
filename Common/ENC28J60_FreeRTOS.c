@@ -1,4 +1,6 @@
 #include "ENC28J60.h"
+
+#if defined(FREERTOS)
 #include "FreeRTOS.h"
 #include "FreeRTOS_IP.h"
 
@@ -353,3 +355,5 @@ void enc28j60_packetSend(uint8_t* buf, uint16_t buflen)
 	enc28j60_writeBuf(buflen, buf);
 	enc28j60_writeOp(ENC28J60_BIT_FIELD_SET, ECON1, ECON1_TXRTS);
 }
+
+#endif //FREERTOS
