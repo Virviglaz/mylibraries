@@ -50,7 +50,7 @@
 HashDB::HashDB(uint32_t max_size,
                uint32_t name_hash) 
     : max_size_(max_size) {
-    location_ = (uint32_t *)malloc(max_size_);
+    location_ = reinterpret_cast<uint32_t *>(malloc(max_size_));
     initialize_database(name_hash);
 }
 
@@ -78,7 +78,7 @@ int HashDB::write_int(const uint32_t name_hash, const void *data, const uint32_t
 
     // Check if entry already exists
     while (offset < header->db_size) {
-        db_header_t *entry = reinterpret_cast<db_header_t *>(
+        const db_header_t *entry = reinterpret_cast<db_header_t *>(
             reinterpret_cast<uint8_t *>(location_) + offset);
         if (entry->name_hash == name_hash) {
             found = true;
@@ -109,7 +109,7 @@ int HashDB::write_int(const uint32_t name_hash, const void *data, const uint32_t
 }
 
 int HashDB::read_int(const uint32_t name_hash, void *data, const uint32_t size) {
-    db_header_t *header = reinterpret_cast<db_header_t *>(location_);
+    const db_header_t *header = reinterpret_cast<db_header_t *>(location_);
     uint32_t offset = sizeof(db_header_t);
 
     while (offset < header->db_size) {

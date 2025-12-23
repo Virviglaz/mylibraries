@@ -60,7 +60,7 @@ public:
      * @param max_size		Maximum size of the database in bytes.
      * @param name_hash		Hash of the database name.
      */
-    HashDB(uint32_t max_size,
+    explicit HashDB(uint32_t max_size,
            uint32_t name_hash = 0);
 
     /**
@@ -105,7 +105,7 @@ public:
      */
     template <class T>
     int Write(uint32_t name_hash, const T& data) noexcept {
-        return write_int(name_hash, (void *)&data, sizeof(data));
+        return write_int(name_hash, reinterpret_cast<const void *>(&data), sizeof(data));
     }
 
     /**
@@ -118,7 +118,7 @@ public:
      */
     template <class T>
     int Read(uint32_t name_hash, T &data) noexcept {
-        return read_int(name_hash, &data, sizeof(data));
+        return read_int(name_hash, reinterpret_cast<void *>(&data), sizeof(data));
     }
 
     /**
@@ -136,7 +136,7 @@ public:
      * @return Used size in bytes.
      */
     uint32_t GetUsedSize() const {
-        db_header_t *header = reinterpret_cast<db_header_t *>(location_);
+        const db_header_t *header = reinterpret_cast<db_header_t *>(location_);
         return header->db_size;
     }
 
@@ -148,7 +148,7 @@ public:
      * @return true if name matches, false otherwise.
      */
     bool CheckName(uint32_t name_hash) const noexcept {
-        db_header_t *header = reinterpret_cast<db_header_t *>(location_);
+        const db_header_t *header = reinterpret_cast<db_header_t *>(location_);
         return header->name_hash == name_hash;
     }
 
