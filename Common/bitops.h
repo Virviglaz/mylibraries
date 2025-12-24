@@ -64,6 +64,24 @@ uint16_t reverse_bits16(uint16_t x);
 /** Reverses the bits in an 8-bit unsigned integer. */
 uint8_t reverse_bits8(uint8_t x);
 
+/** Converts a 32-bit unsigned integer to its bit string representation. */
+char *bit_str32(uint32_t value, char *buffer);
+
+/** Converts a 16-bit unsigned integer to its bit string representation. */
+char *bit_str16(uint16_t value, char *buffer);
+
+/** Converts an 8-bit unsigned integer to its bit string representation. */
+char *bit_str8(uint8_t value, char *buffer);
+
+/** Converts a bit string to a 8-bit unsigned integer. */
+uint32_t str_bits32(const char *str);
+
+/** Converts a bit string to a 16-bit unsigned integer. */
+uint16_t str_bits16(const char *str);
+
+/** Converts a bit string to an 8-bit unsigned integer. */
+uint8_t str_bits8(const char *str);
+
 #if defined(__cplusplus)
 } /* extern "C" */
 #endif

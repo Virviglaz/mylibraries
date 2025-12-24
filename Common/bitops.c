@@ -70,3 +70,78 @@ uint8_t reverse_bits8(uint8_t x)
 	x = (x >> 4) | (x << 4);
 	return x;
 }
+
+char *bit_str32(uint32_t value, char *buffer)
+{
+	for (int i = 31; i >= 0; --i) {
+		buffer[i] = (value & 1) ? '1' : '0';
+		value >>= 1;
+	}
+
+	buffer[32] = '\0';
+	return buffer;
+}
+
+char *bit_str16(uint16_t value, char *buffer)
+{
+	for (int i = 15; i >= 0; --i) {
+		buffer[i] = (value & 1) ? '1' : '0';
+		value >>= 1;
+	}
+
+	buffer[16] = '\0';
+	return buffer;
+}
+
+char *bit_str8(uint8_t value, char *buffer)
+{
+	for (int i = 7; i >= 0; --i) {
+		buffer[i] = (value & 1) ? '1' : '0';
+		value >>= 1;
+	}
+
+	buffer[8] = '\0';
+	return buffer;
+}
+
+uint32_t str_bits32(const char *str)
+{
+	uint32_t result = 0;
+	for (int i = 0; i < 32 && str[i] != '\0'; ++i) {
+		result <<= 1;
+		if (str[i] == '1') {
+			result |= 1;
+		} else if (str[i] != '0') {
+			break;
+		}
+	}
+	return result;
+}
+
+uint16_t str_bits16(const char *str)
+{
+	uint16_t result = 0;
+	for (int i = 0; i < 16 && str[i] != '\0'; ++i) {
+		result <<= 1;
+		if (str[i] == '1') {
+			result |= 1;
+		} else if (str[i] != '0') {
+			break;
+		}
+	}
+	return result;
+}
+
+uint8_t str_bits8(const char *str)
+{
+	uint8_t result = 0;
+	for (int i = 0; i < 8 && str[i] != '\0'; ++i) {
+		result <<= 1;
+		if (str[i] == '1') {
+			result |= 1;
+		} else if (str[i] != '0') {
+			break;
+		}
+	}
+	return result;
+}

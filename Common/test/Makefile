@@ -2,8 +2,12 @@ BUILDDIR			?= build
 TARGET				?= test
 
 SRC					:= test.cpp
+
 SRC					+= hash_db_test.cpp
 SRC					+= ../hash_db.cpp
+
+SRC					+= bitops_test.cpp
+SRC					+= ../bitops.c
 
 INC					:= .
 INC					+= ../
