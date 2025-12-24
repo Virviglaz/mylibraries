@@ -80,22 +80,6 @@ public:
     ~HashDB();
 
     /**
-     * Compute hash for a given string at compile time.
-     *
-     * @param s		String to hash.
-     *
-     * @return Computed hash value.
-     */
-    template <uint32_t N>
-    static constexpr uint32_t Hash(const char (&s)[N]) noexcept {
-        uint32_t h = 5381u;
-        for (uint32_t i = 0; i < N - 1; ++i) {
-            h = (h * 33u) ^ static_cast<uint8_t>(s[i]);
-        }
-        return h;
-    }
-
-    /**
      * Write data to hash database.
      *
      * @param name_hash		Hash of the entry name.
