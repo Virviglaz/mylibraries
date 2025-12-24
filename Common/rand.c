@@ -36,45 +36,60 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Custom C types definitions.
+ * Pseudo-random number gerenator.
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
-#ifndef CTYPES_H
-#define CTYPES_H
+#include "rand.h"
 
-#ifndef u8
-#define u8 uint8_t
-#endif
+/** Tiny Mersenne Twister (TinyMT) state structure. */
+static uint32_t state[4];
 
-#ifndef u16
-#define u16 uint16_t
-#endif
+void tinymt32_init(uint32_t seed)
+{
+	state[0] = seed;
+	state[1] = 0x8f7011ee;
+	state[2] = 0xfc78ff1f;
+	state[3] = 0x3793fdff;
 
-#ifndef u32
-#define u32 uint32_t
-#endif
+	for (int i = 1; i < 8; i++)
+	{
+		state[i & 3] ^= i + 1812433253 * \
+			(state[(i - 1) & 3] ^ (state[(i - 1) & 3] >> 30));
+	}
+}
 
-#ifndef u64
-#define u64 uint64_t
-#endif
+uint32_t tinymt32_generate(void)
+{
+	uint32_t x = (state[0] & 0x7fffffff) ^ state[1] ^ state[2];
+	x ^= x << 1;
+	state[0] = state[1];
+	state[1] = state[2];
+	state[2] = state[3] ^ (x >> 1);
+	state[3] = x;
+	return state[3];
+}
 
-#ifndef s8
-#define s8 int8_t
-#endif
+uint8_t micro_rand(uint8_t *state)
+{
+	*state = 29 * (*state) + 217;
+	return *state;
+}
 
-#ifndef s16
-#define s16 int16_t
-#endif
+uint32_t mulberry32(uint32_t *state)
+{
+	uint32_t z = (*state += 0x6D2B79F5);
+	z = (z ^ (z >> 15)) * (z | 1);
+	z ^= z + (z ^ (z >> 7)) * (z | 1);
+	return z ^ (z >> 14);
+}
 
-#ifndef s32
-#define s32 int32_t
-#endif
-
-#ifndef s64
-#define s64 int64_t
-#endif
-
-#endif
+uint64_t ranq1(uint64_t *state)
+{
+	*state ^= *state >> 21;
+	*state ^= *state << 35;
+	*state ^= *state >> 4;
+	return *state * 2685821657736338717ULL;
+}

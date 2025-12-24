@@ -36,45 +36,36 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Custom C types definitions.
+ * Bitwise operations.
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
-#ifndef CTYPES_H
-#define CTYPES_H
+#ifndef BITOPS_H
+#define BITOPS_H
 
-#ifndef u8
-#define u8 uint8_t
+#include <stdint.h>
+
+#if !defined(BIT)
+#define BIT(x) (1U << (x))
 #endif
 
-#ifndef u16
-#define u16 uint16_t
+#if defined(__cplusplus)
+extern "C" {
 #endif
 
-#ifndef u32
-#define u32 uint32_t
+/** Reverses the bits in a 32-bit unsigned integer. */
+uint32_t reverse_bits32(uint32_t x);
+
+/** Reverses the bits in a 16-bit unsigned integer. */
+uint16_t reverse_bits16(uint16_t x);
+
+/** Reverses the bits in an 8-bit unsigned integer. */
+uint8_t reverse_bits8(uint8_t x);
+
+#if defined(__cplusplus)
+} /* extern "C" */
 #endif
 
-#ifndef u64
-#define u64 uint64_t
-#endif
-
-#ifndef s8
-#define s8 int8_t
-#endif
-
-#ifndef s16
-#define s16 int16_t
-#endif
-
-#ifndef s32
-#define s32 int32_t
-#endif
-
-#ifndef s64
-#define s64 int64_t
-#endif
-
-#endif
+#endif /* BITOPS_H */

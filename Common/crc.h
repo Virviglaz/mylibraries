@@ -36,45 +36,82 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Custom C types definitions.
+ * CRC calculation alghorithms.
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
-#ifndef CTYPES_H
-#define CTYPES_H
+#ifndef __CRC_GENERIC_H__
+#define __CRC_GENERIC_H__
 
-#ifndef u8
-#define u8 uint8_t
-#endif
+#include <stdint.h>
 
-#ifndef u16
-#define u16 uint16_t
-#endif
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
 
-#ifndef u32
-#define u32 uint32_t
-#endif
+/**
+ * Calculate CRC32 checksum.
+ *
+ * @param buf		Pointer to data buffer.
+ * @param len		Length of data buffer in bytes.
+ *
+ * @return Calculated CRC32 checksum.
+ */
+uint32_t crc32(uint8_t *buf, uint32_t len);
 
-#ifndef u64
-#define u64 uint64_t
-#endif
+/**
+ * Calculate CRC16 checksum.
+ *
+ * @param buf		Pointer to data buffer.
+ * @param len		Length of data buffer in bytes.
+ *
+ * @return Calculated CRC16 checksum.
+ */
+uint16_t crc16(uint8_t *buf, uint16_t len);
 
-#ifndef s8
-#define s8 int8_t
-#endif
+/**
+ * Calculate CRC8-Dallas/Maxim checksum.
+ *
+ * @param buf		Pointer to data buffer.
+ * @param len		Length of data buffer in bytes.
+ *
+ * @return Calculated CRC8-Dallas/Maxim checksum.
+ */
+uint8_t crc8Dallas(uint8_t *buf, uint16_t len);
 
-#ifndef s16
-#define s16 int16_t
-#endif
+/**
+ * Calculate CRC8 checksum.
+ *
+ * @param buf		Pointer to data buffer.
+ * @param len		Length of data buffer in bytes.
+ *
+ * @return Calculated CRC8 checksum.
+ */
+uint8_t crc8(uint8_t *buf, uint16_t len);
 
-#ifndef s32
-#define s32 int32_t
-#endif
+/**
+ * Calculate Fletcher-32 checksum.
+ *
+ * @param data		Pointer to data buffer (16-bit words).
+ * @param len		Length of data buffer in 16-bit words.
+ *
+ * @return Calculated Fletcher-32 checksum.
+ */
+uint32_t fletcher32(uint16_t *data, uint32_t len);
 
-#ifndef s64
-#define s64 int64_t
-#endif
+/**
+ * Calculate Fletcher-32 checksum for a string.
+ *
+ * @param str		Pointer to null-terminated string.
+ *
+ * @return Calculated Fletcher-32 checksum.
+ */
+uint32_t fletcher32_string(const char *str);
 
-#endif
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
+
+#endif /* __CRC_GENERIC_H__ */

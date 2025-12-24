@@ -36,45 +36,37 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Custom C types definitions.
+ * Bitwise operations.
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
-#ifndef CTYPES_H
-#define CTYPES_H
+#include "bitops.h"
 
-#ifndef u8
-#define u8 uint8_t
-#endif
+uint32_t reverse_bits32(uint32_t x)
+{
+	x = ((x >> 1) & 0x55555555) | ((x & 0x55555555) << 1);
+	x = ((x >> 2) & 0x33333333) | ((x & 0x33333333) << 2);
+	x = ((x >> 4) & 0x0F0F0F0F) | ((x & 0x0F0F0F0F) << 4);
+	x = ((x >> 8) & 0x00FF00FF) | ((x & 0x00FF00FF) << 8);
+	x = (x >> 16) | (x << 16);
+	return x;
+}
 
-#ifndef u16
-#define u16 uint16_t
-#endif
+uint16_t reverse_bits16(uint16_t x)
+{
+	x = ((x >> 1) & 0x5555) | ((x & 0x5555) << 1);
+	x = ((x >> 2) & 0x3333) | ((x & 0x3333) << 2);
+	x = ((x >> 4) & 0x0F0F) | ((x & 0x0F0F) << 4);
+	x = (x >> 8) | (x << 8);
+	return x;
+}
 
-#ifndef u32
-#define u32 uint32_t
-#endif
-
-#ifndef u64
-#define u64 uint64_t
-#endif
-
-#ifndef s8
-#define s8 int8_t
-#endif
-
-#ifndef s16
-#define s16 int16_t
-#endif
-
-#ifndef s32
-#define s32 int32_t
-#endif
-
-#ifndef s64
-#define s64 int64_t
-#endif
-
-#endif
+uint8_t reverse_bits8(uint8_t x)
+{
+	x = ((x >> 1) & 0x55) | ((x & 0x55) << 1);
+	x = ((x >> 2) & 0x33) | ((x & 0x33) << 2);
+	x = (x >> 4) | (x << 4);
+	return x;
+}

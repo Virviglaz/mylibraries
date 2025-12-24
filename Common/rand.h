@@ -36,45 +36,61 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Custom C types definitions.
+ * Pseudo-random number gerenator.
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
-#ifndef CTYPES_H
-#define CTYPES_H
+#include <stdint.h>
 
-#ifndef u8
-#define u8 uint8_t
-#endif
+#ifndef RAND_H
+#define RAND_H
 
-#ifndef u16
-#define u16 uint16_t
-#endif
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
 
-#ifndef u32
-#define u32 uint32_t
-#endif
+/**
+ * Initialize TinyMT state with a given seed.
+ *
+ * @param seed		Seed value.
+ */
+void tinymt32_init(uint32_t seed);
 
-#ifndef u64
-#define u64 uint64_t
-#endif
+/**
+ * Generate a pseudo-random number using TinyMT.
+ *
+ * @return Generated pseudo-random number.
+ */
+uint32_t tinymt32_generate(void);
 
-#ifndef s8
-#define s8 int8_t
-#endif
+/**
+ * Simple linear congruential generator for microcontrollers.
+ *
+ * @param state		Pointer to the generator state variable.
+ * @return Generated pseudo-random byte.
+ */
+uint8_t micro_rand(uint8_t *state);
 
-#ifndef s16
-#define s16 int16_t
-#endif
+/**
+ * Mulberry32 pseudo-random number generator.
+ *
+ * @param state		Pointer to the generator state variable.
+ * @return Generated pseudo-random number.
+ */
+uint32_t mulberry32(uint32_t *state);
 
-#ifndef s32
-#define s32 int32_t
-#endif
+/**
+ * 64-bit random number generator by David Stafford.
+ *
+ * @param state		Pointer to the generator state variable.
+ * @return Generated pseudo-random number.
+ */
+uint64_t ranq1(uint64_t *state);
 
-#ifndef s64
-#define s64 int64_t
-#endif
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
-#endif
+#endif /* RAND_H */
