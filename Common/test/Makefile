@@ -9,11 +9,13 @@ SRC					+= ../hash_db.cpp
 SRC					+= bitops_test.cpp
 SRC					+= ../bitops.c
 
+SRC					+= state_machine_test.cpp
+
 INC					:= .
 INC					+= ../
 
 CFLAGS				+=
-CPPFLAGS			+= -std=c++14 -O2
+CPPFLAGS			+= -std=c++14 -O0
 
 include Makefile.common
 

@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2023 Pavel Nadein
+ * Copyright (c) 2023-2025 Pavel Nadein
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -18,7 +18,7 @@
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -36,7 +36,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * State machine C implementation
+ * State machine C/C++ implementation.
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
@@ -46,83 +46,152 @@
 #define __STATE_MACHINE_H__
 
 #ifdef __cplusplus
-#include <functional>
-#include <vector>
-#include <stdbool.h>
 
-class StateMachine; /* Forward declaration */
+#include <cstdint>
+#include <cerrno>
+
+namespace StateMachine
+{
 
 /**
- * @brief Defines single state item.
+ * @brief Defines machine state.
+ *
+ * @note Inherit this class to define specific states.
+ * Each state must have unique state_hash value.
+ * Override enter, work and exit methods to define state behavior.
+ * Each method must return next state hash or 0 to stay in current state.
  */
-class StateItem
+class State
 {
-	std::function<void(StateMachine *)> _work;
-	std::function<void(StateMachine *)> _enter;
-	std::function<void(StateMachine *)> _exit;
-
 public:
-	StateItem(std::function<void(StateMachine *)> work,
-		std::function<void(StateMachine *)> enter = nullptr,
-		std::function<void(StateMachine *)> exit = nullptr) :
-		_work(work),
-		_enter(enter),
-		_exit(exit) {}
+	/** @brief Constructor.
+	 *
+	 * @param state_hash Unique state hash.
+	 * @param user_data User data associated with this state.
+	*/
+	State(uint32_t state_hash, void *user_data) :
+		state_hash_(state_hash),
+		user_data_(user_data) {}
+	virtual uint32_t enter(void *args) { return 0; }
+	virtual uint32_t work(void *args)  { return EINVAL; }
+	virtual uint32_t exit(void *args)  { return 0; }
 
-	void do_work(StateMachine *m) {
-		_work(m);
-	}
+	/* allow Machine to access protected members directly */
+	friend class Machine;
 
-	void do_enter(StateMachine *m) {
-		if (_enter)
-			_enter(m);
-	}
+	/** Delete copy and move constructors and assignment operators */
+	State (const State&) = delete;
+	State& operator= (const State&) = delete;
+	State (State&&) = delete;
+	State& operator= (State&&) = delete;
 
-	void do_exit(StateMachine *m) {
-		if (_exit)
-			_exit(m);
-	}
+protected:
+	uint32_t state_hash_;
+	void *user_data_;
 };
 
 /**
- * @brief State machine. Using list of StateItem.
+ * @brief Defines state machine.
  */
-class StateMachine
+class Machine
 {
-	std::vector<StateItem> list;
-	unsigned int current = 0;
-	bool change_state = true;
 public:
-	StateMachine() {}
+	/**
+	 * @brief Constructor.
+	 *
+	 * @tparam N Number of states in the array.
+	 * @param states Array of state pointers.
+	 */
+	template <uint32_t N>
+	explicit Machine(State* (&states)[N])
+		: state_count_(N),
+		  first(&states[0]),
+		  current(states[0]),
+		  mode_change_n_(true)
+	{}
 
-	StateMachine(std::vector<StateItem> states) :
-		list(states) {}
-
-	void switch_state(unsigned int state_num) {
-		if (state_num <= list.size()) {
-			current = state_num;
-			change_state = true;
+	/**
+	 * @brief Perform single step of state machine.
+	 *
+	 * @return 0 on success, negative errno code on failure.
+	 */
+	int DoStep()
+	{
+		if (mode_change_n_) {
+			uint32_t next = current->enter(current->user_data_);
+			if (next) {
+				State* next_state = find_state_by_hash(next);
+				if (!next_state)
+					return -EINVAL;
+				current = next_state;
+				return 0;
+			} else
+				mode_change_n_ = false;
 		}
+
+		uint32_t next = current->work(current->user_data_);
+		if (next) {
+			State* next_state = find_state_by_hash(next);
+			if (!next_state)
+				return -EINVAL;
+
+			// Transition to next state
+			next = current->exit(current->user_data_);
+			if (next) {
+				next_state = find_state_by_hash(next);
+				if (!next_state)
+					return -EINVAL;
+			}
+			current = next_state;
+			mode_change_n_ = true;
+			return 0;
+		}
+
+		if (mode_change_n_) {
+			uint32_t next = current->exit(current->user_data_);
+			if (next) {
+				State* next_state = find_state_by_hash(next);
+				if (!next_state)
+					return -EINVAL;
+				current = next_state;
+				return 0;
+			}
+		}
+
+		return 0;
 	}
 
-	void run() {
-		unsigned int state_num = current;
-		if (change_state) {
-			change_state = false;
-			list[state_num].do_enter(this);
+	/** Delete copy and move constructors and assignment operators */
+	Machine (const Machine&) = delete;
+	Machine& operator= (const Machine&) = delete;
+	Machine (Machine&&) = delete;
+	Machine& operator= (Machine&&) = delete;
+
+private:
+	// first now points to an array of State* elements
+	State* const *find_first_ptr() const noexcept { return first; }
+
+	State *find_state_by_hash(uint32_t hash) const noexcept
+	{
+		State* const *p = first;
+		for (uint32_t i = 0; i < state_count_; i++, p++) {
+			if ((*p)->state_hash_ == hash)
+				return *p;
 		}
-
-		if (change_state)
-			return;
-
-		list[state_num].do_work(this);
-
-		if (change_state)
-			list[state_num].do_exit(this);
+		return nullptr;
 	}
+
+	const uint32_t state_count_;
+	State* const *first;   // pointer to first element of State* array
+	State* current;
+	bool mode_change_n_;
+};
+
 };
 
 #else /* __cplusplus */
+
+/** C implementation */
 
 /**
  * @brief Defines machine state.
