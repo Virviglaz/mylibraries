@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2023 Pavel Nadein
+ * Copyright (c) 2023-2025 Pavel Nadein
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -44,35 +44,49 @@
 
 #include "state_machine.h"
 
+void state_machine_init(state_machine_t *instance, machine_state_t *states_list)
+{
+	instance->states = states_list;
+	instance->mode_changed_n = 0;
+	instance->state_n = 0;
+}
+
 void state_machine_do_step(state_machine_t *instance)
 {
 	machine_state_t *current = &instance->states[instance->state_n];
 	int next;
 
-	if (!instance->mode_change_n && current->enter) {
+	if (current->enter && (!instance->mode_changed_n)) {
 		next = current->enter();
-		if (next >= 0) {
-			instance->mode_change_n = 0;
-			instance->state_n = next;
+		if (next > 0) {
+			instance->mode_changed_n = 0;
+			instance->state_n = next - 1;
+
+			/* Exit transition */
+			if (current->exit) {
+				next = current->exit();
+				if (next > 0) {
+					instance->state_n = next - 1;
+				}
+			}
 			return;
 		} else
-			instance->mode_change_n = 1;
+			instance->mode_changed_n = 1;
 	}
 
    if (current->work) {
 		next = current->work();
-		if (next >= 0) {
-			instance->mode_change_n = 0;
-			instance->state_n = next;
+		if (next > 0) {
+			instance->mode_changed_n = 0;
+			instance->state_n = next - 1;
+
+			/* Exit transition */
+			if (current->exit) {
+				next = current->exit();
+				if (next > 0) {
+					instance->state_n = next - 1;
+				}
+			}
 		}
    }
-
-	if (!instance->mode_change_n && current->exit) {
-		next = current->exit();
-		if (next >= 0) {
-			instance->mode_change_n = 0;
-			instance->state_n = next;
-		} else
-			instance->mode_change_n = 1;
-	}
 }

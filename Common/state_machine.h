@@ -213,15 +213,19 @@ typedef struct {
  * @Note Keep state_n and mode_change_n initialized with zeroes.
  */
 typedef struct {
+	/** @brief States list. */
+	machine_state_t *states;
+
 	/** @brief Number of current state */
 	int state_n;
 
 	/** @brief Mode change flag. */
-	int mode_change_n;
-
-	/** @brief States list. */
-	machine_state_t states[];
+	int mode_changed_n;
 } state_machine_t;
+
+void state_machine_init(
+	state_machine_t *instance,
+	machine_state_t *states_list);
 
 /**
  * @brief Perform single step of state machine.

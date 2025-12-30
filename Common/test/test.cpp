@@ -1,5 +1,5 @@
+#include "state_machine_test.h"
 #include <cassert>
-
 
 int main()
 {
@@ -12,6 +12,7 @@ int main()
     assert(do_bitops_test() == 0);
     assert(do_state_machine_test() == 0);
     assert(do_filters_test() == 0);
+    assert(do_state_machine_c_test() == 0);
 
     return 0;
 }

@@ -10,6 +10,8 @@ SRC					+= bitops_test.cpp
 SRC					+= ../bitops.c
 
 SRC					+= state_machine_test.cpp
+SRC					+= state_machine_test.c
+SRC					+= ../state_machine.c
 SRC					+= filters_test.cpp
 
 INC					:= .
