@@ -69,7 +69,7 @@ public:
 	 * @param state_hash Unique state hash.
 	 * @param user_data User data associated with this state.
 	*/
-	State(uint32_t state_hash, void *user_data) :
+	State(uint32_t state_hash, void *user_data = nullptr) :
 		state_hash_(state_hash),
 		user_data_(user_data) {}
 	virtual uint32_t enter(void *args) { return 0; }

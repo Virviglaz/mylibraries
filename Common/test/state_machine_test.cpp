@@ -17,7 +17,7 @@ int do_state_machine_test()
 	class TestState1 : public State
 	{
 	public:
-		TestState1() : State(Hash("TestState1"), nullptr) {}
+		TestState1() : State(Hash("TestState1")) {}
 
 		uint32_t enter(void *user_data) override
 		{
@@ -42,7 +42,7 @@ int do_state_machine_test()
 	class TestState2 : public State
 	{
 	public:
-		TestState2() : State(Hash("TestState2"), nullptr) {}
+		TestState2() : State(Hash("TestState2")) {}
 
 		uint32_t enter(void *user_data) override
 		{
@@ -69,7 +69,7 @@ int do_state_machine_test()
 	class TestState3 : public State
 	{
 	public:
-		TestState3() : State(Hash("TestState3"), nullptr) {}
+		TestState3() : State(Hash("TestState3")) {}
 
 		uint32_t enter(void *user_data) override
 		{
