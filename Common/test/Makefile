@@ -14,6 +14,9 @@ SRC					+= state_machine_test.c
 SRC					+= ../state_machine.c
 SRC					+= filters_test.cpp
 
+SRC					+= ../arg_parser.c
+SRC					+= arg_parser_test.c
+
 INC					:= .
 INC					+= ../
 

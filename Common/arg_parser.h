@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2024 Pavel Nadein
+ * Copyright (c) 2024-2025 Pavel Nadein
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -58,6 +58,7 @@ typedef struct {
 	int (*cb)(int argc, char *argv[]);
 } const arg_list_t;
 
+#define ARG_PARSE(arg_str, arg_list)	parse(arg_str, arg_list, sizeof(arg_list)/sizeof(arg_list[0]))
 int parse(char *arg_str, arg_list_t *arg_list, int size);
 
 #ifdef __cplusplus
