@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2022 Pavel Nadein
+ * Copyright (c) 2022-2025 Pavel Nadein
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -44,7 +44,7 @@
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
-#include "acc_mpu6050.h"
+#include "mpu6050.h"
 
 #define MPU6050_RA_XG_OFFS_TC 		0x00
 #define MPU6050_RA_YG_OFFS_TC 		0x01

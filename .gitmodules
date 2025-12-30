@@ -16,3 +16,6 @@
 [submodule "stm32f10x_stdperiph_driver"]
 	path = stm32f10x_stdperiph_driver
 	url = https://Virviglaz@bitbucket.org/Virviglaz/stm32f10x_stdperiph_driver.git
+[submodule "Common/LTC6804-2"]
+	path = Common/LTC6804-2
+	url = https://github.com/Virviglaz/LTC6804-2.git
