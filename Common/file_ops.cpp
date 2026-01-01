@@ -1,0 +1,255 @@
+/*
+ * This file is provided under a MIT license.  When using or
+ *   redistributing this file, you may do so under either license.
+ *
+ *   MIT License
+ *
+ *   Copyright (c) 2026 Pavel Nadein
+ *
+ *   Permission is hereby granted, free of charge, to any person obtaining a copy
+ *   of this software and associated documentation files (the "Software"), to deal
+ *   in the Software without restriction, including without limitation the rights
+ *   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *   copies of the Software, and to permit persons to whom the Software is
+ *   furnished to do so, subject to the following conditions:
+ *
+ *   The above copyright notice and this permission notice shall be included in all
+ *   copies or substantial portions of the Software.
+ *
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *   SOFTWARE.
+ *
+ *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * File operation.
+ *
+ * Contact Information:
+ * Pavel Nadein <pavelnadein@gmail.com>
+ */
+
+#include "file_ops.h"
+#include <stdexcept>
+#include <system_error>
+#include <unistd.h>
+#include <errno.h>
+#include <sys/stat.h>
+#include <vector>
+#include <algorithm>
+#include <cstring>
+#include <cstdio>
+
+File::File(const char *path, int flags)
+{
+	fd = open(path, flags, S_IRUSR | S_IWUSR);
+
+	if (fd < 0)
+		throw std::system_error(errno, std::generic_category());
+}
+
+File::~File()
+{
+	if (fd >= 0)
+		close(fd);
+}
+
+off_t File::Seek(off_t offset, enum SeekAt seekAt)
+{
+	int whence = 0;
+
+	switch (seekAt) {
+	case File::SeekAt::SET:
+		whence = SEEK_SET;
+		break;
+	case File::SeekAt::CURRENT:
+		whence = SEEK_CUR;
+		break;
+	case File::SeekAt::END:
+		whence = SEEK_END;
+		break;
+	}
+
+	off_t ret = lseek(fd, offset, whence);
+	if (ret < 0)
+		throw std::system_error(errno, std::generic_category());
+
+	return ret;
+}
+
+void File::Write(const void *data, size_t size)
+{
+	ssize_t ret = write(fd, data, size);
+
+	if (ret < 0)
+		throw std::system_error(errno, std::generic_category());
+
+	if (static_cast<size_t>(ret) != size)
+		throw std::length_error("Invalid data size written");
+}
+
+void File::Read(void *dst, size_t size)
+{
+	ssize_t ret = read(fd, dst, size);
+
+	if (ret < 0)
+		throw std::system_error(errno, std::generic_category());
+
+	if (static_cast<size_t>(ret) != size)
+		throw std::length_error("Invalid data size read");
+}
+
+void File::Sync()
+{
+    int ret = fsync(fd);
+    if (ret < 0)
+        throw std::system_error(errno, std::generic_category());
+}
+
+File::Stats File::GetStats()
+{
+	return Stats(fd);
+}
+
+File::Mmap File::MapFile(size_t size, off_t offset, int flags)
+{
+	return Mmap(fd, size, offset, flags);
+}
+
+File::Stats::Stats(int fd)
+{
+	if (fstat(fd, &s) < 0)
+		throw std::system_error(errno, std::generic_category());
+}
+
+time_t File::Stats::GetLastAccessTime()
+{
+	return s.st_atime;
+}
+
+time_t File::Stats::GetLastModTime()
+{
+	return s.st_mtime;
+}
+
+time_t File::Stats::GetLastStatusChangeTime()
+{
+	return s.st_ctime;
+}
+
+off_t File::Stats::GetSize()
+{
+	return s.st_size;
+}
+
+mode_t File::Stats::GetMode()
+{
+	return s.st_mode;
+}
+
+File::Mmap::Mmap(int fd, size_t size, off_t offset, int flags)
+{
+	ptr = mmap(0, size, PROT_READ | PROT_WRITE, flags, fd, offset);
+
+	if (ptr == MAP_FAILED)
+		throw std::system_error(errno, std::generic_category());
+
+	size_ = size;
+}
+
+File::Mmap::~Mmap()
+{
+	if (ptr && size_)
+		munmap(ptr, size_);
+}
+
+void *File::Mmap::GetPtr()
+{
+	return ptr;
+}
+
+/*
+ * Write file contents to ostream.
+ */
+std::ostream &operator<<(std::ostream &out, const File &f)
+{
+    if (f.fd < 0)
+        return out;
+
+    struct stat st;
+    if (fstat(f.fd, &st) == -1)
+        return out;
+
+    off_t filesize = st.st_size;
+    if (filesize <= 0)
+        return out;
+
+    const size_t chunk = 4096;
+    std::vector<char> buf(chunk);
+    off_t offset = 0;
+
+    while (offset < filesize) {
+        size_t toread = static_cast<size_t>(std::min<off_t>(chunk, filesize - offset));
+        ssize_t r = pread(f.fd, buf.data(), toread, offset);
+        if (r <= 0)
+            break;
+        out.write(buf.data(), r);
+        if (!out)
+            break;
+        offset += r;
+    }
+
+    return out;
+}
+
+/*
+ * Read bytes from istream and replace file contents (truncate + write).
+ */
+std::istream &operator>>(std::istream &in, File &f)
+{
+    if (f.fd < 0)
+        return in;
+
+    // Truncate file to zero and seek to start
+    if (ftruncate(f.fd, 0) == -1)
+        return in;
+    if (lseek(f.fd, 0, SEEK_SET) == (off_t)-1)
+        return in;
+
+    const size_t chunk = 4096;
+    std::vector<char> buf(chunk);
+
+    while (in.good()) {
+        in.read(buf.data(), buf.size());
+        std::streamsize n = in.gcount();
+        if (n <= 0)
+            break;
+
+        const char *p = buf.data();
+        ssize_t remain = static_cast<ssize_t>(n);
+        while (remain > 0) {
+            ssize_t w = write(f.fd, p, static_cast<size_t>(remain));
+            if (w <= 0)
+                return in;
+            remain -= w;
+            p += w;
+        }
+    }
+
+    // reset file cursor to start
+    lseek(f.fd, 0, SEEK_SET);
+    return in;
+}

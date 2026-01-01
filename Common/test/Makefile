@@ -17,6 +17,9 @@ SRC					+= filters_test.cpp
 SRC					+= ../arg_parser.c
 SRC					+= arg_parser_test.c
 
+SRC					+= ../file_ops.cpp
+SRC					+= file_ops_test.cpp
+
 INC					:= .
 INC					+= ../
 
