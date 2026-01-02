@@ -194,9 +194,22 @@ UART_DeviceJSON::UART_DeviceJSON(const std::string &json_file,
 			for (const auto &data_entry : device["Steps"])
 			{
 				auto step = std::vector<uint8_t>{};
-				for (const auto &step_entry : data_entry["Data"])
+				if (data_entry["Data"].isString())
 				{
-					step.push_back(step_entry.asUInt());
+					std::string str_data = data_entry["Data"].asString();
+					for (char c : str_data)
+					{
+						step.push_back(static_cast<uint8_t>(c));
+					}
+					steps.push_back(std::move(step));
+					continue;
+				}
+				else
+				{
+					for (const auto &step_entry : data_entry["Data"])
+					{
+						step.push_back(step_entry.asUInt());
+					}
 				}
 				steps.push_back(std::move(step));
 			}

@@ -49,6 +49,10 @@ int do_device_json_test()
 	uart_interface.SendReceive(nullptr, uart_rx, 11);
 	std::string uart_message(reinterpret_cast<char*>(uart_rx), 11);
 	assert(uart_message == "Hello world");
+	uart_interface.Step();
+	uart_interface.SendReceive(nullptr, uart_rx, 11);
+	uart_message = std::string(reinterpret_cast<char*>(uart_rx), 11);
+	assert(uart_message == "Hello world");
 
 	return 0;
 }
