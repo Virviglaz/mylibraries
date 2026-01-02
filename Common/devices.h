@@ -95,6 +95,13 @@ public:
 	 */
 	virtual int Get() = 0;
 
+	/**
+	 * Get pin number
+	 *
+	 * @return Pin number
+	 */
+	virtual uint16_t GetPin() const { return pin_; }
+
 protected:
 	uint16_t pin_;
 };

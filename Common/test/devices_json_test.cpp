@@ -27,5 +27,20 @@ int do_device_json_test()
 	i2c_device.Read(16, read_buffer, 1);
 	assert(read_buffer[0] == 0);
 
+	SPI_DeviceJSON spi_device("devices_test.json", 10);
+	uint8_t rx_data[4] = {0};
+	spi_device.Transfer(nullptr, rx_data, 4);
+	assert(rx_data[0] == 170);
+	assert(rx_data[1] == 187);
+	assert(rx_data[2] == 204);
+	assert(rx_data[3] == 221);
+	spi_device.Step();
+	spi_device.Transfer(nullptr, rx_data, 4);
+	assert(rx_data[0] == 221);
+	assert(rx_data[1] == 238);
+	assert(rx_data[2] == 255);
+	assert(rx_data[3] == 16);
+	spi_device.Step();
+
 	return 0;
 }

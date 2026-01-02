@@ -132,4 +132,44 @@ private:
 	std::map<size_t, std::vector<uint16_t>> steps{};
 };
 
+class SPI_DeviceJSON : public SPI_DeviceBase, public DeviceJSON_StepHandler
+{
+public:
+	SPI_DeviceJSON() = delete;
+
+	/**
+	 * Constructor
+	 *
+	 * @param json_file JSON configuration file path
+	 * @param ifs SPI interface
+	 * @param cs_pin Chip select GPIO pin
+	 */
+	explicit SPI_DeviceJSON(const std::string &json_file,
+							uint16_t cs_pin);
+
+	SPI_DeviceJSON &Transfer(const uint8_t *tx_data,
+							 uint8_t *rx_data,
+							 uint32_t length) override;
+
+private:
+	class GPIO_InterfaceDummy : public GPIO_InterfaceBase {
+	public:
+		GPIO_InterfaceDummy() {}
+		int Read(uint16_t pin) override { return 0; }
+		void Write(uint16_t pin, int state) override {}
+	};
+
+	class SPI_InterfaceDummy : public SPI_InterfaceBase {
+	public:
+		SPI_InterfaceDummy() {}
+		int Transfer(const uint8_t *tx_data,
+			uint8_t *rx_data,
+			uint32_t length) override { return 0; }
+	};
+
+	GPIO_InterfaceDummy dummy_gpio_interface;
+	SPI_InterfaceDummy dummy_spi_interface;
+	std::vector<std::vector<uint8_t>> steps{};
+};
+
 #endif /* DEVICES_JSON_H */

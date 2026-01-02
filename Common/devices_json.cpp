@@ -136,3 +136,46 @@ I2C_DeviceJSON &I2C_DeviceJSON::Read(uint8_t reg_addr,
 
 	return *this;
 }
+
+SPI_DeviceJSON::SPI_DeviceJSON(const std::string &json_file,
+	uint16_t cs_pin) : SPI_DeviceBase(dummy_spi_interface, dummy_gpio_interface)
+{
+	Json::Value root;
+	Json::Reader reader;
+	reader.parse(File(json_file.c_str(), O_RDONLY).Read(), root);
+	auto device_type = root["Devices"];
+	for (const auto &device : device_type)
+	{
+		if (device["Type"].asString() == "SPI" && device["ChipSelectPin"].asUInt() == cs_pin)
+		{
+			for (const auto &data_entry : device["Steps"])
+			{
+				auto step = std::vector<uint8_t>{};
+				for (const auto &step_entry : data_entry["Data"])
+				{
+					step.push_back(step_entry.asUInt());
+				}
+				steps.push_back(std::move(step));
+			}
+		}
+	}
+}
+
+SPI_DeviceJSON &SPI_DeviceJSON::Transfer(const uint8_t *tx_data,
+										 uint8_t *rx_data,
+										 uint32_t length)
+{
+
+	if (steps.empty())
+		throw std::out_of_range("No data defined for this device CS pin");
+
+	if (step_count >= steps.size())
+		throw std::out_of_range("Step count exceeds defined steps");
+
+	if (length != steps[step_count].size())
+		throw std::invalid_argument("Transfer length does not match defined step data size");
+
+	memcpy(rx_data, steps[step_count].data(), length);
+
+	return *this;
+}
