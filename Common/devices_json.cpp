@@ -179,3 +179,45 @@ SPI_DeviceJSON &SPI_DeviceJSON::Transfer(const uint8_t *tx_data,
 
 	return *this;
 }
+
+UART_DeviceJSON::UART_DeviceJSON(const std::string &json_file,
+								 const std::string &name)
+{
+	Json::Value root;
+	Json::Reader reader;
+	reader.parse(File(json_file.c_str(), O_RDONLY).Read(), root);
+	auto device_type = root["Devices"];
+	for (const auto &device : device_type)
+	{
+		if (device["Type"].asString() == "UART" && device["Name"].asString() == name)
+		{
+			for (const auto &data_entry : device["Steps"])
+			{
+				auto step = std::vector<uint8_t>{};
+				for (const auto &step_entry : data_entry["Data"])
+				{
+					step.push_back(step_entry.asUInt());
+				}
+				steps.push_back(std::move(step));
+			}
+		}
+	}
+}
+
+int UART_DeviceJSON::SendReceive(const uint8_t *tx_data,
+								 uint8_t *rx_data,
+								 uint32_t length)
+{
+	if (steps.empty())
+		throw std::out_of_range("No data defined for this UART device");
+
+	if (step_count >= steps.size())
+		throw std::out_of_range("Step count exceeds defined steps");
+
+	if (length != steps[step_count].size())
+		throw std::invalid_argument("Transfer length does not match defined step data size");
+
+	memcpy(rx_data, steps[step_count].data(), length);
+
+	return 0;
+}

@@ -54,6 +54,9 @@
 #error "This header requires C++11 or higher"
 #endif
 
+/**
+ * Helper JSON Step Handler Base Class.
+ */
 class DeviceJSON_StepHandler
 {
 public:
@@ -72,6 +75,9 @@ protected:
 	size_t step_count = 0;
 };
 
+/**
+ * GPIO Device JSON Class. Implements GPIO device behavior based on JSON configuration.
+ */
 class GPIO_DeviceJSON : public GPIO_DeviceBase, public DeviceJSON_StepHandler
 {
 public:
@@ -98,6 +104,9 @@ private:
 	std::vector<uint16_t> steps{};
 };
 
+/**
+ * I2C Device JSON Class. Implements I2C device behavior based on JSON configuration.
+ */
 class I2C_DeviceJSON : public I2C_DeviceBase, public DeviceJSON_StepHandler
 {
 public:
@@ -132,6 +141,9 @@ private:
 	std::map<size_t, std::vector<uint16_t>> steps{};
 };
 
+/**
+ * SPI Device JSON Class. Implements SPI device behavior based on JSON configuration.
+ */
 class SPI_DeviceJSON : public SPI_DeviceBase, public DeviceJSON_StepHandler
 {
 public:
@@ -169,6 +181,38 @@ private:
 
 	GPIO_InterfaceDummy dummy_gpio_interface;
 	SPI_InterfaceDummy dummy_spi_interface;
+	std::vector<std::vector<uint8_t>> steps{};
+};
+
+/**
+ * UART Interface JSON Class. Implements UART interface behavior based on JSON configuration.
+ */
+class UART_DeviceJSON : public UART_InterfaceBase, public DeviceJSON_StepHandler
+{
+public:
+	UART_DeviceJSON() = delete;
+
+	/**
+	 * Constructor
+	 *
+	 * @param json_file JSON configuration file path
+	 * @param baudrate UART baudrate
+	 */
+	explicit UART_DeviceJSON(const std::string &json_file, const std::string &name);
+
+	/**
+	 * Send and receive data over UART
+	 *
+	 * @param tx_data Data to send
+	 * @param rx_data Buffer to store received data
+	 * @param length Length of data to transfer
+	 *
+	 * @return 0 on success, negative value on error
+	 */
+	int SendReceive(const uint8_t *tx_data,
+					uint8_t *rx_data,
+					uint32_t length) override;
+private:
 	std::vector<std::vector<uint8_t>> steps{};
 };
 

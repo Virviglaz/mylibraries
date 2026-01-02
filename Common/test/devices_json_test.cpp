@@ -27,6 +27,7 @@ int do_device_json_test()
 	i2c_device.Read(16, read_buffer, 1);
 	assert(read_buffer[0] == 0);
 
+	/* SPI device test */
 	SPI_DeviceJSON spi_device("devices_test.json", 10);
 	uint8_t rx_data[4] = {0};
 	spi_device.Transfer(nullptr, rx_data, 4);
@@ -41,6 +42,13 @@ int do_device_json_test()
 	assert(rx_data[2] == 255);
 	assert(rx_data[3] == 16);
 	spi_device.Step();
+
+	/* UART interface test */
+	UART_DeviceJSON uart_interface("devices_test.json", "UART1");
+	uint8_t uart_rx[11] = {0};
+	uart_interface.SendReceive(nullptr, uart_rx, 11);
+	std::string uart_message(reinterpret_cast<char*>(uart_rx), 11);
+	assert(uart_message == "Hello world");
 
 	return 0;
 }
