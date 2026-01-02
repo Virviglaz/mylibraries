@@ -10,4 +10,6 @@ INC					+= ../
 CFLAGS				+= -pedantic
 CPPFLAGS			+= -std=c++14 -O2
 
+LDFLAGS				+= -ljsoncpp
+
 include Makefile.common

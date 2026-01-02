@@ -75,7 +75,7 @@ public:
 	 * @param state State to set (only for OUTPUT direction)
 	 * @throws std::invalid_argument if GPIO is not configured as OUTPUT
 	 */
-	void Set(uint16_t state);
+	GPIO_DeviceOStream& Set(uint16_t state);
 
 	/**
 	 * Read value from input pin.
@@ -111,12 +111,12 @@ public:
 	 * @param data Data to write
 	 * @param length Length of data to write
 	 *
-	 * @return 0 on success
+	 * @return Reference to the I2C Device
 	 * @throws std::invalid_argument if data is null or length is zero
 	 */
-	int Write(uint8_t reg_addr,
-			  const uint8_t *data,
-			  uint32_t length);
+	I2C_DeviceOStream &Write(uint8_t reg_addr,
+							 const uint8_t *data,
+							 uint32_t length) override;
 
 	/**
 	 * Read data from I2C Device.
@@ -125,12 +125,12 @@ public:
 	 * @param data Buffer to store read data
 	 * @param length Length of data to read
 	 *
-	 * @return 0 on success
+	 * @return Reference to the I2C Device
 	 * @throws std::invalid_argument if data is null or length is zero
 	 */
-	int Read(uint8_t reg_addr,
-			 uint8_t *data,
-			 uint32_t length);
+	I2C_DeviceOStream &Read(uint8_t reg_addr,
+							uint8_t *data,
+							uint32_t length) override;
 
 private:
 	std::string name_;
@@ -156,7 +156,7 @@ public:
 	 *
 	 * @return 0 on success
 	 */
-	int Transfer(const uint8_t *tx_data,
+	SPI_DeviceOStream& Transfer(const uint8_t *tx_data,
 				 uint8_t *rx_data,
 				 uint32_t length);
 

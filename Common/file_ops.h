@@ -92,10 +92,10 @@ public:
 	 *
 	 * @param offset Offset in bytes
 	 * @param seekAt Seek origin
-	 * @return New offset from beginning of file
+	 * @return Reference to this File object
 	 * @throw std::system_error on lseek failure
 	 */
-	off_t Seek(off_t offset = 0, enum SeekAt seekAt = SeekAt::END);
+	File& Seek(off_t offset = 0, enum SeekAt seekAt = SeekAt::END);
 
 	/**
 	 * Write raw bytes to the file at the current offset.
@@ -104,8 +104,9 @@ public:
 	 * @param size Number of bytes to write
 	 * @throw std::system_error on write failure
 	 * @throw std::length_error if not all bytes were written
+	 * @return Reference to this File object
 	 */
-	void Write(const void *data, size_t size);
+	File& Write(const void *data, size_t size);
 
 	/**
 	 * Read raw bytes from the file at the current offset.
@@ -114,13 +115,24 @@ public:
 	 * @param size Number of bytes to read
 	 * @throw std::system_error on read failure
 	 * @throw std::length_error if not all bytes were read
+	 * @return Reference to this File object
 	 */
-	void Read(void *dst, size_t size);
+	File& Read(void *dst, size_t size);
+
+	/**
+	 * Read entire file contents into a string.
+	 *
+	 * @return File contents as a string
+	 */
+	std::string Read();
 
 	/**
 	 * Synchronize file contents to disk.
+	 *
+	 * @return Reference to this File object
+	 * @throw std::system_error on fsync failure
 	 */
-	void Sync();
+	File& Sync();
 
 	/* Nested types */
 	class Stats;

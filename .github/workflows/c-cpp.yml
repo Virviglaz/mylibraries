@@ -19,6 +19,8 @@ jobs:
       uses: Dup4/actions-setup-gcc@v1
       with:
         version: latest
+    - name: Install JSONCPP
+      run: sudo apt-get install libjsoncpp-dev
     - name: Compile only
       run: make -C Common/compile all
     - name: Built and test

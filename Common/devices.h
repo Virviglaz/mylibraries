@@ -46,6 +46,7 @@
 #define DEVICES_H
 
 #include "interfaces.h"
+#include <stddef.h>
 
 #ifndef __cplusplus
 #error "This header requires C++11 or higher"
@@ -81,11 +82,11 @@ public:
 	explicit GPIO_DeviceBase(uint16_t pin, dir dir) : pin_(pin) {}
 
 	/**
-	 * Set pin state
+	 * Set pin state (optional)
 	 *
 	 * @param state Pin state
 	 */
-	virtual void Set(uint16_t state) = 0;
+	virtual GPIO_DeviceBase& Set(uint16_t state) { return *this; }
 
 	/**
 	 * Get pin state
@@ -94,7 +95,7 @@ public:
 	 */
 	virtual int Get() = 0;
 
-private:
+protected:
 	uint16_t pin_;
 };
 
@@ -104,10 +105,8 @@ private:
 class I2C_DeviceBase
 {
 public:
-	/**
-	 * Constructor
-	 */
-	explicit I2C_DeviceBase();
+	/** Default constructor */
+	I2C_DeviceBase();
 
 	/**
 	 * Constructor
@@ -115,7 +114,34 @@ public:
 	 * @param ifs I2C interface
 	 * @param address I2C device address
 	 */
+	explicit
 	I2C_DeviceBase(I2C_InterfaceBase &ifs, uint8_t address) : ifs_(ifs), address_(address) {}
+
+	/**
+	 * Write data to I2C device (optional)
+	 *
+	 * @param reg_addr Register address to write to
+	 * @param dst Data to write
+	 * @param size Length of data to write
+	 *
+	 * @return Reference to the I2C device
+	 */
+
+	virtual I2C_DeviceBase &Write(uint8_t reg_addr,
+								  const uint8_t *data,
+								  uint32_t length) { return *this; };
+	/**
+	 * Read data from I2C device
+	 *
+	 * @param reg_addr Register address to read from
+	 * @param dst Buffer to store read data
+	 * @param size Length of data to read
+	 *
+	 * @return Reference to the I2C device
+	 */
+	virtual I2C_DeviceBase &Read(uint8_t reg_addr,
+								 uint8_t *data,
+								 uint32_t length) = 0;
 
 protected:
 	I2C_InterfaceBase &ifs_;
@@ -150,7 +176,7 @@ public:
 	 *
 	 * @return 0 on success, negative value on error
 	 */
-	virtual int Transfer(const uint8_t *tx_data,
+	virtual SPI_DeviceBase& Transfer(const uint8_t *tx_data,
 						 uint8_t *rx_data,
 						 uint32_t length) = 0;
 

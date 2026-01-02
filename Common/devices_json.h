@@ -4,7 +4,7 @@
  *
  *   MIT License
  *
- *   Copyright (c) 2025 Pavel Nadein
+ *   Copyright (c) 2026 Pavel Nadein
  *
  *   Permission is hereby granted, free of charge, to any person obtaining a copy
  *   of this software and associated documentation files (the "Software"), to deal
@@ -36,95 +36,100 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Streaming interface for ebmedded devices. Prints trace to standart output.
+ * Devices JSON configurable interface implementation.
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
-#include "devices_ostream.h"
-#include <iostream>
-#include <stdexcept>
+#ifndef DEVICES_JSON_H
+#define DEVICES_JSON_H
 
-static void print_data(const uint8_t *data, uint32_t length)
+#include "devices.h"
+#include <string>
+#include <vector>
+#include <map>
+
+#ifndef __cplusplus
+#error "This header requires C++11 or higher"
+#endif
+
+class DeviceJSON_StepHandler
 {
-	std::cout << "Data: ";
-	for (uint32_t i = 0; i < length; ++i)
-	{
-		std::cout << std::hex << static_cast<int>(data[i]) << " ";
-	}
-	std::cout << std::dec << std::endl;
-}
+public:
+	/**
+	 * Step function to process device actions
+	 * @return Reference to the current object
+	 */
+	DeviceJSON_StepHandler &Step();
 
-GPIO_DeviceOStream& GPIO_DeviceOStream::Set(uint16_t state)
+	/**
+	 * Reset device to initial state
+	 * @return Reference to the current object
+	 */
+	DeviceJSON_StepHandler &Reset();
+protected:
+	size_t step_count = 0;
+};
+
+class GPIO_DeviceJSON : public GPIO_DeviceBase, public DeviceJSON_StepHandler
 {
-	if (dir_ != GPIO_DeviceBase::dir::OUTPUT)
-	{
-		throw std::invalid_argument("GPIO configured as intput");
-	}
+public:
+	GPIO_DeviceJSON() = delete;
 
-	std::cout << "GPIO Device " << name_ << ": " << (state ? "1" : "0") << std::endl;
+	/**
+	 * Constructor
+	 *
+	 * @param json_file JSON configuration file path
+	 * @param pin GPIO pin number
+	 * @param dir Pin direction
+	 */
+	explicit GPIO_DeviceJSON(const std::string &json_file,
+							 uint16_t pin,
+							 GPIO_DeviceBase::dir dir);
 
-	return *this;
-}
+	/**
+	 * Get pin state
+	 *
+	 * @return Pin state
+	 */
+	int Get() override;
+private:
+	std::vector<uint16_t> steps{};
+};
 
-int GPIO_DeviceOStream::Get()
+class I2C_DeviceJSON : public I2C_DeviceBase, public DeviceJSON_StepHandler
 {
-	if (dir_ != GPIO_DeviceBase::dir::INPUT)
-	{
-		throw std::invalid_argument("GPIO configured as output");
-	}
+public:
+	I2C_DeviceJSON() = delete;
 
-	std::cout << "GPIO Device " << name_ << " reading: " << read_value_ << std::endl;
+	/**
+	 * Constructor
+	 *
+	 * @param json_file JSON configuration file path
+	 * @param address I2C device address
+	 */
+	explicit I2C_DeviceJSON(const std::string &json_file,
+							uint8_t address);
 
-	return read_value_;
-}
+ 	using I2C_DeviceBase::Write;
 
-I2C_DeviceOStream &I2C_DeviceOStream::Write(uint8_t reg_addr,
-											const uint8_t *data,
-											uint32_t length)
-{
-	if (!data || length == 0)
-	{
-		throw std::invalid_argument("No data to write");
-	}
+	I2C_DeviceJSON &Read(uint8_t reg_addr,
+						 uint8_t *data,
+						 uint32_t length) override;
 
-	std::cout << "I2C Device " << name_ << ": write to reg "
-			  << static_cast<int>(reg_addr)
-			  << " length " << length << std::endl;
-	print_data(data, length);
-	return *this;
-}
+private:
+	class I2C_InterfaceDummy : public I2C_InterfaceBase {
+	public:
+		I2C_InterfaceDummy() {}
+		int Write(uint8_t device_addr, uint8_t reg_addr,
+			const uint8_t *data, uint32_t length) override { return 0; }
+		int Read(uint8_t device_addr, uint8_t reg_addr,
+			uint8_t *data, uint32_t length) override { return 0; }
+	};
 
-I2C_DeviceOStream &I2C_DeviceOStream::Read(uint8_t reg_addr,
-										   uint8_t *data,
-										   uint32_t length)
-{
-	if (!data || length == 0)
-	{
-		throw std::invalid_argument("No data to read");
-	}
+	I2C_InterfaceDummy dummy_interface;
+	std::map<size_t, std::vector<uint16_t>> steps{};
+};
 
-	std::cout << "I2C Device " << name_ << ": read from reg "
-			  << static_cast<int>(reg_addr)
-			  << " length " << length << std::endl;
-	return *this;
-}
-
-SPI_DeviceOStream& SPI_DeviceOStream::Transfer(const uint8_t *tx_data,
-								uint8_t *rx_data,
-								uint32_t length)
-{
-	if (length == 0)
-	{
-		throw std::invalid_argument("No data to transfer");
-	}
-
-	std::cout << "SPI Device " << name_ << ": transfer "
-			  << static_cast<int>(length) << " bytes." << std::endl;
-
-	if (tx_data)
-		print_data(tx_data, length);
-
-	return *this;
-}
+#endif /* DEVICES_JSON_H */

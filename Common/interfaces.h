@@ -70,7 +70,9 @@ class I2C_InterfaceBase
 public:
 	virtual ~I2C_InterfaceBase() = default;
 
-	/** 
+	/**
+	 * Write data to I2C device (optional)
+	 *
 	 * @param device_addr I2C device address
 	 * @param reg_addr Register address to write to
 	 * @param data Data to write
@@ -79,9 +81,11 @@ public:
 	 * @return 0 on success, negative value on error
 	 */
 	virtual int Write(uint8_t device_addr, uint8_t reg_addr,
-					  const uint8_t *data, uint32_t length) = 0;
+					  const uint8_t *data, uint32_t length) { return 0; };
 
-	/** 
+	/**
+	 * Read data from I2C device
+	 *
 	 * @param device_addr I2C device address
 	 * @param reg_addr Register address to read from
 	 * @param data Buffer to store read data

@@ -1,0 +1,39 @@
+{
+    "Devices": [
+        {
+            "Type": "GPIO",
+            "Pin": 5,
+            "Steps": [
+                {
+                    "State": 1
+                },
+                {
+                    "State": 0
+                },
+                {
+                    "State": 1
+                }
+            ]
+        },
+        {
+            "Type": "I2C",
+            "Address": 42,
+            "Registers": [
+                {
+                    "Address": 16,
+                    "Steps": [
+                        {
+                            "Data": 255
+                        },
+                        {
+                            "Data": 128
+                        },
+                        {
+                            "Data": 0
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

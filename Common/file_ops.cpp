@@ -48,10 +48,10 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
-#include <vector>
-#include <algorithm>
 #include <cstring>
 #include <cstdio>
+#include <sstream>
+#include <stdint.h>
 
 File::File(const char *path, int flags)
 {
@@ -67,11 +67,12 @@ File::~File()
 		close(fd);
 }
 
-off_t File::Seek(off_t offset, enum SeekAt seekAt)
+File &File::Seek(off_t offset, enum SeekAt seekAt)
 {
 	int whence = 0;
 
-	switch (seekAt) {
+	switch (seekAt)
+	{
 	case File::SeekAt::SET:
 		whence = SEEK_SET;
 		break;
@@ -87,10 +88,10 @@ off_t File::Seek(off_t offset, enum SeekAt seekAt)
 	if (ret < 0)
 		throw std::system_error(errno, std::generic_category());
 
-	return ret;
+	return *this;
 }
 
-void File::Write(const void *data, size_t size)
+File &File::Write(const void *data, size_t size)
 {
 	ssize_t ret = write(fd, data, size);
 
@@ -99,9 +100,11 @@ void File::Write(const void *data, size_t size)
 
 	if (static_cast<size_t>(ret) != size)
 		throw std::length_error("Invalid data size written");
+
+	return *this;
 }
 
-void File::Read(void *dst, size_t size)
+File &File::Read(void *dst, size_t size)
 {
 	ssize_t ret = read(fd, dst, size);
 
@@ -110,13 +113,24 @@ void File::Read(void *dst, size_t size)
 
 	if (static_cast<size_t>(ret) != size)
 		throw std::length_error("Invalid data size read");
+
+	return *this;
 }
 
-void File::Sync()
+std::string File::Read()
 {
-    int ret = fsync(fd);
-    if (ret < 0)
-        throw std::system_error(errno, std::generic_category());
+	std::ostringstream oss;
+	oss << (*this);
+	return oss.str();
+}
+
+File &File::Sync()
+{
+	int ret = fsync(fd);
+	if (ret < 0)
+		throw std::system_error(errno, std::generic_category());
+
+	return *this;
 }
 
 File::Stats File::GetStats()
@@ -186,33 +200,38 @@ void *File::Mmap::GetPtr()
  */
 std::ostream &operator<<(std::ostream &out, const File &f)
 {
-    if (f.fd < 0)
-        return out;
+	if (f.fd < 0)
+		return out;
 
-    struct stat st;
-    if (fstat(f.fd, &st) == -1)
-        return out;
+	off_t ret = lseek(f.fd, 0, SEEK_SET);
+	if (ret < 0)
+		throw std::system_error(errno, std::generic_category());
 
-    off_t filesize = st.st_size;
-    if (filesize <= 0)
-        return out;
+	struct stat st;
+	if (fstat(f.fd, &st) == -1)
+		return out;
 
-    const size_t chunk = 4096;
-    std::vector<char> buf(chunk);
-    off_t offset = 0;
+	off_t filesize = st.st_size;
+	if (filesize <= 0)
+		return out;
 
-    while (offset < filesize) {
-        size_t toread = static_cast<size_t>(std::min<off_t>(chunk, filesize - offset));
-        ssize_t r = pread(f.fd, buf.data(), toread, offset);
-        if (r <= 0)
-            break;
-        out.write(buf.data(), r);
-        if (!out)
-            break;
-        offset += r;
-    }
+	void *ptr = mmap(0, filesize, PROT_READ, MAP_SHARED, f.fd, 0);
+	if (ptr == MAP_FAILED)
+		throw std::system_error(errno, std::generic_category());
 
-    return out;
+	uint8_t *buffer = static_cast<u_int8_t *>(ptr);
+	while (filesize--) {
+		char c = static_cast<char>(*buffer++);
+		if (!c)
+			break;
+		out.put(c);
+		if (!out)
+			break;
+	}
+
+	munmap(ptr, st.st_size);
+
+	return out;
 }
 
 /*
@@ -220,36 +239,24 @@ std::ostream &operator<<(std::ostream &out, const File &f)
  */
 std::istream &operator>>(std::istream &in, File &f)
 {
-    if (f.fd < 0)
-        return in;
+	if (f.fd < 0)
+		return in;
 
-    // Truncate file to zero and seek to start
-    if (ftruncate(f.fd, 0) == -1)
-        return in;
-    if (lseek(f.fd, 0, SEEK_SET) == (off_t)-1)
-        return in;
+	// Truncate file to zero and seek to start
+	if (ftruncate(f.fd, 0) == -1)
+		return in;
+	if (lseek(f.fd, 0, SEEK_CUR) == (off_t)-1)
+		return in;
 
-    const size_t chunk = 4096;
-    std::vector<char> buf(chunk);
+	while(in.good())
+	{
+		char c = in.get();
+		if (!in)
+			break;
+		ssize_t w = write(f.fd, &c, 1);
+		if (w <= 0)
+			return in;
+	}
 
-    while (in.good()) {
-        in.read(buf.data(), buf.size());
-        std::streamsize n = in.gcount();
-        if (n <= 0)
-            break;
-
-        const char *p = buf.data();
-        ssize_t remain = static_cast<ssize_t>(n);
-        while (remain > 0) {
-            ssize_t w = write(f.fd, p, static_cast<size_t>(remain));
-            if (w <= 0)
-                return in;
-            remain -= w;
-            p += w;
-        }
-    }
-
-    // reset file cursor to start
-    lseek(f.fd, 0, SEEK_SET);
-    return in;
+	return in;
 }
