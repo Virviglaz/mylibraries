@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2023-2025 Pavel Nadein
+ * Copyright (c) 2023-2026 Pavel Nadein
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -72,9 +72,30 @@ public:
 	State(uint32_t state_hash, void *user_data = nullptr) :
 		state_hash_(state_hash),
 		user_data_(user_data) {}
-	virtual uint32_t enter(void *args) { return 0; }
-	virtual uint32_t work(void *args)  { return EINVAL; }
-	virtual uint32_t exit(void *args)  { return 0; }
+
+	/**
+	 * @brief State enter method (optional).
+	 *
+	 * @param args User data pointer.
+	 * @return Next state hash or 0 to stay in current state.
+	 */
+	virtual uint32_t enter(void *args) { return 0; };
+
+	/**
+	 * @brief State work method. (Obligatory).
+	 *
+	 * @param args User data pointer.
+	 * @return Next state hash or 0 to stay in current state.
+	 */
+	virtual uint32_t work(void *args) = 0;
+
+	/**
+	 * @brief State exit method (optional).
+	 *
+	 * @param args User data pointer.
+	 * @return Next state hash or 0 to stay in current state.
+	 */
+	virtual uint32_t exit(void *args) { return 0; };
 
 	/* allow Machine to access protected members directly */
 	friend class Machine;
@@ -115,51 +136,7 @@ public:
 	 *
 	 * @return 0 on success, negative errno code on failure.
 	 */
-	int DoStep()
-	{
-		if (mode_change_n_) {
-			uint32_t next = current->enter(current->user_data_);
-			if (next) {
-				State* next_state = find_state_by_hash(next);
-				if (!next_state)
-					return -EINVAL;
-				current = next_state;
-				return 0;
-			} else
-				mode_change_n_ = false;
-		}
-
-		uint32_t next = current->work(current->user_data_);
-		if (next) {
-			State* next_state = find_state_by_hash(next);
-			if (!next_state)
-				return -EINVAL;
-
-			// Transition to next state
-			next = current->exit(current->user_data_);
-			if (next) {
-				next_state = find_state_by_hash(next);
-				if (!next_state)
-					return -EINVAL;
-			}
-			current = next_state;
-			mode_change_n_ = true;
-			return 0;
-		}
-
-		if (mode_change_n_) {
-			uint32_t next = current->exit(current->user_data_);
-			if (next) {
-				State* next_state = find_state_by_hash(next);
-				if (!next_state)
-					return -EINVAL;
-				current = next_state;
-				return 0;
-			}
-		}
-
-		return 0;
-	}
+	int DoStep();
 
 	/** Delete copy and move constructors and assignment operators */
 	Machine (const Machine&) = delete;
@@ -171,15 +148,7 @@ private:
 	// first now points to an array of State* elements
 	State* const *find_first_ptr() const noexcept { return first; }
 
-	State *find_state_by_hash(uint32_t hash) const noexcept
-	{
-		State* const *p = first;
-		for (uint32_t i = 0; i < state_count_; i++, p++) {
-			if ((*p)->state_hash_ == hash)
-				return *p;
-		}
-		return nullptr;
-	}
+	State *find_state_by_hash(uint32_t hash) const noexcept;
 
 	const uint32_t state_count_;
 	State* const *first;   // pointer to first element of State* array
