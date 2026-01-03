@@ -135,4 +135,59 @@ public:
 	virtual int SendReceive(const uint8_t *tx_data, uint8_t *rx_data, uint32_t length) = 0;
 };
 
+/**
+ * One-Wire Interface Base Class
+ */
+class OneWire_InterfaceBase
+{
+public:
+	virtual ~OneWire_InterfaceBase() = default;
+
+	/**
+	 * Result of the Reset operation
+	 */
+	enum Result {
+		Success = 0,
+		NoDevice = 1,
+		CrcMissmatch = 2,
+		NotReady = 3,
+		NotAllDevicesFound = 4
+	};
+
+	/**
+	 * Perform a reset on the One-Wire bus
+	 *
+	 * @return Result of the reset operation
+	 */
+	virtual Result Reset() { return Success; };
+
+	/**
+	 * Write a byte to the One-Wire bus
+	 *
+	 * @param value Byte to write
+	 */
+	virtual void Write(uint8_t value) = 0;
+
+	/**
+	 * Read a byte from the One-Wire bus
+	 *
+	 * @return Read byte
+	 */
+	virtual uint8_t Read() = 0;
+
+	/**
+	 * Write a single bit to the One-Wire bus (optional)
+	 *
+	 * @param bit Bit value to write (true = 1, false = 0)
+	 */
+	virtual void WriteBit(uint8_t bit);
+
+	/**
+	 * Read a single bit from the One-Wire bus (optional) 
+	 *
+	 * @return Read bit value (true = 1, false = 0)
+	 */
+	virtual uint8_t ReadBit();
+};
+
 #endif // INTERFACES_H
