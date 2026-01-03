@@ -58,6 +58,8 @@
 class GPIO_DeviceBase
 {
 public:
+	explicit GPIO_DeviceBase() = delete;
+
 	/**
 	 * GPIO pin direction
 	 */
@@ -113,7 +115,7 @@ class I2C_DeviceBase
 {
 public:
 	/** Default constructor */
-	I2C_DeviceBase();
+	explicit I2C_DeviceBase() = delete;
 
 	/**
 	 * Constructor
@@ -121,7 +123,6 @@ public:
 	 * @param ifs I2C interface
 	 * @param address I2C device address
 	 */
-	explicit
 	I2C_DeviceBase(I2C_InterfaceBase &ifs, uint8_t address) : ifs_(ifs), address_(address) {}
 
 	/**
@@ -164,7 +165,7 @@ public:
 	/**
 	 * Constructor
 	 */
-	explicit SPI_DeviceBase();
+	explicit SPI_DeviceBase() = delete;
 
 	/**
 	 * Constructor

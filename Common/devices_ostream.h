@@ -54,6 +54,8 @@
 class GPIO_DeviceOStream : public GPIO_DeviceBase
 {
 public:
+	GPIO_DeviceOStream() = delete;
+
 	/**
 	 * Constructor for GPIO device.
 	 *
@@ -96,13 +98,15 @@ private:
 class I2C_DeviceOStream : public I2C_DeviceBase
 {
 public:
+	I2C_DeviceOStream() = delete;
+
 	/**
 	 * Constructor for I2C Device.
 	 *
 	 * @param name Device name for logging
 	 */
 	I2C_DeviceOStream(const std::string &name) :
-	name_(name) {}
+		I2C_DeviceBase(dummy_ifs_, 0), name_(name) {}
 
 	/**
 	 * Write data to I2C Device.
@@ -133,6 +137,21 @@ public:
 							uint32_t length) override;
 
 private:
+	/**
+	 * Dummy I2C Interface for base class construction
+	 *
+	 * This interface does nothing and is only used to satisfy the base class constructor
+	 */
+	class I2C_InterfaceDummy : public I2C_InterfaceBase
+	{
+	public:
+		int Read(uint8_t device_addr, uint8_t reg_addr,
+				 uint8_t *data, uint32_t length) override
+		{
+			return 0;
+		}
+	} dummy_ifs_;
+
 	std::string name_;
 };
 
@@ -145,7 +164,8 @@ public:
 	 * @param name Device name for logging
 	 */
 	SPI_DeviceOStream(const std::string &name) :
-	name_(name) {}
+		SPI_DeviceBase(dummy_spi_ifs_, dummy_gpio_ifs_),
+		name_(name) {}
 
 	/**
 	 * Transfer data (read + write)
@@ -156,11 +176,39 @@ public:
 	 *
 	 * @return 0 on success
 	 */
-	SPI_DeviceOStream& Transfer(const uint8_t *tx_data,
-				 uint8_t *rx_data,
-				 uint32_t length);
+	SPI_DeviceOStream &Transfer(const uint8_t *tx_data,
+								uint8_t *rx_data,
+								uint32_t length);
 
 private:
+	/**
+	 * Dummy SPI Interface for base class construction
+	 *
+	 * This interface does nothing and is only used to satisfy the base class constructor
+	 */
+	class SPI_InterfaceDummy : public SPI_InterfaceBase
+	{
+	public:
+		int Transfer(const uint8_t *tx_data,
+					 uint8_t *rx_data,
+					 uint32_t length) override
+		{
+			return 0;
+		}
+	} dummy_spi_ifs_;
+
+	/**
+	 * Dummy GPIO Interface for base class construction
+	 *
+	 * This interface does nothing and is only used to satisfy the base class constructor
+	 */
+	class GPIO_InterfaceDummy : public GPIO_InterfaceBase
+	{
+	public:
+		void Write(uint16_t pin, int state) override { }
+		int Read(uint16_t pin) override { return 0; }
+	} dummy_gpio_ifs_;
+
 	std::string name_;
 };
 
