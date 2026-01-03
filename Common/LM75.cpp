@@ -36,92 +36,36 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * LM75 Temperature Sensor Driver Header File
+ * LM75 Temperature Sensor Driver Source C++ File
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
-#ifndef LM75_H
-#define LM75_H
+#include "LM75.h"
 
-#include <stdint.h>
+#define LM75_TEMP_REG		0x00
+#define LM75_CONFIG_REG		0x01
+#define LM75_THYST_REG		0x02
+#define LM75_TOS_REG		0x03
 
-#ifdef __cplusplus
-
-#include <devices.h>
-
-/**
- * LM75 Temperature Sensor Driver Class
- */
-class LM75
+LM75 &LM75::Init(bool enable)
 {
-public:
-	/**
-	 * Constructor
-	 *
-	 * @param dev I2C device
-	*/
-	LM75(I2C_DeviceBase &dev) : dev_(dev) {};
+	uint8_t config = enable ? 0 : 1;
+	dev_.Write(LM75_CONFIG_REG, &config, 1);
+	return *this;
+}
 
-	/**
-	 * Initialize the LM75 sensor
-	 *
-	 * @param enable true to enable the sensor, false to disable
-	 *
-	 * @return Reference to the LM75 object
-	 */
-	LM75 &Init(bool enable);
-
-	/**
-	 * Get temperature measurement result
-	 *
-	 * @return Temperature in degrees Celsius
-	 */
-	float GetResult();
-
-private:
-	I2C_DeviceBase &dev_;
-	uint8_t address_;
-};
-
-#else // __cplusplus
-
-#include <stdbool.h>
-
-/**
- * LM75 Temperature Sensor Driver Structure
- */
-struct lm75_t
+float LM75::GetResult()
 {
-	/* Variables */
-	double temp;
-	uint8_t i2c_addr;
+	uint8_t data[2] = {0};
+	dev_.Read(LM75_TEMP_REG, data, 2);
+	int16_t temp_raw = (static_cast<int16_t>(data[0]) << 8) | data[1];
+	temp_raw >>= 7; // LM75 provides 9-bit temperature data
+	if (temp_raw & 0x0100) // negative temperature
+	{
+		temp_raw |= 0xFE00; // sign extend
+	}
 
-	/* Functions */
-	uint8_t (*wr)(uint8_t addr, uint8_t reg, uint8_t value);
-	uint8_t (*rd)(uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t size);
-};
-
-/**
- * Initialize the LM75 sensor
- *
- * @param dev Pointer to LM75 device structure
- * @param enable true to enable the sensor, false to disable
- *
- * @return 0 on success, negative value on error
- */
-uint8_t lm75_init(struct lm75_t *dev, bool enable);
-
-/**
- * Get temperature measurement result
- *
- * @param dev Pointer to LM75 device structure
- *
- * @return 0 on success, negative value on error
- */
-uint8_t lm75_get_result(struct lm75_t *dev);
-
-#endif // __cplusplus
-
-#endif
+	return static_cast<float>(temp_raw) * 0.5f;
+}
