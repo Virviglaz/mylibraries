@@ -10,6 +10,7 @@ int main()
     extern int do_filters_test();
     extern int do_file_ops_test();
     extern int do_device_json_test();
+    extern int DS18B20_json_test();
 
     assert(do_hash_db_test() == 0);
     assert(do_bitops_test() == 0);
@@ -19,6 +20,7 @@ int main()
     assert(do_arg_parse_test() == 0);
     assert(do_file_ops_test() == 0);
     assert(do_device_json_test() == 0);
+    assert(DS18B20_json_test() == 0);
 
     return 0;
 }

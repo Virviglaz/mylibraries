@@ -57,7 +57,7 @@
 class DS18B20_InterfaceBase
 {
 public:
-	DS18B20_InterfaceBase() = delete;
+	explicit DS18B20_InterfaceBase() = delete;
 	virtual ~DS18B20_InterfaceBase() = default;
 
 	/**
@@ -75,6 +75,7 @@ public:
 	 *
 	 * @param interface Reference to OneWire interface object
 	 */
+	explicit
 	DS18B20_InterfaceBase(OneWire_InterfaceBase &interface,
 						  Resolution resolution = Res_12bit) :
 						  interface_(interface), resolution_(resolution) {}
@@ -121,7 +122,7 @@ protected:
 class DS18B20_Single : public DS18B20_InterfaceBase
 {
 public:
-	DS18B20_Single() = delete;
+	explicit DS18B20_Single() = delete;
 
 	using DS18B20_InterfaceBase::DS18B20_InterfaceBase;
 
@@ -159,7 +160,7 @@ template<int max_devices = 8>
 class DS18B20_Multi : public DS18B20_InterfaceBase
 {
 public:
-	DS18B20_Multi() = delete;
+	explicit DS18B20_Multi() = delete;
 
 	using DS18B20_InterfaceBase::DS18B20_InterfaceBase;
 

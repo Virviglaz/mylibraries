@@ -59,6 +59,7 @@ class GPIO_DeviceBase
 {
 public:
 	explicit GPIO_DeviceBase() = delete;
+	virtual ~GPIO_DeviceBase() = default;
 
 	/**
 	 * GPIO pin direction
@@ -116,6 +117,7 @@ class I2C_DeviceBase
 public:
 	/** Default constructor */
 	explicit I2C_DeviceBase() = delete;
+	virtual ~I2C_DeviceBase() = default;
 
 	/**
 	 * Constructor
@@ -166,6 +168,7 @@ public:
 	 * Constructor
 	 */
 	explicit SPI_DeviceBase() = delete;
+	virtual ~SPI_DeviceBase() = default;
 
 	/**
 	 * Constructor

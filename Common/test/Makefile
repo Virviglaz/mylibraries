@@ -30,6 +30,12 @@ SRC					+= file_ops_test.cpp
 SRC					+= devices_json_test.cpp
 SRC					+= ../devices_json.cpp
 
+# DS18B20 tests
+SRC					+= DS18B20_json_test.cpp
+SRC					+= ../DS18B20.cpp
+SRC					+= ../DS18B20_json.cpp
+SRC					+= ../crc.c
+
 INC					:= .
 INC					+= ../
 
