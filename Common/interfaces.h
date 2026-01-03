@@ -155,7 +155,7 @@ public:
 	};
 
 	/**
-	 * Perform a reset on the One-Wire bus
+	 * Perform a reset on the One-Wire bus (Optional)
 	 *
 	 * @return Result of the reset operation
 	 */
@@ -180,14 +180,14 @@ public:
 	 *
 	 * @param bit Bit value to write (true = 1, false = 0)
 	 */
-	virtual void WriteBit(uint8_t bit);
+	virtual void WriteBit(uint8_t bit) { }
 
 	/**
 	 * Read a single bit from the One-Wire bus (optional) 
 	 *
 	 * @return Read bit value (true = 1, false = 0)
 	 */
-	virtual uint8_t ReadBit();
+	virtual uint8_t ReadBit() { return 0; }
 };
 
 #endif // INTERFACES_H
