@@ -73,7 +73,21 @@ public:
 		/**
 		 * Output direction
 		 */
-		OUTPUT
+		OUTPUT,
+		/**
+		 * Open-drain output direction
+		 */
+		OPEN_DRAIN,
+
+		/**
+		 * Input with pull-up resistor
+		 */
+		PULL_UP,
+
+		/**
+		 * Input with pull-down resistor
+		 */
+		PULL_DOWN
 	};
 
 	/**
@@ -103,7 +117,7 @@ public:
 	 *
 	 * @return Pin number
 	 */
-	virtual uint16_t GetPin() const { return pin_; }
+	uint16_t GetPin() const { return pin_; }
 
 protected:
 	uint16_t pin_;
