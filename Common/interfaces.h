@@ -58,8 +58,23 @@ class GPIO_InterfaceBase
 {
 public:
 	virtual ~GPIO_InterfaceBase() = default;
-	virtual int Read(uint16_t pin) = 0;
-	virtual void Write(uint16_t pin, int state) = 0;
+
+	/**
+	 * Read pin state
+	 *
+	 * @param pin GPIO pin number
+	 *
+	 * @return Pin state
+	 */
+	virtual int Read(uint16_t port, uint16_t pin) = 0;
+
+	/**
+	 * Write pin state
+	 *
+	 * @param pin GPIO pin number
+	 * @param state Pin state
+	 */
+	virtual void Write(uint16_t port, uint16_t pin, int state) = 0;
 };
 
 /**

@@ -47,9 +47,9 @@
 #include <jsoncpp/json/json.h>
 
 GPIO_DeviceJSON::GPIO_DeviceJSON(const std::string &json_file,
+								 uint16_t port,
 								 uint16_t pin,
-								 GPIO_DeviceBase::dir dir) :
-								 GPIO_DeviceBase(pin, dir)
+								 GPIO_DeviceBase::dir dir) : GPIO_DeviceBase(port, pin, dir)
 {
 	Json::Value root;
 	Json::Reader reader;
@@ -57,7 +57,9 @@ GPIO_DeviceJSON::GPIO_DeviceJSON(const std::string &json_file,
 	auto device_type = root["Devices"];
 	for (const auto &device : device_type)
 	{
-		if (device["Type"].asString() == "GPIO" && device["Pin"].asUInt() == pin_)
+		if (device["Type"].asString() == "GPIO" && \
+			device["Port"].asUInt() == port_ &&  \
+			device["Pin"].asUInt() == pin_)
 		{
 			for (const auto &state_entry : device["Steps"])
 			{

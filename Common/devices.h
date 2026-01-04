@@ -96,14 +96,16 @@ public:
 	 * @param pin GPIO pin number
 	 * @param dir Pin direction
 	 */
-	explicit GPIO_DeviceBase(uint16_t pin, dir dir) : pin_(pin) {}
+	explicit GPIO_DeviceBase(uint16_t port, uint16_t pin, dir dir)
+		: port_(port), pin_(pin) {}
 
 	/**
 	 * Set pin state (optional)
 	 *
 	 * @param state Pin state
 	 */
-	virtual GPIO_DeviceBase& Set(uint16_t state) { return *this; }
+	virtual GPIO_DeviceBase &Set(uint16_t state)
+		{ return *this; }
 
 	/**
 	 * Get pin state
@@ -120,6 +122,7 @@ public:
 	uint16_t GetPin() const { return pin_; }
 
 protected:
+	uint16_t port_;
 	uint16_t pin_;
 };
 

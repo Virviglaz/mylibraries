@@ -91,6 +91,7 @@ public:
 	 * @param dir Pin direction
 	 */
 	explicit GPIO_DeviceJSON(const std::string &json_file,
+							 uint16_t port,
 							 uint16_t pin,
 							 GPIO_DeviceBase::dir dir);
 
@@ -167,8 +168,8 @@ private:
 	class GPIO_InterfaceDummy : public GPIO_InterfaceBase {
 	public:
 		GPIO_InterfaceDummy() {}
-		int Read(uint16_t pin) override { return 0; }
-		void Write(uint16_t pin, int state) override {}
+		int Read(uint16_t port, uint16_t pin) override { return 0; }
+		void Write(uint16_t port, uint16_t pin, int state) override {}
 	};
 
 	class SPI_InterfaceDummy : public SPI_InterfaceBase {

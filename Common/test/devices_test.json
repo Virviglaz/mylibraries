@@ -2,6 +2,7 @@
     "Devices": [
         {
             "Type": "GPIO",
+            "Port": 1,
             "Pin": 5,
             "Steps": [
                 {

@@ -4,7 +4,7 @@
  *
  *   MIT License
  *
- *   Copyright (c) 2025 Pavel Nadein
+ *   Copyright (c) 2025-2026 Pavel Nadein
  *
  *   Permission is hereby granted, free of charge, to any person obtaining a copy
  *   of this software and associated documentation files (the "Software"), to deal
@@ -66,10 +66,12 @@ public:
 	 * @param read_value Value to return on Get() calls (only for INPUT direction)
 	 */
 	GPIO_DeviceOStream(const std::string &name,
+					   uint16_t port,
 					   uint16_t pin,
 					   GPIO_DeviceBase::dir dir,
 					   int read_value = 0) :
-					   GPIO_DeviceBase(pin, dir), name_(name), dir_(dir), read_value_(read_value) {}
+					   GPIO_DeviceBase(port, pin, dir),
+					   name_(name), dir_(dir), read_value_(read_value) {}
 
 	/**
 	 * Set value to output pin.
@@ -205,8 +207,8 @@ private:
 	class GPIO_InterfaceDummy : public GPIO_InterfaceBase
 	{
 	public:
-		void Write(uint16_t pin, int state) override { }
-		int Read(uint16_t pin) override { return 0; }
+		void Write(uint16_t port, uint16_t pin, int state) override { }
+		int Read(uint16_t port, uint16_t pin) override { return 0; }
 	} dummy_gpio_ifs_;
 
 	std::string name_;

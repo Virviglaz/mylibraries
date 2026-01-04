@@ -4,7 +4,7 @@
 int do_device_json_test()
 {
 	/* GPIO device test */
-	GPIO_DeviceJSON gpio_device("devices_test.json", 5, GPIO_DeviceBase::INPUT);
+	GPIO_DeviceJSON gpio_device("devices_test.json", 1, 5, GPIO_DeviceBase::INPUT);
 	gpio_device.Set(1);
 	assert(gpio_device.Get() == 1);
 	gpio_device.Step();
