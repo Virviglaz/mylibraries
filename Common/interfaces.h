@@ -205,4 +205,31 @@ public:
 	virtual uint8_t ReadBit() { return 0; }
 };
 
+/**
+ * Dummy I2C Interface for base class construction
+ *
+ * This interface does nothing and is only used to satisfy the base class constructor
+ */
+class I2C_InterfaceDummy : public I2C_InterfaceBase
+{
+public:
+	int Read(uint8_t device_addr, uint8_t reg_addr,
+			 uint8_t *data, uint32_t length) override
+	{ return 0; }
+};
+
+/**
+ * Dummy SPI Interface for base class construction
+ *
+ * This interface does nothing and is only used to satisfy the base class constructor
+ */
+class SPI_InterfaceDummy : public SPI_InterfaceBase
+{
+public:
+	SPI_InterfaceDummy() {}
+	int Transfer(const uint8_t *tx_data,
+				 uint8_t *rx_data,
+				 uint32_t length) override { return 0; }
+};
+
 #endif // INTERFACES_H

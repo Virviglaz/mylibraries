@@ -139,21 +139,7 @@ public:
 							uint32_t length) override;
 
 private:
-	/**
-	 * Dummy I2C Interface for base class construction
-	 *
-	 * This interface does nothing and is only used to satisfy the base class constructor
-	 */
-	class I2C_InterfaceDummy : public I2C_InterfaceBase
-	{
-	public:
-		int Read(uint8_t device_addr, uint8_t reg_addr,
-				 uint8_t *data, uint32_t length) override
-		{
-			return 0;
-		}
-	} dummy_ifs_;
-
+	I2C_InterfaceDummy dummy_ifs_;
 	std::string name_;
 };
 
@@ -166,7 +152,7 @@ public:
 	 * @param name Device name for logging
 	 */
 	SPI_DeviceOStream(const std::string &name) :
-		SPI_DeviceBase(dummy_spi_ifs_, dummy_gpio_ifs_),
+		SPI_DeviceBase(dummy_spi_ifs_, dummy_gpio_device),
 		name_(name) {}
 
 	/**
@@ -199,18 +185,7 @@ private:
 		}
 	} dummy_spi_ifs_;
 
-	/**
-	 * Dummy GPIO Interface for base class construction
-	 *
-	 * This interface does nothing and is only used to satisfy the base class constructor
-	 */
-	class GPIO_InterfaceDummy : public GPIO_InterfaceBase
-	{
-	public:
-		void Write(uint16_t port, uint16_t pin, int state) override { }
-		int Read(uint16_t port, uint16_t pin) override { return 0; }
-	} dummy_gpio_ifs_;
-
+	GPIO_DeviceDummy dummy_gpio_device;
 	std::string name_;
 };
 

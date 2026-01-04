@@ -193,7 +193,7 @@ public:
 	 * @param ifs SPI interface
 	 * @param cs_pin Chip select GPIO pin
 	 */
-	SPI_DeviceBase(SPI_InterfaceBase &ifs, GPIO_InterfaceBase &cs_pin) : ifs_(ifs), cs_pin_(cs_pin) {}
+	SPI_DeviceBase(SPI_InterfaceBase &ifs, GPIO_DeviceBase &cs_pin) : ifs_(ifs), cs_pin_(cs_pin) {}
 
 	/**
 	 * Transfer data over SPI
@@ -210,7 +210,19 @@ public:
 
 protected:
 	SPI_InterfaceBase &ifs_;
-	GPIO_InterfaceBase &cs_pin_;
+	GPIO_DeviceBase &cs_pin_;
+};
+
+/**
+ * Dummy GPIO Device for base class construction
+ *
+ * This interface does nothing and is only used to satisfy the base class constructor
+ */
+class GPIO_DeviceDummy : public GPIO_DeviceBase
+{
+public:
+	GPIO_DeviceDummy() : GPIO_DeviceBase(0, 0, GPIO_DeviceBase::INPUT) {}
+	int Get() override { return 0; }
 };
 
 #endif /* DEVICES_H */

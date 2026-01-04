@@ -140,7 +140,7 @@ I2C_DeviceJSON &I2C_DeviceJSON::Read(uint8_t reg_addr,
 }
 
 SPI_DeviceJSON::SPI_DeviceJSON(const std::string &json_file,
-	uint16_t cs_pin) : SPI_DeviceBase(dummy_spi_interface, dummy_gpio_interface)
+	uint16_t cs_pin) : SPI_DeviceBase(dummy_spi_interface, dummy_gpio_device)
 {
 	Json::Value root;
 	Json::Reader reader;
