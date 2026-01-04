@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2022 Pavel Nadein
+ * Copyright (c) 2022-2026 Pavel Nadein
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -47,28 +47,33 @@
 
 #include <stdint.h>
 
-enum hd44780_lcd_type {
+enum hd44780_lcd_type
+{
 	HD44780_TYPE_LCD,
 	HD44780_TYPE_OLED,
 };
 
-enum hd44780_bus_width {
+enum hd44780_bus_width
+{
 	HD44780_BUS_4B,
 	HD44780_BUS_8B,
 };
 
-enum hd44780_font_table {
+enum hd44780_font_table
+{
 	HD44780_ENGLISH_JAPANESE_FONT,
 	HD44780_WESTERN_EUROPEAN_FONT,
 	HD44780_ENGLISH_RUSSIAN_FONT,
 	HD44780_WESTERN_EUROPEAN2_FONT,
 };
 
-struct hd44780_ext_con {
+struct hd44780_ext_con
+{
 	uint8_t ext_pin[2];
 };
 
-struct hd44780_conn {
+struct hd44780_conn
+{
 	enum hd44780_bus_width bus_type;
 	uint8_t data_shift;
 	uint8_t rs_pin;
@@ -76,92 +81,94 @@ struct hd44780_conn {
 	uint8_t backlight_pin;
 };
 
-struct hd44780_lcd {
+struct hd44780_lcd
+{
 	void (*write)(uint8_t data);	/* for 4 bit connection */
-	void (*write16)(uint16_t data);	/* for 8 bit connection */
+	void (*write16)(uint16_t data); /* for 8 bit connection */
 	void (*delay_us)(uint16_t us);
-  
+
 	/* Settings */
 	uint8_t is_backlight_enabled;
 	enum hd44780_lcd_type type;
 	enum hd44780_font_table font;
-  
+
 	/* Connection definition structure */
 	struct hd44780_conn *conn;
 	struct hd44780_ext_con *ext_con;
 };
 
 #ifdef __cplusplus
- extern "C" {
+extern "C"
+{
 #endif
 
-/**
- * Initialize the device and store the pointer to the configuration structure.
- *
- * @param drv Pointer to the local configuration structure.
- */
-struct hd44780_lcd *hd44780_init(struct hd44780_lcd *drv);
+	/**
+	 * Initialize the device and store the pointer to the configuration structure.
+	 *
+	 * @param drv Pointer to the local configuration structure.
+	 */
+	struct hd44780_lcd *hd44780_init(struct hd44780_lcd *drv);
 
-/**
- * Initialize the typical connection for popular PCF8574 based board.
- *
- * @param drv Pointer to the local configuration structure.
- */
-void hd44780_pcf8574_con_init(struct hd44780_lcd *drv);
+	/**
+	 * Initialize the typical connection for popular PCF8574 based board.
+	 *
+	 * @param drv Pointer to the local configuration structure.
+	 */
+	void hd44780_pcf8574_con_init(struct hd44780_lcd *drv);
 
-/**
- * Initialize the typical connection for 74hC595 shif register based board.
- *
- * @param drv Pointer to the local configuration structure.
- */
-void hd44780_mc74hC595_con_init(struct hd44780_lcd *drv);
+	/**
+	 * Initialize the typical connection for 74hC595 shif register based board.
+	 *
+	 * @param drv Pointer to the local configuration structure.
+	 */
+	void hd44780_mc74hC595_con_init(struct hd44780_lcd *drv);
 
-/**
- * Move cursor to certain position.
- *
- * @param row [0..1] row value.
- * @param col [0..15] column value.
- */
-void hd44780_set_pos(uint8_t row, uint8_t col);
+	/**
+	 * Move cursor to certain position.
+	 *
+	 * @param row [0..1] row value.
+	 * @param col [0..15] column value.
+	 */
+	void hd44780_set_pos(uint8_t row, uint8_t col);
 
-/**
- * Print the null-terminated string.
- *
- * @param string pointer to string.
- */
-void hd44780_print(char *string);
+	/**
+	 * Print the null-terminated string.
+	 *
+	 * @param string pointer to string.
+	 */
+	void hd44780_print(char *string);
 
-/**
- * Clears the screen.
- */
-void hd44780_clear(void);
+	/**
+	 * Clears the screen.
+	 */
+	void hd44780_clear(void);
 
-/**
- * Print single char at current cursor position.
- *
- * @param data character to print.
- */
-void hd44780_put_char(unsigned char data);
+	/**
+	 * Print single char at current cursor position.
+	 *
+	 * @param data character to print.
+	 */
+	void hd44780_put_char(unsigned char data);
 
-/**
- * Send nop command needed to update extension pins.
- */
-void hd44780_update(void);
+	/**
+	 * Send nop command needed to update extension pins.
+	 */
+	void hd44780_update(void);
 
-/**
- * Programm the additional custom character in GRAM.
- *
- * @param num number of character in GRAM.
- * @param data pointer to bit data.
- */
-void hd44780_custom_char(uint8_t num, uint8_t *data);
+	/**
+	 * Programm the additional custom character in GRAM.
+	 *
+	 * @param num number of character in GRAM.
+	 * @param data pointer to bit data.
+	 */
+	void hd44780_custom_char(uint8_t num, uint8_t *data);
 
-/**
- * Send cmd to controller.
- *
- * @param cmd custom command code.
- */
-void hd44780_send_cmd(uint8_t cmd);
+	/**
+	 * Send cmd to controller.
+	 *
+	 * @param cmd custom command code.
+	 */
+	void hd44780_send_cmd(uint8_t cmd);
 
 #ifdef __cplusplus
 }
