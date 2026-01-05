@@ -183,7 +183,7 @@ SPI_DeviceJSON &SPI_DeviceJSON::Transfer(const uint8_t *tx_data,
 }
 
 UART_DeviceJSON::UART_DeviceJSON(const std::string &json_file,
-								 const std::string &name)
+								 const std::string &name) : UART_InterfaceBase(0)
 {
 	Json::Value root;
 	Json::Reader reader;

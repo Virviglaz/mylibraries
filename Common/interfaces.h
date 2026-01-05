@@ -57,6 +57,7 @@
 class GPIO_InterfaceBase
 {
 public:
+	explicit GPIO_InterfaceBase() = default;
 	virtual ~GPIO_InterfaceBase() = default;
 
 	/**
@@ -83,7 +84,16 @@ public:
 class I2C_InterfaceBase
 {
 public:
+	explicit I2C_InterfaceBase() = delete;
 	virtual ~I2C_InterfaceBase() = default;
+
+	/**
+	 * Constructor
+	 *
+	 * @param bus_number I2C bus number
+	 */
+	explicit
+	I2C_InterfaceBase(uint8_t bus_number) : bus_number_(bus_number) {}
 
 	/**
 	 * Write data to I2C device (optional)
@@ -110,6 +120,8 @@ public:
 	 */
 	virtual int Read(uint8_t device_addr, uint8_t reg_addr,
 					 uint8_t *data, uint32_t length) = 0;
+protected:
+	uint8_t bus_number_;
 };
 
 /**
@@ -118,9 +130,17 @@ public:
 class SPI_InterfaceBase
 {
 public:
+	explicit SPI_InterfaceBase() = delete;
 	virtual ~SPI_InterfaceBase() = default;
 
-	/** 
+	/**
+	 * Constructor
+	 *
+	 * @param bus_number SPI bus number
+	 */
+	explicit
+	SPI_InterfaceBase(uint8_t bus_number) : bus_number_(bus_number) {}
+	/**
 	 * @param tx_data Data to send
 	 * @param rx_data Buffer to store received data
 	 * @param length Length of data to transfer
@@ -130,6 +150,8 @@ public:
 	virtual int Transfer(const uint8_t *tx_data,
 						 uint8_t *rx_data,
 						 uint32_t length) = 0;
+protected:
+	uint8_t bus_number_;
 };
 
 /**
@@ -138,7 +160,16 @@ public:
 class UART_InterfaceBase
 {
 public:
+	explicit UART_InterfaceBase() = delete;
 	virtual ~UART_InterfaceBase() = default;
+
+	/**
+	 * Constructor
+	 *
+	 * @param port_number UART port number
+	 */
+	explicit
+	UART_InterfaceBase(uint8_t port_number) : port_number_(port_number) {}
 
 	/**
 	 * @param tx_data Data to send
@@ -148,6 +179,8 @@ public:
 	 * @return 0 on success, negative value on error
 	 */
 	virtual int SendReceive(const uint8_t *tx_data, uint8_t *rx_data, uint32_t length) = 0;
+protected:
+	uint8_t port_number_;
 };
 
 /**
@@ -156,6 +189,7 @@ public:
 class OneWire_InterfaceBase
 {
 public:
+	explicit OneWire_InterfaceBase() = default;
 	virtual ~OneWire_InterfaceBase() = default;
 
 	/**
@@ -203,33 +237,6 @@ public:
 	 * @return Read bit value (true = 1, false = 0)
 	 */
 	virtual uint8_t ReadBit() { return 0; }
-};
-
-/**
- * Dummy I2C Interface for base class construction
- *
- * This interface does nothing and is only used to satisfy the base class constructor
- */
-class I2C_InterfaceDummy : public I2C_InterfaceBase
-{
-public:
-	int Read(uint8_t device_addr, uint8_t reg_addr,
-			 uint8_t *data, uint32_t length) override
-	{ return 0; }
-};
-
-/**
- * Dummy SPI Interface for base class construction
- *
- * This interface does nothing and is only used to satisfy the base class constructor
- */
-class SPI_InterfaceDummy : public SPI_InterfaceBase
-{
-public:
-	SPI_InterfaceDummy() {}
-	int Transfer(const uint8_t *tx_data,
-				 uint8_t *rx_data,
-				 uint32_t length) override { return 0; }
 };
 
 #endif // INTERFACES_H

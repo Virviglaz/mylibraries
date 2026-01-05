@@ -46,6 +46,7 @@
 #define DEVICES_OSTREAM_H
 
 #include "devices.h"
+#include "interfaces_dummy.h"
 #include <string>
 
 /**
@@ -152,7 +153,7 @@ public:
 	 * @param name Device name for logging
 	 */
 	SPI_DeviceOStream(const std::string &name) :
-		SPI_DeviceBase(dummy_spi_ifs_, dummy_gpio_device),
+		SPI_DeviceBase(dummy_spi_interface, dummy_gpio_device),
 		name_(name) {}
 
 	/**
@@ -169,22 +170,7 @@ public:
 								uint32_t length);
 
 private:
-	/**
-	 * Dummy SPI Interface for base class construction
-	 *
-	 * This interface does nothing and is only used to satisfy the base class constructor
-	 */
-	class SPI_InterfaceDummy : public SPI_InterfaceBase
-	{
-	public:
-		int Transfer(const uint8_t *tx_data,
-					 uint8_t *rx_data,
-					 uint32_t length) override
-		{
-			return 0;
-		}
-	} dummy_spi_ifs_;
-
+	SPI_InterfaceDummy dummy_spi_interface;
 	GPIO_DeviceDummy dummy_gpio_device;
 	std::string name_;
 };

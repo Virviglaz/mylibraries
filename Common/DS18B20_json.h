@@ -86,16 +86,7 @@ public:
 	OneWire_InterfaceBase::Result ReadTemperature(float &temp, int num = 0) override;
 
 private:
-	/**
-	 * Dummy OneWire Interface for JSON configuration
-	 * Used only to satisfy the base class constructor
-	 */
-	class OneWire_InterfaceDummy : public OneWire_InterfaceBase {
-	public:
-		OneWire_InterfaceDummy() {}
-		void Write(uint8_t data) override {}
-		uint8_t Read() override { return 0; }
-	} dummy_interface;
+	OneWire_InterfaceDummy dummy_interface;
 
 	std::vector<float> steps{};
 	bool initialized = false;

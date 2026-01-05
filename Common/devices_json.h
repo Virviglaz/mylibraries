@@ -46,6 +46,7 @@
 #define DEVICES_JSON_H
 
 #include "devices.h"
+#include "interfaces_dummy.h"
 #include <string>
 #include <vector>
 #include <map>
@@ -129,15 +130,6 @@ public:
 						 uint32_t length) override;
 
 private:
-	class I2C_InterfaceDummy : public I2C_InterfaceBase {
-	public:
-		I2C_InterfaceDummy() {}
-		int Write(uint8_t device_addr, uint8_t reg_addr,
-			const uint8_t *data, uint32_t length) override { return 0; }
-		int Read(uint8_t device_addr, uint8_t reg_addr,
-			uint8_t *data, uint32_t length) override { return 0; }
-	};
-
 	I2C_InterfaceDummy dummy_interface;
 	std::map<size_t, std::vector<uint16_t>> steps{};
 };

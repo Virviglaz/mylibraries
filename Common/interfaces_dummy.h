@@ -4,7 +4,7 @@
  *
  *   MIT License
  *
- *   Copyright (c) 2026 Pavel Nadein
+ *   Copyright (c) 2025 Pavel Nadein
  *
  *   Permission is hereby granted, free of charge, to any person obtaining a copy
  *   of this software and associated documentation files (the "Software"), to deal
@@ -36,67 +36,49 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Software I2C implementation using GPIO pins header file.
+ * Dummy interfaces for base class construction.
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
-#ifndef I2C_GPIO_H
-#define I2C_GPIO_H
+ #include <interfaces.h>
 
-#include "interfaces.h"
-#include "devices.h"
-#include <functional>
-
-class I2C_GPIO : public I2C_InterfaceBase
+ /**
+ * Dummy I2C Interface for base class construction
+ *
+ * This interface does nothing and is only used to satisfy the base class constructor
+ */
+class I2C_InterfaceDummy : public I2C_InterfaceBase
 {
 public:
-	/**
-	 * Constructor
-	 *
-	 * @param sda_pin GPIO pin for SDA line
-	 * @param scl_pin GPIO pin for SCL line
-	 */
-	I2C_GPIO(GPIO_DeviceBase &sda_pin, GPIO_DeviceBase &scl_pin, std::function<void()> delay_func)
-		: I2C_InterfaceBase(0), sda_pin_(sda_pin), scl_pin_(scl_pin), delay_func_(delay_func) {}
-
-	/**
-	 * Write data to I2C device
-	 *
-	 * @param device_addr I2C device address
-	 * @param reg_addr Register address to write to
-	 * @param data Data to write
-	 * @param length Length of data to write
-	 *
-	 * @return 0 on success, negative value on error
-	 */
-	int Write(uint8_t device_addr, uint8_t reg_addr,
-			  const uint8_t *data, uint32_t length) override;
-
-	/**
-	 * Read data from I2C device
-	 *
-	 * @param device_addr I2C device address
-	 * @param reg_addr Register address to read from
-	 * @param data Buffer to store read data
-	 * @param length Length of data to read
-	 *
-	 * @return 0 on success, negative value on error
-	 */
+	I2C_InterfaceDummy() : I2C_InterfaceBase(0) {}
 	int Read(uint8_t device_addr, uint8_t reg_addr,
-			 uint8_t *data, uint32_t length) override;
-
-private:
-	GPIO_DeviceBase &sda_pin_;
-	GPIO_DeviceBase &scl_pin_;
-	std::function<void()> delay_func_;
-
-	int  StartCondition();
-	void RepeatStartCondition();
-	void StopCondition();
-	uint16_t WriteByte(uint8_t data);
-	uint16_t ReadByte(bool ack);
+			 uint8_t *data, uint32_t length) override
+	{ return 0; }
 };
 
-#endif /* I2C_GPIO_H */
+/**
+ * Dummy SPI Interface for base class construction
+ *
+ * This interface does nothing and is only used to satisfy the base class constructor
+ */
+class SPI_InterfaceDummy : public SPI_InterfaceBase
+{
+public:
+	SPI_InterfaceDummy() : SPI_InterfaceBase(0) {}
+	int Transfer(const uint8_t *tx_data,
+				 uint8_t *rx_data,
+				 uint32_t length) override { return 0; }
+};
+
+/**
+ * Dummy OneWire Interface for JSON configuration
+ * Used only to satisfy the base class constructor
+ */
+class OneWire_InterfaceDummy : public OneWire_InterfaceBase {
+public:
+	OneWire_InterfaceDummy() {}
+	void Write(uint8_t data) override {}
+	uint8_t Read() override { return 0; }
+};

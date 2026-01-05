@@ -96,7 +96,8 @@ public:
 	 * @param pin GPIO pin number
 	 * @param dir Pin direction
 	 */
-	explicit GPIO_DeviceBase(uint16_t port, uint16_t pin, dir dir)
+	explicit
+	GPIO_DeviceBase(uint16_t port, uint16_t pin, dir dir)
 		: port_(port), pin_(pin) {}
 
 	/**
@@ -142,6 +143,7 @@ public:
 	 * @param ifs I2C interface
 	 * @param address I2C device address
 	 */
+	explicit
 	I2C_DeviceBase(I2C_InterfaceBase &ifs, uint8_t address) : ifs_(ifs), address_(address) {}
 
 	/**
@@ -193,6 +195,7 @@ public:
 	 * @param ifs SPI interface
 	 * @param cs_pin Chip select GPIO pin
 	 */
+	explicit
 	SPI_DeviceBase(SPI_InterfaceBase &ifs, GPIO_DeviceBase &cs_pin) : ifs_(ifs), cs_pin_(cs_pin) {}
 
 	/**
