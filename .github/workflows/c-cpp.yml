@@ -25,3 +25,5 @@ jobs:
       run: make -C Common/compile all
     - name: Built and test
       run: make -C Common/test test
+    - name: Run linux server tests
+      run: make -C Linux/server test
