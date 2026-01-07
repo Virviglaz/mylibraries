@@ -50,6 +50,61 @@
 #include <thread>
 #include <mutex>
 #include <unordered_set>
+#include <vector>
+#include <string>
+
+namespace Network {
+
+class MessageBase
+{
+public:
+	virtual ~MessageBase() = default;
+
+	MessageBase() = delete;
+
+	/**
+	 * @brief Constructor of MessageBase class.
+	 *
+	 * @param sockfd	Socket of connected client.
+	 * @param data		Pointer to received data.
+	 * @param size		Size of received data.
+	 */
+	MessageBase(int sockfd, char *data, size_t size)
+		: _sockfd(sockfd), data(data), size(size) {}
+
+	/**
+	 * @brief Send reply to client.
+	 *
+	 * @param src		Pointer to the buffer to send.
+	 * @param size		Amount of bytes to send.
+	 */
+	void Reply(const char *src, size_t size);
+
+	/**
+	 * @brief Send reply to client.
+	 *
+	 * @param msg		String message to send.
+	 */
+	void Reply(const std::string &msg);
+
+	/**
+	 * @brief Get pointer to received data.
+	 *
+	 * @return Pointer to data buffer.
+	 */
+	char *GetData() const;
+
+	/**
+	 * @brief Get size of received data.
+	 *
+	 * @return Size of data buffer.
+	 */
+	size_t GetSize() const;
+private:
+	int _sockfd;
+	char *data;
+	size_t size;
+};
 
 class ServerBase
 {
@@ -104,7 +159,7 @@ public:
 
 	/** Event handlers to override */
 	virtual void OnConnect(const std::string& ip) {}
-	virtual void OnReceive(const char *data, size_t size) = 0;
+	virtual void OnReceive(MessageBase &msg) = 0;
 	virtual void OnDisconnect() {}
 protected:
 	uint16_t _port;
@@ -123,13 +178,73 @@ public:
 	explicit Client() = default;
 	~Client();
 
+	/**
+	 * @brief Constructor of client class to connect to server.
+	 * @param ip		IP address of server.
+	 * @param port		Port number of server.
+	 * @param protocol		Protocol type (TCP/UDP) [default = TCP].
+	 */
 	Client(const std::string& ip, uint16_t port,
 		ServerBase::Protocol protocol = ServerBase::Protocol::TCP);
+
+	/**
+	 * @brief Send data to server.
+	 *
+	 * @param src		Pointer to the buffer to send.
+	 * @param size		Amount of bytes to send.
+	 * @return		0 on success, error code on error.
+	 */
 	void Send(const char *src, size_t size);
+
+	/**
+	 * @brief Send data to server.
+	 *
+	 * @param msg		String message to send.
+	 */
+	void Send(const std::string &msg);
+
+	/**
+	 * @brief Read data from server.
+	 *
+	 * @param dst		Pointer to the buffer to read data to.
+	 * @param max_size	Amount of bytes to read;
+	 * @return		Amount of bytes read.
+	 */
 	size_t Read(char *dst, size_t max_size = 1500);
+
+	/**
+	 * @brief Read data from server.
+	 *
+	 * @param out_str	String to store read data.
+	 * @param max_size	Amount of bytes to read;
+	 * @return		Amount of bytes read.
+	 */
+	size_t Read(std::string &out_str, size_t max_size = 1500);
+
+	/**
+	 * @brief Read data from server.
+	 *
+	 * @param max_size	Amount of bytes to read;
+	 * @return		String with read data.
+	 */
+	std::string ReadString(size_t max_size = 1500);
+
+	/**
+	 * @brief Read data from server.
+	 *
+	 * @param max_size	Amount of bytes to read;
+	 * @return		Vector with data.
+	 */
+	std::vector<char> ReadVector(size_t max_size = 1500);
+
+	/**
+	 * @brief Terminate current connection.
+	 */
 	void Close();
 private:
 	int _sockfd;
 };
+
+} /* namespace Network */
 
 #endif /* __SERVER_CPP_H__ */

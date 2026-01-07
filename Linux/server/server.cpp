@@ -48,6 +48,32 @@
 #include <errno.h>
 #include <stdexcept>
 #include "server.h"
+#include <cstring>
+
+using namespace Network;
+
+void MessageBase::Reply(const char *src, size_t size)
+{
+	ssize_t sent = write(_sockfd, src, size);
+	if (sent != static_cast<ssize_t>(size))
+		throw std::runtime_error(
+			"MessageBase::Reply: Send failed " + std::to_string(errno) + ": " + std::string(strerror(errno)));
+}
+
+void MessageBase::Reply(const std::string &msg)
+{
+	Reply(msg.c_str(), msg.size());
+}
+
+char *MessageBase::GetData() const
+{
+	return data;
+}
+
+size_t MessageBase::GetSize() const
+{
+	return size;
+}
 
 ServerBase::ServerBase(uint16_t port, size_t msg_size, size_t max_connections, Protocol protocol)
 	: _port(port), _msg_size(msg_size), _max_connections(max_connections), _protocol(protocol)
@@ -110,6 +136,18 @@ public:
 			close(client);
 		guard.unlock();
 	}
+
+	ssize_t ReceiveUDP(char *buffer, size_t size, struct sockaddr_in *cli_addr)
+	{
+		socklen_t si_client_len = sizeof(*cli_addr);
+		return recvfrom(_sockfd, buffer, size, 0,
+				(struct sockaddr *)cli_addr, &si_client_len);
+	}
+
+	int GetSockfd() const
+	{
+		return _sockfd;
+	}
 };
 
 static void client_handler(ServerBase *server, int sockfd)
@@ -131,7 +169,8 @@ static void client_handler(ServerBase *server, int sockfd)
 		if (size <= 0)
 			break;
 
-		server->OnReceive(buffer, size);
+		MessageBase msg(sockfd, buffer, static_cast<size_t>(size));
+		server->OnReceive(msg);
 	}
 
 	/* Client is terminated, remove from list */
@@ -186,7 +225,32 @@ static void tcp_handler(ServerBase *server)
 
 static void udp_handler(ServerBase *server)
 {
-	throw std::runtime_error("UDP protocol is not implemented yet");
+	ServerInternal *srv = static_cast<ServerInternal *>(server);
+	char *buffer = new char[srv->GetMaxMsgSize()];
+	if (!buffer)
+	{
+		/* Memory error, terminate */
+		return;
+	}
+
+	while (true)
+	{
+		struct sockaddr_in cli_addr;
+		auto size = srv->ReceiveUDP(buffer, srv->GetMaxMsgSize(), &cli_addr);
+		if (size < 0)
+			break;
+
+		if (size == 0)
+			continue;
+		
+		/* Call event when connected */
+		server->OnConnect(inet_ntoa(cli_addr.sin_addr));
+
+		MessageBase msg(srv->GetSockfd(), buffer, static_cast<size_t>(size));
+		server->OnReceive(msg);
+
+		server->OnDisconnect();
+	}
 }
 
 void ServerBase::Start()
@@ -194,7 +258,7 @@ void ServerBase::Start()
 	_sockfd = socket(AF_INET, _protocol == Protocol::TCP ? SOCK_STREAM : SOCK_DGRAM, 0);
 	if (_sockfd < 0)
 		throw std::runtime_error(
-			"ServerBase::Start: Open socket error: " + std::to_string(errno));
+			"ServerBase::Start: Open socket error: " + std::to_string(errno) + ": " + std::string(strerror(errno)));
 
 	/* Bind socket */
 	struct sockaddr_in serv_addr;
@@ -206,7 +270,7 @@ void ServerBase::Start()
 	{
 		close(_sockfd);
 		throw std::runtime_error(
-			"ServerBase::Start: Bind socket error: " + std::to_string(errno));
+			"ServerBase::Start: Bind socket error: " + std::to_string(errno) + ": " + std::string(strerror(errno)));
 	}
 
 	/* Start listening for incoming connections. */
@@ -217,7 +281,7 @@ void ServerBase::Start()
 		{
 			close(_sockfd);
 			throw std::runtime_error(
-				"ServerBase::Start: Socket listen error: " + std::to_string(errno));
+				"ServerBase::Start: Socket listen error: " + std::to_string(errno) + ": " + std::string(strerror(errno)));
 		}
 	}
 
@@ -259,7 +323,7 @@ Client::Client(const std::string& ip, uint16_t port, ServerBase::Protocol protoc
 	_sockfd = socket(AF_INET, protocol == ServerBase::Protocol::TCP ? SOCK_STREAM : SOCK_DGRAM, 0);
 	if (_sockfd < 0)
 		throw std::runtime_error(
-			"Client::Client: Open socket error: " + std::to_string(errno));
+			"Client::Client: Open socket error: " + std::to_string(errno) + ": " + std::string(strerror(errno)));
 
 	struct sockaddr_in serv_addr;
 	serv_addr.sin_family = AF_INET;
@@ -276,7 +340,7 @@ Client::Client(const std::string& ip, uint16_t port, ServerBase::Protocol protoc
 	{
 		close(_sockfd);
 		throw std::runtime_error(
-			"Client::Client: Connection Failed: " + std::to_string(errno));
+			"Client::Client: Connection Failed: " + std::to_string(errno) + ": " + std::string(strerror(errno)));
 	}
 }
 
@@ -290,7 +354,12 @@ void Client::Send(const char *src, size_t size)
 	ssize_t sent = write(_sockfd, src, size);
 	if (sent < 0 || static_cast<size_t>(sent) != size)
 		throw std::runtime_error(
-			"Client::Send: Send failed: " + std::to_string(errno));
+			"Client::Send: Send failed: " + std::to_string(errno) + ": " + std::string(strerror(errno)));
+}
+
+void Client::Send(const std::string &msg)
+{
+	Send(msg.c_str(), msg.size());
 }
 
 size_t Client::Read(char *dst, size_t max_size)
@@ -298,8 +367,44 @@ size_t Client::Read(char *dst, size_t max_size)
 	ssize_t received = read(_sockfd, dst, max_size);
 	if (received < 0)
 		throw std::runtime_error(
-			"Client::Read: Read failed: " + std::to_string(errno));
+			"Client::Read: Read failed: " + std::to_string(errno) + ": " + std::string(strerror(errno)));
 	return static_cast<size_t>(received);
+}
+
+size_t Client::Read(std::string &out_str, size_t max_size)
+{
+	char *buffer = new char[max_size];
+	if (!buffer)
+		throw std::runtime_error("Client::Read: No memory");
+
+	ssize_t received = read(_sockfd, buffer, max_size);
+	if (received < 0)
+	{
+		delete[] buffer;
+		throw std::runtime_error(
+			"Client::Read: Read failed: " + std::to_string(errno) + ": " + std::string(strerror(errno)));
+	}
+
+	out_str.assign(buffer, static_cast<size_t>(received));
+	delete[] buffer;
+	return static_cast<size_t>(received);
+}
+
+std::string Client::ReadString(size_t max_size)
+{
+	std::string result;
+	result.resize(max_size);
+	size_t read_bytes = Read(&result[0], max_size);
+	result.resize(read_bytes);
+	return result;
+}
+
+std::vector<char> Client::ReadVector(size_t max_size)
+{
+	std::vector<char> buffer(max_size);
+	size_t read_bytes = Read(buffer.data(), max_size);
+	buffer.resize(read_bytes);
+	return buffer;
 }
 
 void Client::Close()
