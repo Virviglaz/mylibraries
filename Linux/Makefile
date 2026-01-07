@@ -1,15 +1,15 @@
-CFLAGS          += -Wall -Wno-format-truncation
-ARCH		?= $(shell arch)
-OBJ             := $(subst .c,.o,$(shell ls *.c))
-TRG             ?= lib_$(ARCH)
-CC		?= gcc
+BUILDDIR		:= build
+TARGET			:= test
 
-%.o: %.c
-	$(CC) -c -o $@ $< $(CFLAGS) $(INC) $(DEF) -fpic
+SRC				:= test.cpp
 
-all: $(OBJ) 
-	$(CC) -shared -o $(TRG).so  $(OBJ)
+CPPFLAGS		:= -std=c++14 -O0
 
-clean:
-	@rm -f *.o
+LDFLAGS			:=
 
+include Makefile.common
+
+test: $(BUILDDIR)/$(TARGET)
+	@echo "Build complete: $(BUILDDIR)/$(TARGET)"
+	@echo "Run test:"
+	@./$(BUILDDIR)/$(TARGET)

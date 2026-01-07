@@ -27,3 +27,5 @@ jobs:
       run: make -C Common/test test
     - name: Run linux server tests
       run: make -C Linux/server test
+    - name: Run linux utils tests
+      run: make -C Linux test
