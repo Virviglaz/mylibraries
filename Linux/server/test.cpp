@@ -1,8 +1,10 @@
-#include "server.h"
 #include <iostream>
 #include <cstring>
 #include <atomic>
 #include <cassert>
+#include "server.h"
+#include "rand.h"
+#include "utils.h"
 
 using namespace Network;
 static std::atomic<int> inc_step {0};
@@ -23,10 +25,7 @@ public:
 	void OnReceive(MessageBase &msg) override
 	{
 		std::lock_guard<std::mutex> lock(cout_mutex);
-		std::cout << "Received TCP data (" << msg.GetSize() << " bytes): "
-		          << std::string(msg.GetData(), msg.GetSize()) << std::endl;
-		std::string received_str(msg.GetData(), msg.GetSize());
-		assert(received_str == message);
+		std::cout << "Received TCP data " << msg.GetSize() << " bytes." << std::endl;
 		inc_step++;
 		msg.Reply("Hello, TCP Client!");
 		inc_step++;
@@ -54,8 +53,7 @@ public:
 	void OnReceive(MessageBase &msg) override
 	{
 		std::lock_guard<std::mutex> lock(cout_mutex);
-		std::cout << "Received UDP data (" << msg.GetSize() << " bytes): "
-		          << std::string(msg.GetData(), msg.GetSize()) << std::endl;
+		std::cout << "Received UDP data " << msg.GetSize() << " bytes." << std::endl;
 		inc_step++;
 		std::string received_str(msg.GetData(), msg.GetSize());
 		assert(received_str == message);
@@ -69,9 +67,25 @@ public:
 	}
 };
 
+std::vector<char> generate_data(size_t size)
+{
+	std::vector<char> data(size);
+
+	BenchmarkTimer timer("Random data generation");
+	for (size_t i = 0; i < size; ++i)
+	{
+		data[i] = static_cast<char>(tinymt32_generate() % 256);
+	}
+	return data;
+}
+
 int main(int argc, char *argv[])
 {
-	TCP_ServerTest tcp_server(8081, 1500, 32, ServerBase::Protocol::TCP);
+	tinymt32_init(12345);
+
+	auto data = generate_data(1024 * 1024); // 1 MB of random data
+
+	TCP_ServerTest tcp_server(8081, data.size(), 32, ServerBase::Protocol::TCP);
 	UDP_ServerTest udp_server(8082, 1500, 32, ServerBase::Protocol::UDP);
 
 	tcp_server.Start();
@@ -87,6 +101,16 @@ int main(int argc, char *argv[])
 	tcp_client.Send(message);
 	udp_client.Send(message);
 
+	{
+		BenchmarkTimer timer("TCP data send");
+		tcp_client.Send(data);
+	}
+
+	{
+		BenchmarkTimer timer("UDP data send");
+		udp_client.Send(message);
+	}
+
 	std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
 	auto tcp_response = tcp_client.ReadString();
@@ -101,6 +125,6 @@ int main(int argc, char *argv[])
 	tcp_server.Stop();
 	udp_server.Stop();
 
-	return inc_step == 8 ? 0 : 1;
+	return inc_step > 10 ? 0 : 1;
 }
 

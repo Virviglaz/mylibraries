@@ -65,6 +65,11 @@ void MessageBase::Reply(const std::string &msg)
 	Reply(msg.c_str(), msg.size());
 }
 
+void MessageBase::Reply(const std::vector<char> &msg)
+{
+	Reply(msg.data(), msg.size());
+}
+
 char *MessageBase::GetData() const
 {
 	return data;
@@ -360,6 +365,11 @@ void Client::Send(const char *src, size_t size)
 void Client::Send(const std::string &msg)
 {
 	Send(msg.c_str(), msg.size());
+}
+
+void Client::Send(const std::vector<char> &msg)
+{
+	Send(msg.data(), msg.size());
 }
 
 size_t Client::Read(char *dst, size_t max_size)

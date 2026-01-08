@@ -3,6 +3,8 @@ TARGET			:= test_server
 
 SRC				:= test.cpp
 SRC				+= server.cpp
+SRC				+= rand.c
+
 
 CPPFLAGS		:= -std=c++14 -O0
 

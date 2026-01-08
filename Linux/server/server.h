@@ -88,6 +88,13 @@ public:
 	void Reply(const std::string &msg);
 
 	/**
+	 * @brief Send reply to client.
+	 *
+	 * @param msg		Vector with data to send.
+	 */
+	void Reply(const std::vector<char> &msg);
+
+	/**
 	 * @brief Get pointer to received data.
 	 *
 	 * @return Pointer to data buffer.
@@ -202,6 +209,13 @@ public:
 	 * @param msg		String message to send.
 	 */
 	void Send(const std::string &msg);
+
+	/**
+	 * @brief Send data to server.
+	 *
+	 * @param msg		Vector with data to send.
+	 */
+	void Send(const std::vector<char> &msg);
 
 	/**
 	 * @brief Read data from server.
