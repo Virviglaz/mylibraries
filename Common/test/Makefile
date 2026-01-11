@@ -36,6 +36,11 @@ SRC					+= ../DS18B20.cpp
 SRC					+= ../DS18B20_json.cpp
 SRC					+= ../crc.c
 
+# HD44780 tests
+SRC					+= HD44780_test.cpp
+SRC					+= ../HD44780.cpp
+SRC					+= ../HD44780_ToFile.cpp
+
 INC					:= .
 INC					+= ../
 

@@ -63,8 +63,14 @@ File::File(const char *path, int flags)
 
 File::~File()
 {
+	Close();
+}
+
+void File::Close()
+{
 	if (fd >= 0)
 		close(fd);
+	fd = -1;
 }
 
 File &File::Seek(off_t offset, enum SeekAt seekAt)
@@ -133,6 +139,12 @@ File &File::Sync()
 	return *this;
 }
 
+File::File(File &&other) noexcept
+{
+	fd = other.fd;
+	other.fd = -1;
+}
+
 File::Stats File::GetStats()
 {
 	return Stats(fd);
@@ -176,6 +188,13 @@ mode_t File::Stats::GetMode()
 
 File::Mmap::Mmap(int fd, size_t size, off_t offset, int flags)
 {
+	if (size == 0) {
+		struct stat s;
+		if (fstat(fd, &s) == -1)
+			throw std::system_error(errno, std::generic_category());
+		size = s.st_size;
+	}
+
 	ptr = mmap(0, size, PROT_READ | PROT_WRITE, flags, fd, offset);
 
 	if (ptr == MAP_FAILED)
@@ -188,6 +207,14 @@ File::Mmap::~Mmap()
 {
 	if (ptr && size_)
 		munmap(ptr, size_);
+}
+
+File::Mmap::Mmap(File::Mmap &&other) noexcept
+{
+	ptr = other.ptr;
+	size_ = other.size_;
+	other.ptr = nullptr;
+	other.size_ = 0;
 }
 
 void *File::Mmap::GetPtr()

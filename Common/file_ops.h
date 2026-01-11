@@ -59,6 +59,11 @@ class File
 {
 public:
 	/**
+	 * Default constructor.
+	 */
+	File() = default;
+
+	/**
 	 * Construct and open a file.
 	 *
 	 * @param path File path
@@ -71,6 +76,17 @@ public:
 	 * Destructor closes the file.
 	 */
 	~File();
+
+	/**
+	 * Close the file.
+	 *
+	 * @return Reference to this File object
+	 */
+	void Close();
+
+	File(const File &) = delete;
+	File(File &&) noexcept;
+	File &operator=(const File &) = delete;
 
 	/**
 	 * Seek origin enumeration.
@@ -165,13 +181,15 @@ public:
 	class Stats
 	{
 	public:
+		Stats() = default;
+
 		/**
 		 * Class constructor
 		 *
 		 * @param fd File descriptor
 		 * @throw std::system_error on fstat failure
 		 */
-		Stats(int fd);
+		explicit Stats(int fd);
 
 		/** Last access time (st_atime). */
 		time_t GetLastAccessTime();
@@ -201,6 +219,11 @@ public:
 	{
 	public:
 		/**
+		 * Default constructor.
+		 */
+		Mmap() = delete;
+
+		/**
 		 * Class constructor
 		 *
 		 * @param fd File descriptor
@@ -216,6 +239,21 @@ public:
 		 */
 		~Mmap();
 
+		/**
+		 * Disable copy constructor.
+		 */
+		Mmap(const Mmap &) = delete;
+
+		/**
+		 * Enable move constructor.
+		 */
+		Mmap(Mmap &&other) noexcept;
+
+		/**
+		 * Disable copy assignment.
+		 */
+		Mmap &operator=(const Mmap &) = delete;
+
 		/** 
 		 * Get pointer to the mapped region.
 		 *
@@ -229,7 +267,7 @@ public:
 	};
 
 private:
-	int fd;
+	int fd = -1;
 };
 
 #endif /* FILE_OPS_H */

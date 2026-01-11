@@ -52,6 +52,66 @@
 #include <stdint.h>
 
 /**
+ * Simple Interface Base Class
+ *
+ * This class provides basic read and write methods for simple interfaces.
+ * For example, it can be used as a base class for interfaces that only need to
+ * send and receive single bytes of data.
+ */
+class SimpleInterfaceBase
+{
+public:
+	explicit SimpleInterfaceBase() = default;
+	virtual ~SimpleInterfaceBase() = default;
+
+	/**
+	 * Write a single byte of data
+	 *
+	 * @param data Byte to write
+	 *
+	 * @return Reference to the interface object
+	 */
+	virtual SimpleInterfaceBase& WriteByte(uint8_t data)
+	{
+		(void)data;
+		return *this;
+	}
+
+	/**
+	 * Read a single byte of data
+	 *
+	 * @return Read byte
+	 */
+	virtual uint8_t ReadByte()
+	{
+		return 0;
+	}
+
+	/**
+	 * Write a single word of data
+	 *
+	 * @param data Word to write
+	 *
+	 * @return Reference to the interface object
+	 */
+	virtual SimpleInterfaceBase& WriteWord(uint16_t data)
+	{
+		(void)data;
+		return *this;
+	}
+
+	/**
+	 * Read a single word of data
+	 *
+	 * @return Read word
+	 */
+	virtual uint16_t ReadWord()
+	{
+		return 0;
+	}
+};
+
+/**
  * GPIO Interface Base Class
  */
 class GPIO_InterfaceBase
@@ -127,7 +187,7 @@ protected:
 /**
  * SPI Interface Base Class
  */
-class SPI_InterfaceBase
+class SPI_InterfaceBase : public SimpleInterfaceBase
 {
 public:
 	explicit SPI_InterfaceBase() = delete;
@@ -150,6 +210,58 @@ public:
 	virtual int Transfer(const uint8_t *tx_data,
 						 uint8_t *rx_data,
 						 uint32_t length) = 0;
+
+	/**
+	 * Write a single byte of data
+	 *
+	 * @param data Byte to write
+	 * @return Reference to the interface object
+	 */
+	virtual SimpleInterfaceBase& WriteByte(uint8_t data) override
+	{
+		Transfer(&data, nullptr, 1);
+		return *this;
+	}
+
+	/**
+	 * Write a single word of data
+	 *
+	 * @param data Word to write
+	 * @return Reference to the interface object
+	 */
+	virtual SimpleInterfaceBase& WriteWord(uint16_t data) override
+	{
+		uint8_t tx_data[2];
+		tx_data[0] = (data >> 8) & 0xFF;
+		tx_data[1] = (data >> 0) & 0xFF;
+		Transfer(tx_data, nullptr, 2);
+		return *this;
+	}
+
+	/**
+	 * Read a single byte of data
+	 *
+	 * @return Read byte
+	 */
+	virtual uint8_t ReadByte() override
+	{
+		uint8_t data = 0;
+		Transfer(nullptr, &data, 1);
+		return data;
+	}
+
+	/**
+	 * Read a single word of data
+	 *
+	 * @return Read word
+	 */
+	virtual uint16_t ReadWord() override
+	{
+		uint8_t rx_data[2] = {0};
+		Transfer(nullptr, rx_data, 2);
+		return (static_cast<uint16_t>(rx_data[0]) << 8) |
+			   (static_cast<uint16_t>(rx_data[1]) << 0);
+	}
 protected:
 	uint8_t bus_number_;
 };
@@ -157,7 +269,7 @@ protected:
 /**
  * UART Interface Base Class
  */
-class UART_InterfaceBase
+class UART_InterfaceBase : public SimpleInterfaceBase
 {
 public:
 	explicit UART_InterfaceBase() = delete;

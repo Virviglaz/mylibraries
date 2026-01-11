@@ -130,7 +130,7 @@ protected:
 /**
  * I2C Device Base Class
  */
-class I2C_DeviceBase
+class I2C_DeviceBase : public SimpleInterfaceBase
 {
 public:
 	/** Default constructor */
@@ -171,6 +171,18 @@ public:
 	virtual I2C_DeviceBase &Read(uint8_t reg_addr,
 								 uint8_t *data,
 								 uint32_t length) = 0;
+
+	/**
+	 * Write a single byte of data
+	 *
+	 * @param data Byte to write
+	 * @return Reference to the interface object
+	 */
+	SimpleInterfaceBase &WriteByte(uint8_t data) override
+	{
+		Write(data, nullptr, 0);
+		return *this;
+	}
 
 protected:
 	I2C_InterfaceBase &ifs_;

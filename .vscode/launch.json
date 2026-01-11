@@ -5,7 +5,7 @@
         "version": "0.2.0",
         "configurations": [
                 {
-                        "name": "(gdb) Launch",
+                        "name": "(gdb) Linux Test Server",
                         "type": "cppdbg",
                         "request": "launch",
                         "program": "${workspaceFolder}/Linux/server/build/test_server",
@@ -27,7 +27,31 @@
                                 "ignoreFailures": true
                             }
                         ]
-                }
+                },
+				{
+					"name": "(gdb) Common Library Tests",
+					"type": "cppdbg",
+					"request": "launch",
+					"program": "${workspaceFolder}/Common/test/build/test",
+					"args": [],
+					"stopAtEntry": true,
+					"cwd": "${workspaceFolder}/Common/test",
+					"environment": [],
+					"externalConsole": false,
+					"MIMode": "gdb",
+					"setupCommands": [
+						{
+							"description": "Enable pretty-printing for gdb",
+							"text": "-enable-pretty-printing",
+							"ignoreFailures": true
+						},
+						{
+							"description": "Set Disassembly Flavor to Intel",
+							"text": "-gdb-set disassembly-flavor intel",
+							"ignoreFailures": true
+						}
+					]
+			}
 
         ]
 }
