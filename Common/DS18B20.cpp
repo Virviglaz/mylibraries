@@ -172,6 +172,8 @@ OneWire_InterfaceBase::Result DS18B20_Multi<max_devices>::SearchSensors(uint8_t 
 		//(output the just-completed ROM value)
 		path = next;
 		cnt_num++;
+		if (cnt_num == max_devices)
+			break;
 	} while (path);
 
 	if (devices_found)
