@@ -19,6 +19,10 @@ jobs:
       uses: Dup4/actions-setup-gcc@v1
       with:
         version: latest
+    - name: Install Arm GNU Toolchain (arm-none-eabi-gcc)
+      uses: carlosperate/arm-none-eabi-gcc-action@v1
+      with:
+        release: '13.2.Rel1'
     - name: Install JSONCPP
       run: sudo apt-get install libjsoncpp-dev
     - name: Compile only
@@ -29,3 +33,5 @@ jobs:
       run: make -C Linux/server test
     - name: Run linux utils tests
       run: make -C Linux test
+    - name: Run stm32f10x zero project tests
+      run: make -C stm32f10x_pr0 all
