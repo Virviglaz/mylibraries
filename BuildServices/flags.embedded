@@ -1,15 +1,29 @@
 # Include this file in your Makefile for embedded project prio to Makefile.embedded
 
-ASMFLAGS			+=	-mthumb \
-					-g3 \
-					-c
+ASMFLAGS			+=	\
+						-mthumb \
+						-specs=nano.specs \
+						-O2 \
+						-fdata-sections \
+						-ffunction-sections
 
-CFLAGS 				+=	-mthumb \
-					-fdata-sections \
-					-ffunction-sections \
-					-g
+CFLAGS_EXTRA 			+=	\
+						-mthumb \
+						-fdata-sections \
+						-ffunction-sections \
+						-specs=nano.specs \
+						-g3 \
+						-fstack-usage \
+						-g
 
-LDFLAGS				+=	-mthumb \
-					-Wl,--gc-sections \
-					--specs=nosys.specs \
-					-fno-exceptions
+CPPFLAGS				+= \
+						-fno-exceptions \
+						-fno-rtti \
+						-fno-use-cxa-atexit
+
+LDFLAGS				+=	\
+						-mthumb \
+						-Wl,--gc-sections \
+						-specs=nosys.specs \
+						-specs=nano.specs \
+						-Wl,--start-group -lc -lm -Wl,--end-group

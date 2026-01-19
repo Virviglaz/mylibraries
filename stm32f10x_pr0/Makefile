@@ -17,11 +17,13 @@ INC					:= \
 SRC					:= \
 						CMSIS/DeviceSupport/system_stm32f10x.c \
 						CMSIS/DeviceSupport/syscalls.c \
+						CMSIS/DeviceSupport/sysmem.c \
 						CMSIS/Startup/startup_stm32f10x_md_vl.s \
 						../stm32f10x_cpp/src/gpio.cpp \
 						src/main.cpp
 
 ASMFLAGS			:= -mcpu=cortex-m3
+CFLAGS				:= -O1
 
 include flags.embedded
 include Makefile.embedded

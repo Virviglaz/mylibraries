@@ -51,7 +51,7 @@ clean:
 $(BUILDDIR)/$(TARGET)/%.s.o: %.s
 	@$(MKDIRP) -p $(dir $@)
 	@echo "Assembling $<"
-	@$(CC) -o $@ $< $(ASMFLAGS)
+	@$(CC) -o $@ $< -c $(ASMFLAGS)
 
 $(BUILDDIR)/$(TARGET)/%.c.o: %.c
 	@$(MKDIRP) -p $(dir $@)
