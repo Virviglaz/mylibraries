@@ -96,7 +96,7 @@ public:
 	 * @param pin GPIO pin number
 	 * @param dir Pin direction
 	 */
-	explicit
+	explicit constexpr
 	GPIO_DeviceBase(uint16_t port, uint16_t pin, dir dir)
 		: port_(port), pin_(pin) {}
 

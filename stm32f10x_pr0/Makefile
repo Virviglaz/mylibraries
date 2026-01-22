@@ -23,7 +23,9 @@ SRC					:= \
 						src/main.cpp
 
 ASMFLAGS			:= -mcpu=cortex-m3
-CFLAGS				:= -O1
+CFLAGS_EXTRA			:= -O2
+CFLAGS				:= -std=c17
+CPPLAGS				:= -std=c++17
 
 include flags.embedded
 include Makefile.embedded

@@ -53,56 +53,13 @@
 #define BIT(x) (1U << (x))
 #endif
 
-constexpr static GPIO_TypeDef* getGPIOPort(uint16_t port)
-{
-	GPIO_TypeDef *gpios[] = {GPIOA, GPIOB, GPIOC, GPIOD, GPIOE
-#if defined (STM32F10X_HD) || defined (STM32F10X_XL)
-	, GPIOF, GPIOG
-#endif /* STM32F10X_HD STM32F10X_XL */
-	};
-
-	return (port >= ARRAY_SIZE(gpios)) ? nullptr : gpios[port];
-}
-
-constexpr static void rcc_enable(uint16_t port)
-{
-	const uint32_t rcc_masks[] = {
-		RCC_APB2ENR_IOPAEN,
-		RCC_APB2ENR_IOPBEN,
-		RCC_APB2ENR_IOPCEN,
-		RCC_APB2ENR_IOPDEN,
-		RCC_APB2ENR_IOPEEN,
-#if defined (STM32F10X_HD) || defined (STM32F10X_XL)
-		RCC_APB2ENR_IOPFEN,
-		RCC_APB2ENR_IOPGEN,
-#endif /* STM32F10X_HD STM32F10X_XL */
-	};
-
-	if (port < ARRAY_SIZE(rcc_masks)) {
-		RCC->APB2ENR |= rcc_masks[port] | RCC_APB2ENR_AFIOEN;
-	}
-}
-
-static void set_mode(GPIO_TypeDef *gpio, uint32_t pin, uint32_t mode, uint32_t cnf)
-{
-	uint32_t cr;
-
-	cr = (uint32_t)(cnf << 2) | mode;
-	pin = (uint32_t)(pin << 2);
-
-	if (pin < 32) {
-		gpio->CRL &= (uint32_t)~(0xF << pin);
-		gpio->CRL |= (uint32_t)(cr << pin);
-	} else {
-		pin -= 32;
-		gpio->CRH &= (uint32_t)~(0xF << pin);
-		gpio->CRH |= (uint32_t)(cr << pin);
-	}
-}
+#if __cplusplus <= 201402L
+#error "This file requires at least a C++17 compliant compiler"
+#endif
 
 int GPIO_Interface::Read(uint16_t port, uint16_t pin)
 {
-	GPIO_TypeDef* gpio = getGPIOPort(port);
+	GPIO_TypeDef* gpio = GPIO_Device::getGPIOPort(port);
 	if (gpio == nullptr)
 		return -1;
 
@@ -111,7 +68,7 @@ int GPIO_Interface::Read(uint16_t port, uint16_t pin)
 
 void GPIO_Interface::Write(uint16_t port, uint16_t pin, int state)
 {
-	GPIO_TypeDef* gpio = getGPIOPort(port);
+	GPIO_TypeDef* gpio = GPIO_Device::getGPIOPort(port);
 	if (gpio == nullptr)
 		return;
 
@@ -123,33 +80,20 @@ void GPIO_Interface::Write(uint16_t port, uint16_t pin, int state)
 
 GPIO_Device &GPIO_Device::Init()
 {
-	GPIO_TypeDef* gpio = getGPIOPort(port_);
+	RCC->APB2ENR |= config_.rcc_mask;
+	GPIO_TypeDef *gpio = config_.gpio;
 	if (gpio == nullptr)
 		return *this;
 
-	rcc_enable(port_);
-
-	switch (direction_) {
-	case INPUT:
-		set_mode(gpio, pin_, 0, 2); // Input mode, floating input
-		break;
-	case OUTPUT:
-		set_mode(gpio, pin_, 3, 0); // Output mode, max speed 50MHz, push-pull
-		break;
-	case OPEN_DRAIN:
-		set_mode(gpio, pin_, 3, 1); // Output mode, max speed 50MHz, open-drain
-		break;
-	case PULL_UP:
-		set_mode(gpio, pin_, 0, 2); // Input mode, pull-up
+	gpio->CRL &= config_.crl_clear;
+	gpio->CRL |= config_.crl_set;
+	gpio->CRH &= config_.crh_clear;
+	gpio->CRH |= config_.crh_set;
+	if (config_.direction == PULL_UP)
 		Set(1);
-		break;
-	case PULL_DOWN:
-		set_mode(gpio, pin_, 0, 2); // Input mode, pull-down
+	else if (config_.direction == PULL_DOWN)
 		Set(0);
-		break;
-	default:
-		break;
-	}
+
 	return *this;
 }
 
