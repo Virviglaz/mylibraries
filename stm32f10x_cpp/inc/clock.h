@@ -36,86 +36,89 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * STM32F10x GPIO peripheral interface.
+ * STM32F10x Clock configuration interface.
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
-#include "gpio.h"
+#ifndef STM32F10X_CLOCK_H
+#define STM32F10X_CLOCK_H
+
+#ifndef __cplusplus
+#error "This header requires C++11 or higher"
+#endif
+
 #include <stm32f10x.h>
 
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
-
-#ifndef BIT
-#define BIT(x) (1U << (x))
-#endif
-
-#if __cplusplus <= 201402L
-#error "This file requires at least a C++17 compliant compiler"
-#endif
-
-int GPIO_Interface::Read(uint16_t port, uint16_t pin)
+struct Clocks
 {
-	GPIO_TypeDef* gpio = GPIO_Device::getGPIOPort(port);
-	if (gpio == nullptr)
-		return -1;
+	enum ClockSource
+	{
+		NO_CLOCK,
+		HSI_CLOCK,		  /* High speed internal clock */
+		HSE_CLOCK,		  /* High speed external clock */
+		HSE_CLOCK_DIV2,	  /* High speed external divided by 2 */
+		HSE_CLOCK_DIV128, /* High speed external divided by 128 */
+		LSI_CLOCK,		  /* Low speed internal clock */
+		LSE_CLOCK,		  /* Low speed external clock */
+		PLL_CLOCK,		  /* PLL clock source */
+		INV_CLOCK,		  /* Invalid value */
+	};
 
-	return (gpio->IDR & pin) ? 1 : 0;
-}
+	/**
+	 * Get current clock configuration
+	 *
+	 * @return Current clock configuration
+	 */
+	Clocks();
 
-void GPIO_Interface::Write(uint16_t port, uint16_t pin, int state)
-{
-	GPIO_TypeDef* gpio = GPIO_Device::getGPIOPort(port);
-	if (gpio == nullptr)
-		return;
+	/**
+	 * Get current clock source
+	 *
+	 * @return Current clock source
+	 */
+	static ClockSource GetClockSource();
 
-	if (state)
-		gpio->BSRR = pin;
-	else
-		gpio->BRR = pin;
-}
+	/**
+	 * Run system from HSI (internal RC) clock source.
+	 */
+	static void RunFromHSI();
 
-GPIO_Device &GPIO_Device::Init()
-{
-	RCC->APB2ENR |= config_.rcc_mask;
-	GPIO_TypeDef *gpio = config_.gpio;
-	if (gpio == nullptr)
-		return *this;
+	/**
+	 * Run system from HSE (external crystal) clock source.
+	 *
+	 * @param crystal_freq_hz External crystal frequency in Hz
+	 */
+	static void RunFromHSE(uint32_t crystal_freq_hz);
 
-	gpio->CRL &= ~config_.crl_clear;
-	gpio->CRL |= config_.crl_set;
-	gpio->CRH &= ~config_.crh_clear;
-	gpio->CRH |= config_.crh_set;
-	if (config_.direction == PULL_UP)
-		Set(1);
-	else if (config_.direction == PULL_DOWN)
-		Set(0);
+	/**
+	 * Run system from PLL clock source.
+	 *
+	 * @param source PLL clock source
+	 * @param mult PLL multiplication factor
+	 */
+	static void RunFromPLL(ClockSource source, uint8_t mult);
 
-	return *this;
-}
+	/**
+	 * CPU frequency in Hz
+	 */
+	uint32_t cpu_freq_hz;
 
-GPIO_Device &GPIO_Device::Set(uint16_t state)
-{
-	GPIO_TypeDef* gpio = getGPIOPort(port_);
-	if (gpio == nullptr)
-		return *this;
+	/**
+	 * AHB bus frequency in Hz
+	 */
+	uint32_t ahb_freq_hz;
 
-	if (state)
-		gpio->BSRR = BIT(pin_);
-	else
-		gpio->BRR = BIT(pin_);
+	/**
+	 * APB1 bus frequency in Hz
+	 */
+	uint32_t apb1_freq_hz;
 
-	return *this;
-}
+	/**
+	 * APB2 bus frequency in Hz
+	 */
+	uint32_t apb2_freq_hz;
+};
 
-int GPIO_Device::Get()
-{
-	GPIO_TypeDef* gpio = getGPIOPort(port_);
-	if (gpio == nullptr)
-		return -1;
-
-	return (gpio->IDR & BIT(pin_)) ? 1 : 0;
-}
+#endif /* STM32F10X_CLOCK_H */

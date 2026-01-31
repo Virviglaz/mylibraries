@@ -229,6 +229,48 @@ protected:
 };
 
 /**
+ * Timer Device Base Class
+ */
+class Timer_DeviceBase
+{
+public:
+	explicit Timer_DeviceBase() = delete;
+	virtual ~Timer_DeviceBase() = default;
+
+	/**
+	 * Constructor
+	 *
+	 * @param tim Timer number
+	 */
+	explicit constexpr
+	Timer_DeviceBase(uint8_t tim) : tim_(tim) {}
+
+	virtual Timer_DeviceBase &Init(uint32_t period = 0) = 0;
+
+	virtual Timer_DeviceBase &Enable() = 0;
+	virtual Timer_DeviceBase &Disable() = 0;
+	virtual Timer_DeviceBase &Reset() = 0;
+	virtual Timer_DeviceBase &Wait(uint32_t timer_ticks) = 0;
+#if 0
+	class Timer_InterruptHandlerBase
+	{
+	public:
+		explicit Timer_InterruptHandlerBase() = default;
+		virtual ~Timer_InterruptHandlerBase() = default;
+
+		/**
+		 * Timer interrupt handler
+		 */
+		virtual void HandleInterrupt() = 0;
+	};
+
+	virtual void EnableInterrupt(Timer_InterruptHandlerBase &handler) = 0;
+#endif
+protected:
+	uint8_t tim_;
+};
+
+/**
  * Dummy GPIO Device for base class construction
  *
  * This interface does nothing and is only used to satisfy the base class constructor

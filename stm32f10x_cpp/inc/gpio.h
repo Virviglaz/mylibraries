@@ -117,10 +117,9 @@ public:
 private:
 	constexpr static GPIO_TypeDef *getGPIOPort(uint16_t port)
 	{
-		GPIO_TypeDef *gpios[] = {GPIOA, GPIOB, GPIOC, GPIOD, GPIOE
+		GPIO_TypeDef *gpios[] = {GPIOA, GPIOB, GPIOC, GPIOD, GPIOE,
 #if defined(STM32F10X_HD) || defined(STM32F10X_XL)
-					 ,
-					 GPIOF, GPIOG
+					GPIOF, GPIOG
 #endif /* STM32F10X_HD STM32F10X_XL */
 		};
 
@@ -153,19 +152,19 @@ private:
 
 			switch (dir)
 			{
-			case GPIO_DeviceBase::INPUT:
+			case GPIO_DeviceBase::dir::INPUT:
 				mode = 0, cnf = 2; // Input mode, floating input
 				break;
-			case GPIO_DeviceBase::OUTPUT:
+			case GPIO_DeviceBase::dir::OUTPUT:
 				mode = 3, cnf = 0; // Output mode, max speed 50MHz, push-pull
 				break;
-			case GPIO_DeviceBase::OPEN_DRAIN:
+			case GPIO_DeviceBase::dir::OPEN_DRAIN:
 				mode = 3, cnf = 1; // Output mode, max speed 50MHz, open-drain
 				break;
-			case GPIO_DeviceBase::PULL_UP:
+			case GPIO_DeviceBase::dir::PULL_UP:
 				mode = 0, cnf = 2; // Input mode, pull-up
 				break;
-			case GPIO_DeviceBase::PULL_DOWN:
+			case GPIO_DeviceBase::dir::PULL_DOWN:
 				mode = 0, cnf = 2; // Input mode, pull-down
 				break;
 			}
@@ -175,14 +174,14 @@ private:
 
 			if (pin_shift < 32)
 			{
-				crl_clear = (uint32_t)~(0xF << pin_shift);
-				crl_set = (uint32_t)(cr << pin_shift);
+				crl_clear = 0xF << pin_shift;
+				crl_set = cr << pin_shift;
 			}
 			else
 			{
 				pin_shift -= 32;
-				crh_clear = (uint32_t)~(0xF << pin_shift);
-				crh_set = (uint32_t)(cr << pin_shift);
+				crh_clear = 0xF << pin_shift;
+				crh_set = cr << pin_shift;
 			}
 		}
 

@@ -1,19 +1,25 @@
 #include "gpio.h"
+#include "timer.h"
+#include "clock.h"
+
+static GPIO_Device led(2, 13, GPIO_DeviceBase::dir::OUTPUT);
+static Timer_Device timer(2);
 
 int main(void)
 {
-    //GPIO_Device(0, 13, GPIO_DeviceBase::dir::OUTPUT).Init().Set(1);
-    GPIO_Device led(2, 13, GPIO_DeviceBase::dir::OUTPUT);
-    led.Init();
+	Clocks::RunFromHSE(8000000UL);
 
-    while (true)
-    {
-        led.Set(1);
-        for (volatile int i = 0; i < 1000000; ++i);
-        led.Set(0);
-        for (volatile int i = 0; i < 1000000; ++i);
-    }
+	timer.InitAt().Enable();
+	led.Init();
 
+	while (true)
+	{
+		led.Set(1);
+		timer.Wait(50000);
 
-    return 0;
+		led.Set(0);
+		timer.Wait(50000);
+	}
+
+	return 0;
 }

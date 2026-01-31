@@ -36,86 +36,68 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * STM32F10x GPIO peripheral interface.
+ * STM32F10x Timer peripheral interface.
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
-#include "gpio.h"
-#include <stm32f10x.h>
+#include "clock.h"
+#include "timer.h"
 
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
-
-#ifndef BIT
-#define BIT(x) (1U << (x))
-#endif
-
-#if __cplusplus <= 201402L
-#error "This file requires at least a C++17 compliant compiler"
-#endif
-
-int GPIO_Interface::Read(uint16_t port, uint16_t pin)
+Timer_DeviceBase &Timer_Device::Init(uint32_t period)
 {
-	GPIO_TypeDef* gpio = GPIO_Device::getGPIOPort(port);
-	if (gpio == nullptr)
-		return -1;
+	// Enable timer clock
+	*clock_enable_reg_ |= clock_enable_bit_;
 
-	return (gpio->IDR & pin) ? 1 : 0;
-}
-
-void GPIO_Interface::Write(uint16_t port, uint16_t pin, int state)
-{
-	GPIO_TypeDef* gpio = GPIO_Device::getGPIOPort(port);
-	if (gpio == nullptr)
-		return;
-
-	if (state)
-		gpio->BSRR = pin;
-	else
-		gpio->BRR = pin;
-}
-
-GPIO_Device &GPIO_Device::Init()
-{
-	RCC->APB2ENR |= config_.rcc_mask;
-	GPIO_TypeDef *gpio = config_.gpio;
-	if (gpio == nullptr)
-		return *this;
-
-	gpio->CRL &= ~config_.crl_clear;
-	gpio->CRL |= config_.crl_set;
-	gpio->CRH &= ~config_.crh_clear;
-	gpio->CRH |= config_.crh_set;
-	if (config_.direction == PULL_UP)
-		Set(1);
-	else if (config_.direction == PULL_DOWN)
-		Set(0);
+	tim_base_->ARR = period ? period : UINT16_MAX;
+	tim_base_->EGR = TIM_EGR_UG;
 
 	return *this;
 }
 
-GPIO_Device &GPIO_Device::Set(uint16_t state)
+Timer_DeviceBase &Timer_Device::InitAt(uint32_t freq_hz)
 {
-	GPIO_TypeDef* gpio = getGPIOPort(port_);
-	if (gpio == nullptr)
-		return *this;
+	Init();
 
-	if (state)
-		gpio->BSRR = BIT(pin_);
+	if (clock_enable_reg_ == &RCC->APB1ENR)
+	{
+		tim_base_->PSC = (Clocks().apb1_freq_hz / freq_hz) - 1;
+	}
 	else
-		gpio->BRR = BIT(pin_);
+	{
+		tim_base_->PSC = (Clocks().apb2_freq_hz / freq_hz) - 1;
+	}
 
 	return *this;
 }
 
-int GPIO_Device::Get()
+Timer_DeviceBase &Timer_Device::Enable()
 {
-	GPIO_TypeDef* gpio = getGPIOPort(port_);
-	if (gpio == nullptr)
-		return -1;
+	tim_base_->CR1 |= TIM_CR1_CEN;
+	return *this;
+}
 
-	return (gpio->IDR & BIT(pin_)) ? 1 : 0;
+Timer_DeviceBase &Timer_Device::Disable()
+{
+	tim_base_->CR1 &= ~TIM_CR1_CEN;
+	return *this;
+}
+
+Timer_DeviceBase &Timer_Device::Reset()
+{
+	tim_base_->CNT = 0;
+	return *this;
+}
+
+Timer_DeviceBase &Timer_Device::Wait(uint32_t timer_ticks)
+{
+	tim_base_->CNT = 0;
+
+	while (tim_base_->CNT < timer_ticks)
+	{
+		__NOP();
+	}
+
+	return *this;
 }

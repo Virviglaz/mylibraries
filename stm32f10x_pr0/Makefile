@@ -4,7 +4,9 @@ CROSS_COMPILE		:= arm-none-eabi-
 LINKERFILE			:= Linker/$(TARGET).ld
 
 DEF					:= \
-						STM32F10X_MD_VL
+						STM32F10X_MD_VL \
+						STM32F103CBTx \
+						SYSCLK_FREQ_HSE
 						
 INC					:= \
 						CMSIS/DeviceSupport \
@@ -20,6 +22,8 @@ SRC					:= \
 						CMSIS/DeviceSupport/sysmem.c \
 						CMSIS/Startup/startup_stm32f10x_md_vl.s \
 						../stm32f10x_cpp/src/gpio.cpp \
+						../stm32f10x_cpp/src/timer.cpp \
+						../stm32f10x_cpp/src/clock.cpp \
 						src/main.cpp
 
 ASMFLAGS			:= -mcpu=cortex-m3
