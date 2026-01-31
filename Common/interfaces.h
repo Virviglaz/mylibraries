@@ -280,7 +280,7 @@ public:
 	 *
 	 * @param port_number UART port number
 	 */
-	explicit
+	explicit constexpr
 	UART_InterfaceBase(uint8_t port_number) : port_number_(port_number) {}
 
 	/**

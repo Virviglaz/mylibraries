@@ -1,16 +1,19 @@
 #include "gpio.h"
 #include "timer.h"
 #include "clock.h"
+#include "uart.h"
 
 static GPIO_Device led(2, 13, GPIO_DeviceBase::dir::OUTPUT);
 static Timer_Device timer(2);
+static UART_Device uart(1, 115200, 8000000);
 
 int main(void)
 {
-	Clocks::RunFromHSE(8000000UL);
+	Clocks::RunFromHSE();
 
 	timer.InitAt().Enable();
 	led.Init();
+	uart.Init();
 
 	while (true)
 	{
