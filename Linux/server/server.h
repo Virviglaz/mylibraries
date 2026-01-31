@@ -47,6 +47,7 @@
 
 #include <stdint.h>
 #include <cstddef>
+#include <memory>
 #include <thread>
 #include <mutex>
 #include <unordered_set>
@@ -118,7 +119,7 @@ class ServerBase
 public:
 	enum Protocol { TCP, UDP };
 
-	explicit ServerBase() = delete;
+	explicit ServerBase() = default;
 	~ServerBase();
 
 	/**
@@ -160,23 +161,27 @@ public:
 	 */
 	size_t GetMaxConnections() const;
 
-	ServerBase (const ServerBase&) = delete;
-	ServerBase (ServerBase&&) = delete;
-	ServerBase operator=(ServerBase&) = delete;
-
 	/** Event handlers to override */
 	virtual void OnConnect(const std::string& ip) {}
 	virtual void OnReceive(MessageBase &msg) = 0;
 	virtual void OnDisconnect() {}
 protected:
+	struct ServerSocket final {
+		friend class ServerBase;
+		ServerSocket(ServerBase &server);
+		~ServerSocket();
+		void Stop();
+		ServerBase &server;
+		int _sockfd;
+		std::thread _server_thread;
+		std::unordered_set<int> clients_list;
+		std::mutex guard;
+	};
+	std::shared_ptr<ServerSocket> _socket;
 	uint16_t _port;
 	size_t _msg_size;
 	size_t _max_connections;
 	Protocol _protocol;
-	std::thread _server_thread;
-	int _sockfd;
-	std::mutex guard;
-	std::unordered_set<int> clients_list;
 };
 
 class Client

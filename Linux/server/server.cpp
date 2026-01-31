@@ -82,8 +82,7 @@ size_t MessageBase::GetSize() const
 
 ServerBase::ServerBase(uint16_t port, size_t msg_size, size_t max_connections, Protocol protocol)
 	: _port(port), _msg_size(msg_size), _max_connections(max_connections), _protocol(protocol)
-{
-}
+{}
 
 ServerBase::~ServerBase()
 {
@@ -97,26 +96,24 @@ public:
 
 	void AddClient(int sockfd)
 	{
-		guard.lock();
-		clients_list.insert(sockfd);
-		guard.unlock();
+		std::lock_guard<std::mutex> lock(_socket->guard);
+		_socket->clients_list.insert(sockfd);
 	}
 
 	void RemoveClient(int sockfd)
 	{
-		guard.lock();
-		clients_list.erase(sockfd);
-		guard.unlock();
+		std::lock_guard<std::mutex> lock(_socket->guard);
+		_socket->clients_list.erase(sockfd);
 	}
 
 	int AcceptClient()
 	{
-		if (_sockfd < 0)
+		if (_socket->_sockfd < 0)
 			return -1;
 
 		socklen_t socklen;
 		struct sockaddr_in cli_addr;
-		int clientfd = accept(_sockfd, (struct sockaddr *)&cli_addr, &socklen);
+		int clientfd = accept(_socket->_sockfd, (struct sockaddr *)&cli_addr, &socklen);
 
 		return clientfd;
 	}
@@ -136,22 +133,21 @@ public:
 
 	void CloseAllClients()
 	{
-		guard.lock();
-		for (const auto& client: clients_list)
+		std::lock_guard<std::mutex> lock(_socket->guard);
+		for (const auto& client: _socket->clients_list)
 			close(client);
-		guard.unlock();
 	}
 
 	ssize_t ReceiveUDP(char *buffer, size_t size, struct sockaddr_in *cli_addr)
 	{
 		socklen_t si_client_len = sizeof(*cli_addr);
-		return recvfrom(_sockfd, buffer, size, 0,
+		return recvfrom(_socket->_sockfd, buffer, size, 0,
 				(struct sockaddr *)cli_addr, &si_client_len);
 	}
 
 	int GetSockfd() const
 	{
-		return _sockfd;
+		return _socket->_sockfd;
 	}
 };
 
@@ -260,7 +256,18 @@ static void udp_handler(ServerBase *server)
 
 void ServerBase::Start()
 {
-	_sockfd = socket(AF_INET, _protocol == Protocol::TCP ? SOCK_STREAM : SOCK_DGRAM, 0);
+	_socket = std::make_shared<ServerSocket>(*this);
+}
+
+void ServerBase::Stop()
+{
+	_socket->Stop();
+}
+
+ServerBase::ServerSocket::ServerSocket(ServerBase &server)
+	: server(server)
+{
+	_sockfd = socket(AF_INET, server._protocol == ServerBase::Protocol::TCP ? SOCK_STREAM : SOCK_DGRAM, 0);
 	if (_sockfd < 0)
 		throw std::runtime_error(
 			"ServerBase::Start: Open socket error: " + std::to_string(errno) + ": " + std::string(strerror(errno)));
@@ -269,7 +276,7 @@ void ServerBase::Start()
 	struct sockaddr_in serv_addr;
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	serv_addr.sin_port = htons(_port);
+	serv_addr.sin_port = htons(server._port);
 
 	if (bind(_sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
 	{
@@ -279,9 +286,9 @@ void ServerBase::Start()
 	}
 
 	/* Start listening for incoming connections. */
-	if (_protocol == Protocol::TCP)
+	if (server._protocol == ServerBase::Protocol::TCP)
 	{
-		int res = listen(_sockfd, _max_connections);
+		int res = listen(_sockfd, server._max_connections);
 		if (res)
 		{
 			close(_sockfd);
@@ -291,13 +298,13 @@ void ServerBase::Start()
 	}
 
 	/* Start server thread */
-	_server_thread = std::thread(_protocol == Protocol::TCP ? tcp_handler : udp_handler, this);
+	_server_thread = std::thread(server._protocol == ServerBase::Protocol::TCP ? tcp_handler : udp_handler, &server);
 }
 
-void ServerBase::Stop()
+void ServerBase::ServerSocket::Stop()
 {
 	/* Close all client connections */
-	ServerInternal *srv = static_cast<ServerInternal *>(this);
+	ServerInternal *srv = static_cast<ServerInternal *>(&server);
 	srv->CloseAllClients();
 
 	/* Close socket to terminate server thread */
@@ -312,10 +319,15 @@ void ServerBase::Stop()
 		_server_thread.join();
 }
 
+ServerBase::ServerSocket::~ServerSocket()
+{
+	Stop();
+}
+
 size_t ServerBase::GetNumberOfClients()
 {
-	std::lock_guard<std::mutex> lock(guard);
-	return clients_list.size();
+	std::lock_guard<std::mutex> lock(_socket->guard);
+	return _socket->clients_list.size();
 }
 
 size_t ServerBase::GetMaxConnections() const
