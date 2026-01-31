@@ -51,8 +51,11 @@
 
 #include <stm32f10x.h>
 
-struct Clocks
+#define HSE_DEFAULT_CLOCK_FREQ		8000000UL
+
+class Clocks
 {
+public:
 	enum ClockSource
 	{
 		NO_CLOCK,
@@ -66,12 +69,14 @@ struct Clocks
 		INV_CLOCK,		  /* Invalid value */
 	};
 
-	/**
-	 * Get current clock configuration
-	 *
-	 * @return Current clock configuration
-	 */
 	Clocks();
+
+	/**
+	 * Update current clock configuration
+	 *
+	 * @return Reference to updated clock configuration
+	 */
+	Clocks &Update();
 
 	/**
 	 * Get current clock source
@@ -90,15 +95,14 @@ struct Clocks
 	 *
 	 * @param crystal_freq_hz External crystal frequency in Hz
 	 */
-	static void RunFromHSE(uint32_t crystal_freq_hz);
+	static void RunFromHSE(uint32_t crystal_freq_hz = HSE_DEFAULT_CLOCK_FREQ);
 
 	/**
-	 * Run system from PLL clock source.
+	 * Enable PLL for current clock source.
 	 *
-	 * @param source PLL clock source
 	 * @param mult PLL multiplication factor
 	 */
-	static void RunFromPLL(ClockSource source, uint8_t mult);
+	static void EnablePLL(uint8_t mult);
 
 	/**
 	 * CPU frequency in Hz

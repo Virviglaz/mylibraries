@@ -45,9 +45,20 @@
 #include "clock.h"
 
 #define HSI_CLOCK_FREQ		8000000UL
-#define HSE_CLOCK_FREQ		8000000UL
 
-static uint32_t hse_freq = HSE_CLOCK_FREQ;
+static uint32_t hse_freq_ = HSE_DEFAULT_CLOCK_FREQ;
+static uint32_t cpu_freq_hz_ = HSI_CLOCK_FREQ;
+static uint32_t ahb_freq_hz_ = HSI_CLOCK_FREQ;
+static uint32_t apb1_freq_hz_ = HSI_CLOCK_FREQ;
+static uint32_t apb2_freq_hz_ = HSI_CLOCK_FREQ;
+static Clocks::ClockSource current_source_ = Clocks::ClockSource::HSI_CLOCK;
+
+Clocks::Clocks()
+	: cpu_freq_hz(cpu_freq_hz_),
+	  ahb_freq_hz(ahb_freq_hz_),
+	  apb1_freq_hz(apb1_freq_hz_),
+	  apb2_freq_hz(apb2_freq_hz_)
+{}
 
 static uint32_t get_ahb_mult(void)
 {
@@ -82,20 +93,20 @@ static uint8_t get_pll_mult(void)
 	return mult >= 2 ? mult + 2 : 1;
 }
 
-Clocks::Clocks()
+Clocks &Clocks::Update()
 {
 	switch (Clocks::GetClockSource()) {
 	case HSI_CLOCK:
 		cpu_freq_hz = HSI_CLOCK_FREQ;
 		break;
 	case HSE_CLOCK:
-		cpu_freq_hz = hse_freq;
+		cpu_freq_hz = hse_freq_;
 		break;
 	case PLL_CLOCK:
 		if (get_pll_source() == HSI_CLOCK)
 			cpu_freq_hz = HSI_CLOCK_FREQ / 2 * get_pll_mult();
 		else
-			cpu_freq_hz = hse_freq * get_pll_mult();
+			cpu_freq_hz = hse_freq_ * get_pll_mult();
 		break;
 	default:
 		cpu_freq_hz = 0;
@@ -105,6 +116,8 @@ Clocks::Clocks()
 	ahb_freq_hz = cpu_freq_hz / get_ahb_mult();
 	apb1_freq_hz = ahb_freq_hz / get_apb1_mult();
 	apb2_freq_hz = ahb_freq_hz / get_apb2_mult();
+
+	return *this;
 }
 
 Clocks::ClockSource Clocks::GetClockSource()
@@ -131,32 +144,33 @@ void Clocks::RunFromHSI()
 	RCC->CFGR &= ~RCC_CFGR_SW;
 	RCC->CFGR |= RCC_CFGR_SW_HSI;
 
-	while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSI)
-		;
+	while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSI) {}
+
+	current_source_ = Clocks::ClockSource::HSI_CLOCK;
 }
 
 void Clocks::RunFromHSE(uint32_t crystal_freq_hz)
 {
-	hse_freq = crystal_freq_hz;
+	hse_freq_ = crystal_freq_hz;
 
 	RCC->CR |= RCC_CR_CSSON | RCC_CR_HSEON;
 
-	while (!(RCC->CR & RCC_CR_HSERDY))
-		;
+	while (!(RCC->CR & RCC_CR_HSERDY)) {}
 
 	RCC->CFGR &= ~RCC_CFGR_SW;
 	RCC->CFGR |= RCC_CFGR_SW_HSE;
 
-	while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSE)
-		;
+	while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSE) {}
+
+	current_source_ = Clocks::ClockSource::HSE_CLOCK;
 }
 
-void Clocks::RunFromPLL(ClockSource source, uint8_t mult)
+void Clocks::EnablePLL(uint8_t mult)
 {
 	if (mult >= 2 && mult <= 16)
 		return;	
 
-	switch (source) {
+	switch (current_source_) {
 	case HSE_CLOCK:
 		RCC->CFGR &= ~RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLSRC;
 		RCC->CFGR |= RCC_CFGR_PLLSRC;
@@ -175,12 +189,16 @@ void Clocks::RunFromPLL(ClockSource source, uint8_t mult)
 	RCC->CFGR |= (uint32_t)(mult - 2) << 18;
 	RCC->CR |=  RCC_CR_CSSON | RCC_CR_PLLON;
 
-	while (!(RCC->CR & RCC_CR_PLLRDY))
-		;
+	while (!(RCC->CR & RCC_CR_PLLRDY)) {}
 
 	RCC->CFGR &= ~RCC_CFGR_SW;
 	RCC->CFGR |= RCC_CFGR_SW_PLL;
 
-	while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL)
-		;
+	while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL) {}
+
+	current_source_ = Clocks::ClockSource::PLL_CLOCK;
+	cpu_freq_hz_ = hse_freq_ * mult;
+	ahb_freq_hz_ = cpu_freq_hz_ / get_ahb_mult();
+	apb1_freq_hz_ = ahb_freq_hz_ / get_apb1_mult();
+	apb2_freq_hz_ = ahb_freq_hz_ / get_apb2_mult();
 }
