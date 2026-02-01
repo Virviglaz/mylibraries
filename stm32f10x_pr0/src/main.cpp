@@ -7,9 +7,26 @@ static GPIO_Device led(2, 13, GPIO_DeviceBase::dir::OUTPUT);
 static Timer_Device timer(2);
 static UART_Device uart(1, 115200, 8000000);
 
+void some_delay_function()
+{
+	for (volatile int i = 0; i < 1000000; ++i)
+	{
+		__asm__("nop");
+	}
+}
+
+void timer_delay_function()
+{
+	for (volatile int i = 0; i < 100; ++i)
+	{
+		timer.Wait(10000);
+	}
+}
+
 int main(void)
 {
 	Clocks::RunFromHSE();
+	Clocks::EnablePLL(9);
 
 	timer.InitAt().Enable();
 	led.Init();
@@ -18,10 +35,12 @@ int main(void)
 	while (true)
 	{
 		led.Set(1);
-		timer.Wait(50000);
+		//timer.Wait(30000);
+		timer_delay_function();
 
 		led.Set(0);
-		timer.Wait(50000);
+		//timer.Wait(30000);
+		timer_delay_function();
 	}
 
 	return 0;

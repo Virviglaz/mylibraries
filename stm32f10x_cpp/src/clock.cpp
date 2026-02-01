@@ -83,7 +83,7 @@ static uint32_t get_apb2_mult(void)
 
 static inline Clocks::ClockSource get_pll_source(void)
 {
-	return RCC->CFGR & RCC_CFGR_PLLSRC ? Clocks::HSE_CLOCK : Clocks::HSI_CLOCK;
+	return RCC->CFGR & RCC_CFGR_PLLSRC ? Clocks::ClockSource::HSE_CLOCK : Clocks::ClockSource::HSI_CLOCK;
 }
 
 static uint8_t get_pll_mult(void)
@@ -96,14 +96,14 @@ static uint8_t get_pll_mult(void)
 Clocks &Clocks::Update()
 {
 	switch (Clocks::GetClockSource()) {
-	case HSI_CLOCK:
+	case Clocks::ClockSource::HSI_CLOCK:
 		cpu_freq_hz = HSI_CLOCK_FREQ;
 		break;
-	case HSE_CLOCK:
+	case Clocks::ClockSource::HSE_CLOCK:
 		cpu_freq_hz = hse_freq_;
 		break;
-	case PLL_CLOCK:
-		if (get_pll_source() == HSI_CLOCK)
+	case Clocks::ClockSource::PLL_CLOCK:
+		if (get_pll_source() == Clocks::ClockSource::HSI_CLOCK)
 			cpu_freq_hz = HSI_CLOCK_FREQ / 2 * get_pll_mult();
 		else
 			cpu_freq_hz = hse_freq_ * get_pll_mult();
@@ -123,23 +123,22 @@ Clocks &Clocks::Update()
 Clocks::ClockSource Clocks::GetClockSource()
 {
 	if ((RCC->CFGR & RCC_CFGR_SWS) == RCC_CFGR_SWS_HSI)
-		return ClockSource::HSI_CLOCK;
+		return Clocks::ClockSource::HSI_CLOCK;
 
 	if ((RCC->CFGR & RCC_CFGR_SWS) == RCC_CFGR_SWS_HSE)
-		return ClockSource::HSE_CLOCK;
+		return Clocks::ClockSource::HSE_CLOCK;
 
 	if ((RCC->CFGR & RCC_CFGR_SWS) == RCC_CFGR_SWS_PLL)
-		return ClockSource::PLL_CLOCK;
+		return Clocks::ClockSource::PLL_CLOCK;
 
-	return ClockSource::INV_CLOCK;
+	return Clocks::ClockSource::INV_CLOCK;
 }
 
 void Clocks::RunFromHSI()
 {
 	RCC->CR |= RCC_CR_HSION;
 
-	while (!(RCC->CR & RCC_CR_HSIRDY))
-		;
+	while (!(RCC->CR & RCC_CR_HSIRDY)) {}
 
 	RCC->CFGR &= ~RCC_CFGR_SW;
 	RCC->CFGR |= RCC_CFGR_SW_HSI;
@@ -171,14 +170,14 @@ void Clocks::EnablePLL(uint8_t mult)
 		return;	
 
 	switch (current_source_) {
-	case HSE_CLOCK:
+	case Clocks::ClockSource::HSE_CLOCK:
 		RCC->CFGR &= ~RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLSRC;
 		RCC->CFGR |= RCC_CFGR_PLLSRC;
 		break;
-	case HSE_CLOCK_DIV2:
+	case Clocks::ClockSource::HSE_CLOCK_DIV2:
 		RCC->CFGR |= RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLSRC;
 		break;
-	case HSI_CLOCK:
+	case Clocks::ClockSource::HSI_CLOCK:
 		RCC->CFGR &= ~RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLSRC;
 		break;
 	default:
