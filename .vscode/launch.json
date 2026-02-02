@@ -1,57 +1,71 @@
 {
-        // Use IntelliSense to learn about possible attributes.
-        // Hover to view descriptions of existing attributes.
-        // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-        "version": "0.2.0",
-        "configurations": [
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "STM32F103C8 Debug (Windows)",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/stm32f10x_pr0/build/stm32f103rbt6.elf",
+            "request": "launch",
+            "type": "cortex-debug",
+            "runToEntryPoint": "main",
+            "servertype": "jlink",
+            "serverpath": "C:\\Program Files\\SEGGER\\JLink_V810d\\JLinkGDBServerCL.exe",
+            "serverArgs": [],
+            "device": "STM32F103C8",
+            "interface": "swd",
+            "svdFile": "${workspaceFolder}/stm32f10x_pr0/STM32F103.svd",
+            "armToolchainPath": "C:\\Toolchains\\gcc-arm-none-eabi-10.3-2021.10\\bin"
+        },
+        {
+            "name": "(gdb) Linux Test Server",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Linux/server/build/test_server",
+            "args": [],
+            "stopAtEntry": true,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
                 {
-                        "name": "(gdb) Linux Test Server",
-                        "type": "cppdbg",
-                        "request": "launch",
-                        "program": "${workspaceFolder}/Linux/server/build/test_server",
-                        "args": [],
-                        "stopAtEntry": true,
-                        "cwd": "${fileDirname}",
-                        "environment": [],
-                        "externalConsole": false,
-                        "MIMode": "gdb",
-                        "setupCommands": [
-                            {
-                                "description": "Enable pretty-printing for gdb",
-                                "text": "-enable-pretty-printing",
-                                "ignoreFailures": true
-                            },
-                            {
-                                "description": "Set Disassembly Flavor to Intel",
-                                "text": "-gdb-set disassembly-flavor intel",
-                                "ignoreFailures": true
-                            }
-                        ]
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
                 },
-				{
-					"name": "(gdb) Common Library Tests",
-					"type": "cppdbg",
-					"request": "launch",
-					"program": "${workspaceFolder}/Common/test/build/test",
-					"args": [],
-					"stopAtEntry": true,
-					"cwd": "${workspaceFolder}/Common/test",
-					"environment": [],
-					"externalConsole": false,
-					"MIMode": "gdb",
-					"setupCommands": [
-						{
-							"description": "Enable pretty-printing for gdb",
-							"text": "-enable-pretty-printing",
-							"ignoreFailures": true
-						},
-						{
-							"description": "Set Disassembly Flavor to Intel",
-							"text": "-gdb-set disassembly-flavor intel",
-							"ignoreFailures": true
-						}
-					]
-			}
-
-        ]
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb) Common Library Tests",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Common/test/build/test",
+            "args": [],
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}/Common/test",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+    ]
 }

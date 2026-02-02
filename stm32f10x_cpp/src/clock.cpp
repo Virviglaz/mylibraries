@@ -166,7 +166,7 @@ void Clocks::RunFromHSE(uint32_t crystal_freq_hz)
 
 void Clocks::EnablePLL(uint8_t mult)
 {
-	if (mult >= 2 && mult <= 16)
+	if (mult < 2 || mult > 16)
 		return;	
 
 	switch (current_source_) {
