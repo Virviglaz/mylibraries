@@ -25,8 +25,8 @@ void timer_delay_function()
 
 int main(void)
 {
-	Clocks::RunFromHSE();
 	Clocks::EnablePLL(9);
+	Clocks::RunFromHSE();
 
 	timer.InitAt().Enable();
 	led.Init();
