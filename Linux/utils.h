@@ -79,6 +79,7 @@ std::vector<std::string> get_backtrace()
 	// resolve addresses into strings containing "filename(function+address)",
 	// this array must be free()-ed
 	char **symbollist = backtrace_symbols(addrlist, addrlen);
+	result.reserve(addrlen);
 
 	for (int i = 0; i < addrlen; i++)
 	{
@@ -151,6 +152,73 @@ private:
 	const char *name_;
 	bool report_;
 	time_t start_time_;
+};
+
+/**
+ * @class ClassTracer
+ * @brief A utility class that logs backtraces for constructor, destructor, copy constructor, and copy assignment operator.
+ *
+ * This class is designed to help trace the lifecycle of objects by logging backtraces whenever key operations occur.
+ */
+class ClassTracer
+{
+public:
+	ClassTracer(const std::string& class_name, bool show_backtrace = false) :
+		class_name_(class_name), show_backtrace_(show_backtrace)
+	{
+		log_backtrace("Constructor");
+	}
+
+	~ClassTracer() noexcept
+	{
+		log_backtrace("Destructor");
+	}
+
+	ClassTracer(const ClassTracer& t) noexcept : class_name_(t.class_name_), show_backtrace_(t.show_backtrace_)
+	{
+		log_backtrace("Copy Constructor");
+	}
+
+	ClassTracer& operator=(const ClassTracer& t) noexcept
+	{
+		if (this != &t)
+		{
+			log_backtrace("Copy Assignment Operator");
+			class_name_ = t.class_name_;
+			show_backtrace_ = t.show_backtrace_;
+		}
+		return *this;
+	}
+
+	ClassTracer(ClassTracer&& t) noexcept :
+		class_name_(std::move(t.class_name_)), show_backtrace_(t.show_backtrace_)
+	{
+		log_backtrace("Move Constructor");
+	}
+
+	void PrintTestMessage(const std::string& message)
+	{
+		printf("[%s], Message: %s\n", class_name_.c_str(), message.c_str());
+	}
+private:
+	void log_backtrace(const std::string& source)
+	{
+		if (!show_backtrace_)
+		{
+			printf("[%s]: %s\n", class_name_.c_str(), source.c_str());
+			return;
+		}
+
+		printf("[%s]: Backtrace for class %s:\n", class_name_.c_str(), source.c_str());
+		std::vector<std::string> backtrace = get_backtrace();
+		for (const auto& frame : backtrace)
+		{
+			printf("  %s\n", frame.c_str());
+		}
+	}
+
+	std::string class_name_;
+	bool show_backtrace_;
 };
 
 #endif // UTILS_H
