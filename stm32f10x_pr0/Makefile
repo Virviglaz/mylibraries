@@ -25,6 +25,7 @@ SRC					:= \
 						../stm32f10x_cpp/src/timer.cpp \
 						../stm32f10x_cpp/src/clock.cpp \
 						../stm32f10x_cpp/src/uart.cpp \
+						../stm32f10x_cpp/src/delays.cpp \
 						src/main.cpp
 
 ASMFLAGS			:= -mcpu=cortex-m3
