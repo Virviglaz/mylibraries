@@ -4,11 +4,7 @@
 
 int main(int argc, char *argv[])
 {
-	auto backtrace = get_backtrace();
-	assert(!backtrace.empty());
-	for (const auto &frame : backtrace) {
-		std::cout << frame << std::endl;
-	}
+	assert(Backtrace().Print().GetFrames().size() > 0);
 
 	return 0;
 }

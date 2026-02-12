@@ -62,7 +62,17 @@
 #ifndef BT_BUF_SIZE
 #define BT_BUF_SIZE 100
 #endif
-std::vector<std::string> get_backtrace()
+
+/**
+ * @brief Captures the current call stack (backtrace) and returns it as a vector of strings.
+ *
+ * This function uses the `backtrace` and `backtrace_symbols` functions from the execinfo library
+ * to capture and resolve the call stack. The resulting vector contains human-readable strings
+ * representing each frame in the call stack.
+ *
+ * @return A vector of strings representing the captured backtrace frames.
+ */
+static inline std::vector<std::string> get_backtrace()
 {
 	std::vector<std::string> result;
 	void *addrlist[BT_BUF_SIZE];
@@ -72,13 +82,14 @@ std::vector<std::string> get_backtrace()
 
 	if (addrlen == 0)
 	{
-		result.push_back("<empty, possibly corrupt>");
-		return result;
+		return std::vector<std::string>({"<empty, possibly corrupt>"});
 	}
 
 	// resolve addresses into strings containing "filename(function+address)",
 	// this array must be free()-ed
 	char **symbollist = backtrace_symbols(addrlist, addrlen);
+
+	result.reserve(addrlen);
 
 	for (int i = 0; i < addrlen; i++)
 	{
@@ -89,6 +100,60 @@ std::vector<std::string> get_backtrace()
 	return result;
 }
 
+/**
+ * @class Backtrace
+ * @brief A class that captures and prints the current call stack (backtrace).
+ */
+class Backtrace
+{
+public:
+	/** 
+	 * @brief Constructs a Backtrace object and captures the current call stack.
+	 *
+	 * @param max_frames The maximum number of stack frames to capture (default is BT_BUF_SIZE).
+	 */
+	explicit Backtrace(size_t max_frames = BT_BUF_SIZE)
+	{
+		symbollist_ = get_backtrace();
+	}
+
+	/** 
+	 * @brief Prints the captured backtrace to the standard output.
+	 *
+	 * @return A reference to the Backtrace object for chaining.
+	 */
+	Backtrace &Print() noexcept
+	{
+		for (const auto &frame : symbollist_)
+		{
+			printf("%s\n", frame.c_str());
+		}
+
+		return *this;
+	}
+
+	/** 
+	 * @brief Returns the captured backtrace as a vector of strings.
+	 *
+	 * @return A vector of strings representing the captured backtrace frames.
+	 */
+	std::vector<std::string> GetFrames() const noexcept
+	{
+		return symbollist_;
+	}
+protected:
+	std::vector<std::string> symbollist_;
+};
+
+/**
+ * @brief Retrieves the current memory usage of the process in bytes.
+ *
+ * This function uses the `getrusage` system call to obtain resource usage information
+ * for the calling process. It specifically retrieves the maximum resident set size (RSS)
+ * which represents the peak memory usage of the process. The value is returned in bytes.
+ *
+ * @return The current memory usage of the process in bytes.
+ */
 uint64_t get_memory_usage()
 {
 	struct rusage usage;
@@ -96,6 +161,16 @@ uint64_t get_memory_usage()
 	return static_cast<uint64_t>(usage.ru_maxrss) * 1024; // Convert from KB to Bytes
 }
 
+/**
+ * @brief Retrieves the current CPU time used by the process in microseconds.
+ *
+ * This function uses the `getrusage` system call to obtain resource usage information
+ * for the calling process. It specifically retrieves the user CPU time (ru_utime)
+ * which represents the amount of CPU time spent executing user code. The value is
+ * returned in microseconds.
+ *
+ * @return The current CPU time used by the process in microseconds.
+ */
 time_t get_cpu_time_us()
 {
 	struct rusage rusage;
