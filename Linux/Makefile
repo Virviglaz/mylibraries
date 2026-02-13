@@ -8,7 +8,7 @@ SRC				+= i2c.cpp
 
 CPPFLAGS		:= -std=c++14 -O0
 
-LDFLAGS			:=
+LDFLAGS			:= -rdynamic
 
 include Makefile.common
 
