@@ -59,7 +59,7 @@ public:
 	 * @param scl_pin GPIO pin for SCL line
 	 */
 	I2C_GPIO(GPIO_DeviceBase &sda_pin, GPIO_DeviceBase &scl_pin, std::function<void()> delay_func)
-		: I2C_InterfaceBase(0), sda_pin_(sda_pin), scl_pin_(scl_pin), delay_func_(delay_func) {}
+		: sda_pin_(sda_pin), scl_pin_(scl_pin), delay_func_(delay_func) {}
 
 	/**
 	 * Write data to I2C device
