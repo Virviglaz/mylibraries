@@ -144,16 +144,8 @@ public:
 class I2C_InterfaceBase
 {
 public:
-	explicit I2C_InterfaceBase() = delete;
+	explicit I2C_InterfaceBase() = default;
 	virtual ~I2C_InterfaceBase() = default;
-
-	/**
-	 * Constructor
-	 *
-	 * @param bus_number I2C bus number
-	 */
-	explicit
-	I2C_InterfaceBase(uint8_t bus_number) : bus_number_(bus_number) {}
 
 	/**
 	 * Write data to I2C device (optional)
@@ -180,8 +172,6 @@ public:
 	 */
 	virtual int Read(uint8_t device_addr, uint8_t reg_addr,
 					 uint8_t *data, uint32_t length) = 0;
-protected:
-	uint8_t bus_number_;
 };
 
 /**

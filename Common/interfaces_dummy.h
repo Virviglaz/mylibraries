@@ -4,7 +4,7 @@
  *
  *   MIT License
  *
- *   Copyright (c) 2025 Pavel Nadein
+ *   Copyright (c) 2025-2026 Pavel Nadein
  *
  *   Permission is hereby granted, free of charge, to any person obtaining a copy
  *   of this software and associated documentation files (the "Software"), to deal
@@ -52,7 +52,7 @@
 class I2C_InterfaceDummy : public I2C_InterfaceBase
 {
 public:
-	I2C_InterfaceDummy() : I2C_InterfaceBase(0) {}
+	I2C_InterfaceDummy() {}
 	int Read(uint8_t device_addr, uint8_t reg_addr,
 			 uint8_t *data, uint32_t length) override
 	{ return 0; }

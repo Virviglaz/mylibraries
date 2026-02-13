@@ -1,7 +1,10 @@
 BUILDDIR		:= build
 TARGET			:= test
 
+INC				:= ../Common
+
 SRC				:= test.cpp
+SRC				+= i2c.cpp
 
 CPPFLAGS		:= -std=c++14 -O0
 

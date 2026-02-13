@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2020 Pavel Nadein
+ * Copyright (c) 2020-2026 Pavel Nadein
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -47,7 +47,33 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+#include "interfaces.h"
+
+class I2C : public I2C_InterfaceBase
+{
+public:
+	explicit I2C(const char *dev);
+	virtual ~I2C() override;
+
+	virtual
+	int Write(uint8_t device_addr,
+			  uint8_t reg_addr,
+			  const uint8_t *data,
+			  uint32_t length) override;
+
+	virtual
+	int Read(uint8_t device_addr,
+			 uint8_t reg_addr,
+			 uint8_t *data,
+			 uint32_t length) override;
+private:
+	int fd;
+};
+
+#else /* C */
 int i2c_wr(const char *dev, uint8_t addr, uint8_t reg, uint8_t *data, uint16_t size);
 int i2c_rd(const char *dev, uint8_t addr, uint8_t reg, uint8_t *data, uint16_t size);
+#endif /* __cplusplus */
 
 #endif /* __I2C_H__ */

@@ -107,7 +107,7 @@ static inline std::vector<std::string> get_backtrace()
 class Backtrace
 {
 public:
-	/** 
+	/**
 	 * @brief Constructs a Backtrace object and captures the current call stack.
 	 *
 	 * @param max_frames The maximum number of stack frames to capture (default is BT_BUF_SIZE).
@@ -117,7 +117,7 @@ public:
 		symbollist_ = get_backtrace();
 	}
 
-	/** 
+	/**
 	 * @brief Prints the captured backtrace to the standard output.
 	 *
 	 * @return A reference to the Backtrace object for chaining.
@@ -132,7 +132,7 @@ public:
 		return *this;
 	}
 
-	/** 
+	/**
 	 * @brief Returns the captured backtrace as a vector of strings.
 	 *
 	 * @return A vector of strings representing the captured backtrace frames.
@@ -187,7 +187,7 @@ static time_t elapsed;
 class BenchmarkTimer
 {
 public:
-	/** 
+	/**
 	 * @brief Constructs a BenchmarkTimer and starts timing.
 	 *
 	 * @param name Optional name for the timer to identify the benchmark.
@@ -213,7 +213,7 @@ public:
 		}
 	}
 
-	/** 
+	/**
 	 * @brief Returns the elapsed time in microseconds.
 	 *
 	 * @return Elapsed time in microseconds.
