@@ -106,6 +106,13 @@ public:
 
 	/**
 	 * CPU frequency in Hz
+	 *
+	 * @return CPU frequency in Hz
+	 */
+	static uint32_t GetCPUFreqHz();
+
+	/**
+	 * CPU frequency in Hz
 	 */
 	uint32_t cpu_freq_hz;
 

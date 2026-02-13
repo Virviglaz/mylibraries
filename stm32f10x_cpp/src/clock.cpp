@@ -202,3 +202,8 @@ void Clocks::EnablePLL(uint8_t mult)
 	apb1_freq_hz_ = ahb_freq_hz_ / get_apb1_mult();
 	apb2_freq_hz_ = ahb_freq_hz_ / get_apb2_mult();
 }
+
+uint32_t Clocks::GetCPUFreqHz()
+{
+	return cpu_freq_hz_;
+}

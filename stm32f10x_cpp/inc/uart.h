@@ -48,6 +48,7 @@
 #include <cstdint>
 #include "interfaces.h"
 #include <stm32f10x.h>
+#include "clock.h"
 
 class UART_Device : public UART_InterfaceBase
 {
@@ -61,11 +62,16 @@ public:
 	 * @param port_number UART port number
 	 * @param baudrate UART baudrate
 	 * @param peripheral_clock Peripheral clock frequency
+	 *
+	 * @note Peripheral clock frequency is CPU frequency by default.
+	 * When using defailt value, class constructor will become runtime expression.
+	 * Thus, if you need a compile-time constant constructor,
+	 * you should provide peripheral clock frequency explicitly.
 	 */
 	explicit constexpr
 	UART_Device(uint8_t port_number,
 				uint32_t baudrate,
-				uint32_t peripheral_clock) :
+				uint32_t peripheral_clock = Clocks::GetCPUFreqHz()) :
 				UART_InterfaceBase(port_number),
 				brr_value_(UART_BRR_SAMPLING8(peripheral_clock, baudrate)),
 				uart_instance_(Get_UART_Instance(port_number)) {}

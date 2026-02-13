@@ -2,6 +2,7 @@
 #include "timer.h"
 #include "clock.h"
 #include "uart.h"
+#include "delays.h"
 
 static GPIO_Device led(2, 13, GPIO_DeviceBase::dir::OUTPUT);
 static Timer_Device timer(2);
@@ -10,6 +11,7 @@ static UART_Device uart(1, 115200, 8000000);
 int main(void)
 {
 	Clocks::RunFromHSE();
+	Delays::Init();
 
 	timer.InitAt().Enable();
 	led.Init();
@@ -18,10 +20,12 @@ int main(void)
 	while (true)
 	{
 		led.Set(1);
-		timer.Wait(50000);
+		//timer.Wait(50000);
+		Delays::DelayMs(500);
 
 		led.Set(0);
-		timer.Wait(50000);
+		//timer.Wait(50000);
+		Delays::DelayMs(500);
 	}
 
 	return 0;
