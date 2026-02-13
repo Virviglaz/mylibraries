@@ -50,18 +50,46 @@
 #ifdef __cplusplus
 #include "interfaces.h"
 
+/**
+ * Linux I2C Interface Implementation
+ */
 class I2C : public I2C_InterfaceBase
 {
 public:
+	/**
+	 * Constructor
+	 *
+	 * @param dev I2C device file (e.g. "/dev/i2c-1")
+	 */
 	explicit I2C(const char *dev);
 	virtual ~I2C() override;
 
+	/**
+	 * @brief Write data to I2C device
+	 *
+	 * @param device_addr I2C device address
+	 * @param reg_addr Register address to write to
+	 * @param data Data to write
+	 * @param length Length of data to write
+	 *
+	 * @return 0 on success, negative value on error
+	 */
 	virtual
 	int Write(uint8_t device_addr,
 			  uint8_t reg_addr,
 			  const uint8_t *data,
 			  uint32_t length) override;
 
+	/**
+	 * @brief Read data from I2C device
+	 *
+	 * @param device_addr I2C device address
+	 * @param reg_addr Register address to read from
+	 * @param data Buffer to store read data
+	 * @param length Length of data to read
+	 *
+	 * @return 0 on success, negative value on error
+	 */
 	virtual
 	int Read(uint8_t device_addr,
 			 uint8_t reg_addr,
