@@ -69,6 +69,8 @@ Timer_DeviceBase &Timer_Device::InitAt(uint32_t freq_hz)
 		tim_base_->PSC = (Clocks().apb2_freq_hz / freq_hz) - 1;
 	}
 
+	tim_base_->EGR = TIM_EGR_UG;
+
 	return *this;
 }
 
