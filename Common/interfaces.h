@@ -148,30 +148,59 @@ public:
 	virtual ~I2C_InterfaceBase() = default;
 
 	/**
-	 * Write data to I2C device (optional)
+	 * @brief Write data to I2C device
 	 *
 	 * @param device_addr I2C device address
-	 * @param reg_addr Register address to write to
-	 * @param data Data to write
-	 * @param length Length of data to write
+	 * @param reg_addr Pointer to register address to write to
+	 * @param reg_addr_length Length of the register address (1, 2 or 4 bytes)
+	 * @param data Pointer to data to write
+	 * @param data_length Length of data to write
 	 *
 	 * @return 0 on success, negative value on error
 	 */
-	virtual int Write(uint8_t device_addr, uint8_t reg_addr,
-					  const uint8_t *data, uint32_t length) { return 0; };
+	virtual int Write(uint8_t device_addr,
+					  const uint8_t *reg_addr,
+					  uint16_t reg_addr_length,
+					  const uint8_t *data,
+					  uint32_t data_length) = 0;
 
 	/**
-	 * Read data from I2C device
+	 * @brief Read data from I2C device
 	 *
 	 * @param device_addr I2C device address
-	 * @param reg_addr Register address to read from
+	 * @param reg_addr Pointer to register address to read from
+	 * @param reg_addr_length Length of the register address (1, 2 or 4 bytes)
 	 * @param data Buffer to store read data
-	 * @param length Length of data to read
+	 * @param data_length Length of data to read
 	 *
 	 * @return 0 on success, negative value on error
 	 */
-	virtual int Read(uint8_t device_addr, uint8_t reg_addr,
-					 uint8_t *data, uint32_t length) = 0;
+	virtual int Read(uint8_t device_addr,
+					 const uint8_t *reg_addr,
+					 uint16_t reg_addr_length,
+					 uint8_t *data,
+					 uint32_t data_length) = 0;
+
+	/**
+	 * Convenience template methods for common register address types
+	 * These methods allow you to use a single byte, word, or double word as the register address
+	 * without having to manually convert it to a byte array.
+	 * The template parameter T can be uint8_t, uint16_t, or uint32_t depending on the size of the register address.
+	 * The methods will automatically convert the register address to a byte array and call the main Write or Read method.
+	 * For example, if you have a device with 8-bit register addresses, you can simply call Write(device_addr, reg_addr,
+	 * data, length) where reg_addr is a uint8_t. If the device has 16-bit register addresses, you can use a uint16_t for reg_addr, and so on.
+	 */
+	template<typename T>
+	int Write(uint8_t device_addr, T reg_addr, uint8_t *data, uint32_t length)
+	{
+		return Write(device_addr, reinterpret_cast<uint8_t *>(&reg_addr), sizeof(reg_addr), data, length);
+	}
+
+	template<typename T>
+	int Read(uint8_t device_addr, T reg_addr, uint8_t *data, uint32_t length)
+	{
+		return Read(device_addr, reinterpret_cast<uint8_t *>(&reg_addr), sizeof(reg_addr), data, length);
+	}
 };
 
 /**

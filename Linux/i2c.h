@@ -68,33 +68,36 @@ public:
 	 * @brief Write data to I2C device
 	 *
 	 * @param device_addr I2C device address
-	 * @param reg_addr Register address to write to
-	 * @param data Data to write
-	 * @param length Length of data to write
+	 * @param reg_addr Pointer to register address to write to
+	 * @param reg_addr_length Length of the register address (1, 2 or 4 bytes)
+	 * @param data Pointer to data to write
+	 * @param data_length Length of data to write
 	 *
 	 * @return 0 on success, negative value on error
 	 */
-	virtual
-	int Write(uint8_t device_addr,
-			  uint8_t reg_addr,
-			  const uint8_t *data,
-			  uint32_t length) override;
+	virtual int Write(uint8_t device_addr,
+					  const uint8_t *reg_addr,
+					  uint16_t reg_addr_length,
+					  const uint8_t *data,
+					  uint32_t data_length) override;
 
 	/**
 	 * @brief Read data from I2C device
 	 *
 	 * @param device_addr I2C device address
-	 * @param reg_addr Register address to read from
+	 * @param reg_addr Pointer to register address to read from
+	 * @param reg_addr_length Length of the register address (1, 2 or 4 bytes)
 	 * @param data Buffer to store read data
-	 * @param length Length of data to read
+	 * @param data_length Length of data to read
 	 *
 	 * @return 0 on success, negative value on error
 	 */
-	virtual
-	int Read(uint8_t device_addr,
-			 uint8_t reg_addr,
-			 uint8_t *data,
-			 uint32_t length) override;
+	virtual int Read(uint8_t device_addr,
+					 const uint8_t *reg_addr,
+					 uint16_t reg_addr_length,
+					 uint8_t *data,
+					 uint32_t data_length) override;
+
 private:
 	int fd;
 };

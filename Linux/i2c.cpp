@@ -61,13 +61,14 @@ I2C::I2C(const char *dev)
 }
 
 int I2C::Write(uint8_t device_addr,
-			   uint8_t reg_addr,
+			   const uint8_t *reg_addr,
+			   uint16_t reg_addr_length,
 			   const uint8_t *data,
-			   uint32_t length)
+			   uint32_t data_length)
 {
 	struct i2c_msg msg[2] = {
-		{ reg_addr,		0,				sizeof(reg_addr),				&reg_addr },
-		{ device_addr,	I2C_M_NOSTART,	static_cast<uint16_t>(length),	const_cast<uint8_t *>(data) }
+		{ device_addr,	0,				reg_addr_length,					const_cast<uint8_t *>(reg_addr) },
+		{ device_addr,	I2C_M_NOSTART,	static_cast<uint16_t>(data_length),	const_cast<uint8_t *>(data) }
 	};
 
 	struct i2c_rdwr_ioctl_data msgset = { msg, 2 };
@@ -80,13 +81,14 @@ int I2C::Write(uint8_t device_addr,
 }
 
 int I2C::Read(uint8_t device_addr,
-			  uint8_t reg_addr,
+			  const uint8_t *reg_addr,
+			  uint16_t reg_addr_length,
 			  uint8_t *data,
-			  uint32_t length)
+			  uint32_t data_length)
 {
 	struct i2c_msg msg[2] = {
-		{ reg_addr,		0,				sizeof(reg_addr),				&reg_addr },
-		{ device_addr,	I2C_M_RD,		static_cast<uint16_t>(length),	data }
+		{ device_addr,	0,				reg_addr_length,					const_cast<uint8_t *>(reg_addr) },
+		{ device_addr,	I2C_M_RD,		static_cast<uint16_t>(data_length),	data }
 	};
 
 	struct i2c_rdwr_ioctl_data msgset = { msg, 2 };

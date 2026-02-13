@@ -52,9 +52,21 @@
 class I2C_InterfaceDummy : public I2C_InterfaceBase
 {
 public:
-	I2C_InterfaceDummy() {}
-	int Read(uint8_t device_addr, uint8_t reg_addr,
-			 uint8_t *data, uint32_t length) override
+	explicit I2C_InterfaceDummy() = default;
+	virtual ~I2C_InterfaceDummy() = default;
+
+	int Write(uint8_t device_addr,
+			  const uint8_t *reg_addr,
+			  uint16_t reg_addr_length,
+			  const uint8_t *data,
+			  uint32_t data_length) override
+	{ return 0; }
+
+	virtual int Read(uint8_t device_addr,
+					 const uint8_t *reg_addr,
+					 uint16_t reg_addr_length,
+					 uint8_t *data,
+					 uint32_t length) override
 	{ return 0; }
 };
 

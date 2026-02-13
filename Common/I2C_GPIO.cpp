@@ -144,8 +144,11 @@ uint16_t I2C_GPIO::ReadByte(bool ack)
 	return data;
 }
 
-int I2C_GPIO::Write(uint8_t device_addr, uint8_t reg_addr,
-					  const uint8_t *data, uint32_t length)
+int I2C_GPIO::Write(uint8_t device_addr,
+					const uint8_t *reg_addr,
+					uint16_t reg_addr_length,
+					const uint8_t *data,
+					uint32_t data_length)
 {
 	if (StartCondition() != 0)
 		return -EBUSY;
@@ -158,14 +161,17 @@ int I2C_GPIO::Write(uint8_t device_addr, uint8_t reg_addr,
 	}
 
 	// Send register address
-	if (WriteByte(reg_addr) != 0)
+	for (uint32_t i = 0; i < reg_addr_length; i++)
 	{
-		StopCondition();
-		return -EIO;
+		if (WriteByte(*reg_addr++) != 0)
+		{
+			StopCondition();
+			return -EIO;
+		}
 	}
 
 	// Send data bytes
-	for (uint32_t i = 0; i < length; i++)
+	for (uint32_t i = 0; i < data_length; i++)
 	{
 		if (WriteByte(data[i]) != 0)
 		{
@@ -178,8 +184,11 @@ int I2C_GPIO::Write(uint8_t device_addr, uint8_t reg_addr,
 	return 0;
 }
 
-int I2C_GPIO::Read(uint8_t device_addr, uint8_t reg_addr,
-					 uint8_t *data, uint32_t length)
+int I2C_GPIO::Read(uint8_t device_addr,
+				   const uint8_t *reg_addr,
+				   uint16_t reg_addr_length,
+				   uint8_t *data,
+				   uint32_t data_length)
 {
 	if (StartCondition() != 0)
 		return -EBUSY;
@@ -192,10 +201,13 @@ int I2C_GPIO::Read(uint8_t device_addr, uint8_t reg_addr,
 	}
 
 	// Send register address
-	if (WriteByte(reg_addr) != 0)
+	for (uint32_t i = 0; i < reg_addr_length; i++)
 	{
-		StopCondition();
-		return -EIO;
+		if (WriteByte(*reg_addr++) != 0)
+		{
+			StopCondition();
+			return -EIO;
+		}
 	}
 
 	// Repeat start condition
@@ -209,9 +221,9 @@ int I2C_GPIO::Read(uint8_t device_addr, uint8_t reg_addr,
 	}
 
 	// Read data bytes
-	for (uint32_t i = 0; i < length; i++)
+	for (uint32_t i = 0; i < data_length; i++)
 	{
-		bool ack = (i < (length - 1));
+		bool ack = (i < (data_length - 1));
 		data[i] = ReadByte(ack);
 	}
 
