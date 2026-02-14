@@ -59,7 +59,7 @@ void SPI::Init(const char *dev)
 		throw std::runtime_error("Failed to open SPI device: " + std::string(dev) + \
 			", error: " + strerror(errno));
 	}
-};
+}
 
 SPI::~SPI()
 {
