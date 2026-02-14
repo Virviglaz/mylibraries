@@ -209,16 +209,9 @@ public:
 class SPI_InterfaceBase : public SimpleInterfaceBase
 {
 public:
-	explicit SPI_InterfaceBase() = delete;
+	explicit SPI_InterfaceBase() = default;
 	virtual ~SPI_InterfaceBase() = default;
 
-	/**
-	 * Constructor
-	 *
-	 * @param bus_number SPI bus number
-	 */
-	explicit
-	SPI_InterfaceBase(uint8_t bus_number) : bus_number_(bus_number) {}
 	/**
 	 * @param tx_data Data to send
 	 * @param rx_data Buffer to store received data
@@ -229,60 +222,6 @@ public:
 	virtual int Transfer(const uint8_t *tx_data,
 						 uint8_t *rx_data,
 						 uint32_t length) = 0;
-
-	/**
-	 * Write a single byte of data
-	 *
-	 * @param data Byte to write
-	 * @return Reference to the interface object
-	 */
-	virtual SimpleInterfaceBase& WriteByte(uint8_t data) override
-	{
-		Transfer(&data, nullptr, 1);
-		return *this;
-	}
-
-	/**
-	 * Write a single word of data
-	 *
-	 * @param data Word to write
-	 * @return Reference to the interface object
-	 */
-	virtual SimpleInterfaceBase& WriteWord(uint16_t data) override
-	{
-		uint8_t tx_data[2];
-		tx_data[0] = (data >> 8) & 0xFF;
-		tx_data[1] = (data >> 0) & 0xFF;
-		Transfer(tx_data, nullptr, 2);
-		return *this;
-	}
-
-	/**
-	 * Read a single byte of data
-	 *
-	 * @return Read byte
-	 */
-	virtual uint8_t ReadByte() override
-	{
-		uint8_t data = 0;
-		Transfer(nullptr, &data, 1);
-		return data;
-	}
-
-	/**
-	 * Read a single word of data
-	 *
-	 * @return Read word
-	 */
-	virtual uint16_t ReadWord() override
-	{
-		uint8_t rx_data[2] = {0};
-		Transfer(nullptr, rx_data, 2);
-		return (static_cast<uint16_t>(rx_data[0]) << 8) |
-			   (static_cast<uint16_t>(rx_data[1]) << 0);
-	}
-protected:
-	uint8_t bus_number_;
 };
 
 /**

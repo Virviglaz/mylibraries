@@ -5,6 +5,7 @@ INC				:= ../Common
 
 SRC				:= test.cpp
 SRC				+= i2c.cpp
+SRC				+= spi.cpp
 
 CPPFLAGS		:= -std=c++14 -O0
 

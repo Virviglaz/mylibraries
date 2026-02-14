@@ -78,7 +78,8 @@ public:
 class SPI_InterfaceDummy : public SPI_InterfaceBase
 {
 public:
-	SPI_InterfaceDummy() : SPI_InterfaceBase(0) {}
+	SPI_InterfaceDummy() = default;
+
 	int Transfer(const uint8_t *tx_data,
 				 uint8_t *rx_data,
 				 uint32_t length) override { return 0; }
