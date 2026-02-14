@@ -57,12 +57,26 @@ class I2C : public I2C_InterfaceBase
 {
 public:
 	/**
-	 * Constructor
+	 * @brief Default constructor (does not initialize the interface)
+	 */
+	explicit I2C() = default;
+
+	/**
+	 * Constructor (initializes the interface)
 	 *
 	 * @param dev I2C device file (e.g. "/dev/i2c-1")
+	 * @throws std::runtime_error if initialization fails
 	 */
 	explicit I2C(const char *dev);
 	virtual ~I2C() override;
+
+	/**
+	 * @brief Initialize I2C interface
+	 *
+	 * @param dev I2C device file (e.g. "/dev/i2c-1")
+	 * @throws std::runtime_error if initialization fails
+	 */
+	void Init(const char *dev);
 
 	/**
 	 * @brief Write data to I2C device

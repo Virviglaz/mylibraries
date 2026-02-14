@@ -52,6 +52,12 @@
 #include <unistd.h>
 
 I2C::I2C(const char *dev)
+	: fd(-1)
+{
+	Init(dev);
+}
+
+void I2C::Init(const char *dev)
 {
 	fd = open(dev, O_RDWR);
 	if (fd < 0) {
