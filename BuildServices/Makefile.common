@@ -12,7 +12,7 @@
 #
 ################################################################################
 
-.PHONY: all strip static_lib dynamic_lib show_symbols objdump
+.PHONY: all strip static_lib dynamic_lib show_symbols objdump run
 
 CC					:= $(CROSS_COMPILE)gcc
 CPP					:= $(CROSS_COMPILE)g++
@@ -93,5 +93,8 @@ show_symbols: $(BUILDDIR)/$(TARGET)
 
 objdump: $(BUILDDIR)/$(TARGET)
 	@$(OBJDUMP) -T $(BUILDDIR)/$(TARGET)
+
+run: $(BUILDDIR)/$(TARGET)
+	@./$(BUILDDIR)/$(TARGET)
 
 -include $(OBJS:%.o=%.d)
