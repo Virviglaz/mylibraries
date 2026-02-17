@@ -4,6 +4,30 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+	{
+		"name": "(gdb) GMP PI Test",
+		"type": "cppdbg",
+		"request": "launch",
+		"program": "${workspaceFolder}/GMP/build/test",
+		"args": [],
+		"stopAtEntry": false,
+		"cwd": "${workspaceFolder}/GMP",
+		"environment": [],
+		"externalConsole": false,
+		"MIMode": "gdb",
+		"setupCommands": [
+			{
+				"description": "Enable pretty-printing for gdb",
+				"text": "-enable-pretty-printing",
+				"ignoreFailures": true
+			},
+			{
+				"description": "Set Disassembly Flavor to Intel",
+				"text": "-gdb-set disassembly-flavor intel",
+				"ignoreFailures": true
+			}
+		]
+	},
         {
             "name": "STM32F103C8 Debug (Windows)",
             "cwd": "${workspaceFolder}",
