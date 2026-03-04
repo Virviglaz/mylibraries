@@ -170,6 +170,7 @@ protected:
 		friend class ServerBase;
 		ServerSocket(ServerBase &server);
 		~ServerSocket();
+		void Start();
 		void Stop();
 		ServerBase &server;
 		int _sockfd;

@@ -227,7 +227,7 @@ static void tcp_handler(ServerBase *server)
 static void udp_handler(ServerBase *server)
 {
 	ServerInternal *srv = static_cast<ServerInternal *>(server);
-	char *buffer = new char[srv->GetMaxMsgSize()];
+	char *buffer = static_cast<char *>(malloc(srv->GetMaxMsgSize()));
 	if (!buffer)
 	{
 		/* Memory error, terminate */
@@ -252,11 +252,14 @@ static void udp_handler(ServerBase *server)
 
 		server->OnDisconnect();
 	}
+
+	free(buffer);
 }
 
 void ServerBase::Start()
 {
 	_socket = std::make_shared<ServerSocket>(*this);
+	_socket->Start();
 }
 
 void ServerBase::Stop()
@@ -265,7 +268,9 @@ void ServerBase::Stop()
 }
 
 ServerBase::ServerSocket::ServerSocket(ServerBase &server)
-	: server(server)
+	: server(server) {}
+
+void ServerBase::ServerSocket::Start()
 {
 	_sockfd = socket(AF_INET, server._protocol == ServerBase::Protocol::TCP ? SOCK_STREAM : SOCK_DGRAM, 0);
 	if (_sockfd < 0)
