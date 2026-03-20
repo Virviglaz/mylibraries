@@ -41,6 +41,9 @@ SRC					+= HD44780_test.cpp
 SRC					+= ../HD44780.cpp
 SRC					+= ../HD44780_ToFile.cpp
 
+# Singleton tests
+SRC					+= singleton_test.cpp
+
 INC					:= .
 INC					+= ../
 
