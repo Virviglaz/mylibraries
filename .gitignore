@@ -1,5 +1,7 @@
 /C#
 *.TMP
+*.o
+*.d
 /emWin/
 /Altium/DeviceSheets/__Previews/
 /Altium/DeviceSheets/History/

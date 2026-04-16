@@ -35,3 +35,5 @@ jobs:
       run: make -C Linux test
     - name: Run stm32f10x zero project tests
       run: make -C stm32f10x_pr0 all
+    - name: Run logger2 tests
+      run: make -C Linux/logger2 test

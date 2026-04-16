@@ -5,6 +5,30 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Logger2 (gdb)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Linux/logger2/build/logger2",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/Linux/logger2",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
             "name": "STM32F103C8 Debug (Windows)",
             "cwd": "${workspaceFolder}",
             "executable": "${workspaceFolder}/stm32f10x_pr0/build/stm32f103rbt6.elf",
