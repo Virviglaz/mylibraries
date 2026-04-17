@@ -5,7 +5,8 @@
             "MagicNumber": 12345,
             "Protocol": "TCP",
             "Port": 7000,
-            "FilePath": "/tmp/logger1.txt"
+            "FilePath": "/tmp/logger1.txt",
+            "ReplyMessage": "Hello from Logger1!"
         },
         {
             "Name": "Logger2",

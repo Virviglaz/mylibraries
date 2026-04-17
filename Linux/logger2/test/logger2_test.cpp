@@ -28,5 +28,5 @@ int main()
 	msg_to_send.magic = 67890;
 	clientUDP.Send(reinterpret_cast<const char *>(&msg_to_send), 20);
 
-	return response == "Data received" ? 0 : 1;
+	return response == "Hello from Logger1!" ? 0 : 1;
 }

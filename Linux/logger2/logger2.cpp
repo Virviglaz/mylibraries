@@ -6,6 +6,7 @@
 #include <thread>
 #include <chrono>
 #include <mutex>
+#include <optional>
 #include "file_ops.h"
 #include "server.h"
 
@@ -22,8 +23,9 @@ public:
 						  uint16_t port,
 						  Protocol protocol,
 						  const std::string &log_file_path,
-						  uint32_t magic_number)
-		: ServerBase(port, MAX_MESSAGE_SIZE, 32, protocol), _name(name), magic_number(magic_number)
+						  uint32_t magic_number,
+						  std::optional<std::string> reply_message)
+		: ServerBase(port, MAX_MESSAGE_SIZE, 32, protocol), _name(std::move(name)), magic_number(magic_number), reply_message(std::move(reply_message))
 	{
 		log_file = std::make_unique<File>(log_file_path.c_str(), O_CREAT | O_WRONLY | O_APPEND);
 	}
@@ -42,13 +44,21 @@ public:
 
 		std::cout << "Received data: " << received_msg->data << std::endl;
 		{
-			std::lock_guard<std::mutex> lock(log_mutex);
+			if (msg.GetSize() < sizeof(received_msg->magic) + 1) {
+				std::cerr << "Warning: Received message with no data" << std::endl;
+				return;
+			}
+
 			std::string timestamp = get_time();
-			log_file->Write(timestamp.c_str(), timestamp.size()).Write(": ", 2).Write(received_msg->data, msg.GetSize() - sizeof(received_msg->magic)).Write("\r\n", 2).Sync();
+			std::lock_guard<std::mutex> lock(log_mutex);
+			log_file->Write(timestamp.c_str(), timestamp.size()).Write(": ", 2).Write(received_msg->data, msg.GetSize() - sizeof(received_msg->magic));
+			if (received_msg->data[msg.GetSize() - sizeof(received_msg->magic) - 1] == '\n')
+				log_file->Write("\r\n", 2);
+			log_file->Sync();
 		}
 
-		if (_protocol == Protocol::TCP)
-			msg.Reply("Data received");
+		if (_protocol == Protocol::TCP && reply_message.has_value())
+			msg.Reply(reply_message.value());
 	}
 private:
 	static std::string get_time(std::time_t time = std::time(nullptr))
@@ -62,6 +72,7 @@ private:
 	std::string _name;
 	std::unique_ptr<File> log_file;
 	uint32_t magic_number;
+	std::optional<std::string> reply_message;
 	std::mutex log_mutex;
 };
 
@@ -95,9 +106,17 @@ int main(int argc, char *argv[])
 		std::uint16_t port = static_cast<uint16_t>(logger["Port"].asUInt());
 		std::string log_file = logger["FilePath"].asString();
 		Network::ServerBase::Protocol proto = protocol == "TCP" ? Network::ServerBase::Protocol::TCP : Network::ServerBase::Protocol::UDP;
+		std::optional<std::string> reply_message;
+
+		if (logger.isMember("ReplyMessage"))
+			reply_message = logger["ReplyMessage"].asString();
 
 		std::cout << "Logger: " << name << " | Port: " << port << " | Protocol: " << protocol << " | MagicNumber: " << magic_number << " | LogFile: " << log_file << std::endl;
-		servers.emplace_back(std::make_unique<LoggerServer>(name, port, proto, log_file, magic_number));
+		servers.emplace_back(std::make_unique<LoggerServer>(std::move(name),
+															port, proto,
+															std::move(log_file),
+															magic_number,
+															std::move(reply_message)));
 	}
 
 	for (auto &server : servers) {
