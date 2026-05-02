@@ -9,6 +9,7 @@ int main()
     extern int do_state_machine_test();
     extern int do_filters_test();
     extern int do_file_ops_test();
+	extern int do_csv_file_test();
     extern int do_device_json_test();
     extern int DS18B20_json_test();
 	extern int do_HD44780_ToFile_test();
@@ -21,6 +22,7 @@ int main()
     assert(do_state_machine_c_test() == 0);
     assert(do_arg_parse_test() == 0);
     assert(do_file_ops_test() == 0);
+	assert(do_csv_file_test() == 0);
     assert(do_device_json_test() == 0);
     assert(DS18B20_json_test() == 0);
 	assert(do_HD44780_ToFile_test() == 0);

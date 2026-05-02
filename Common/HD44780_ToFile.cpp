@@ -63,8 +63,7 @@ HD44780_Base &HD44780_ToFileBase::Init(LCD_Type type, Font font)
 	if (output_file->GetStats().GetSize() < expected_size)
 		Clear();
 
-	file_map = std::make_unique<File::Mmap>(output_file->MapFile(0));
-	mapped_ptr = static_cast<char *>(file_map->GetPtr());
+	mapped_ptr = output_file->MapFile(0)->GetPtrAs<char>();
 	cursor_pos_ = mapped_ptr;
 
 	return *this;

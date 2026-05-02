@@ -48,7 +48,7 @@ INC					:= .
 INC					+= ../
 
 CFLAGS				+=
-CPPFLAGS			+= -std=c++14 -O0
+CPPFLAGS			+= -std=c++17 -O0
 
 LDFLAGS				+= -ljsoncpp
 

@@ -36,7 +36,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * File operation.
+ * File operations. Supports binnary and text files, memory mapping, and CSV parsing.
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
@@ -51,6 +51,11 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <string>
+#include <string_view>
+#include <vector>
+#include <memory>
+#include <variant>
 
 /**
  * File operation class.
@@ -58,6 +63,27 @@
 class File
 {
 public:
+	/**
+	 * Open flags enumeration.
+	 */
+	enum OpenFlags
+	{
+		/**
+		 * Open file for reading only, writing only, or both reading and writing.
+		 */
+		READ_ONLY = O_RDONLY,
+
+		/**
+		 * Open file for writing only. The file must exist and will not be truncated.
+		 */
+		WRITE_ONLY = O_WRONLY,
+
+		/**
+		 * Open file for both reading and writing. The file must exist and will not be truncated.
+		 */
+		READ_WRITE = O_RDWR,
+	};
+
 	/**
 	 * Default constructor.
 	 */
@@ -67,15 +93,37 @@ public:
 	 * Construct and open a file.
 	 *
 	 * @param path File path
-	 * @param flags Open flags (O_CREAT | O_RDWR by default)
+	 * @param flags Pen open flags (READ_ONLY, WRITE_ONLY, or READ_WRITE)
 	 * @throw std::system_error on open failure
 	 */
-	File(const char *path, int flags = O_CREAT | O_RDWR);
+	File(const char *path, OpenFlags flags = READ_WRITE);
 
 	/**
-	 * Destructor closes the file.
+	 * Construct and open a file.
+	 *
+	 * @param path File path
+	 * @param flags Pen open flags (READ_ONLY, WRITE_ONLY, or READ_WRITE)
+	 * @throw std::system_error on open failure
 	 */
-	~File();
+	File(const std::string &path, OpenFlags flags = READ_WRITE) : File(path.c_str(), flags) {}
+
+	/**
+	 * Dummy destructor.
+	 *
+	 * The actual file closing is handled by the FileInternal destructor
+	 * when the shared pointer goes out of scope.
+	 */
+	~File() = default;
+
+	/**
+	 * Open a file.
+	 *
+	 * @param path File path
+	 * @param flags Open flags (READ_ONLY, WRITE_ONLY, or READ_WRITE)
+	 * @return Reference to this File object
+	 * @throw std::system_error on open failure
+	 */
+	void Open(const char *path, OpenFlags flags = READ_WRITE);
 
 	/**
 	 * Close the file.
@@ -83,10 +131,6 @@ public:
 	 * @return Reference to this File object
 	 */
 	void Close();
-
-	File(const File &) = delete;
-	File(File &&) noexcept;
-	File &operator=(const File &) = delete;
 
 	/**
 	 * Seek origin enumeration.
@@ -168,10 +212,11 @@ public:
 	 *
 	 * @param size Size of the mapping
 	 * @param offset Offset in the file to map
-	 * @param flags Mapping flags (MAP_SHARED by default)
-	 * @return Mmap object representing the mapping
+	 * @param flags Mapping flags (READ, WRITE, or RW)
+	 * @return Shared pointer to the Mmap object representing the mapped region
+	 * @throw std::system_error on mmap failure
 	 */
-	Mmap MapFile(size_t size, off_t offset = 0, int flags = MAP_SHARED);
+	std::shared_ptr<Mmap> MapFile(size_t size, off_t offset = 0);
 
 	/**
 	 * File statistics class.
@@ -192,19 +237,19 @@ public:
 		explicit Stats(int fd);
 
 		/** Last access time (st_atime). */
-		time_t GetLastAccessTime();
+		time_t GetLastAccessTime() const;
 
 		/** Last modification time (st_mtime). */
-		time_t GetLastModTime();
+		time_t GetLastModTime() const;
 
 		/** Last status change time (st_ctime). */
-		time_t GetLastStatusChangeTime();
+		time_t GetLastStatusChangeTime() const;
 
 		/** File size in bytes (st_size). */
-		off_t GetSize();
+		off_t GetSize() const;
 
 		/** File mode bits (st_mode). */
-		mode_t GetMode();
+		mode_t GetMode() const;
 
 	private:
 		struct stat s;
@@ -219,7 +264,8 @@ public:
 	{
 	public:
 		/**
-		 * Default constructor.
+		 * Default constructor deleted.
+		 * Use shared_ptr instead.
 		 */
 		Mmap() = delete;
 
@@ -229,30 +275,15 @@ public:
 		 * @param fd File descriptor
 		 * @param size Size of the mapping
 		 * @param offset Offset in the file to map
-		 * @param flags Mapping flags
+		 * @param flags Access flags (READ, WRITE, or RW)
 		 * @throw std::system_error on mmap failure
 		 */
-		Mmap(int fd, size_t size, off_t offset = 0, int flags = MAP_SHARED);
+		Mmap(int fd, size_t size, off_t offset = 0, OpenFlags flags = READ_WRITE);
 
 		/**
 		 * Class destructor unmaps the region.
 		 */
 		~Mmap();
-
-		/**
-		 * Disable copy constructor.
-		 */
-		Mmap(const Mmap &) = delete;
-
-		/**
-		 * Enable move constructor.
-		 */
-		Mmap(Mmap &&other) noexcept;
-
-		/**
-		 * Disable copy assignment.
-		 */
-		Mmap &operator=(const Mmap &) = delete;
 
 		/** 
 		 * Get pointer to the mapped region.
@@ -261,13 +292,161 @@ public:
 		 */
 		void *GetPtr();
 
+		 /** 
+		  * Overload operator-> to allow direct access to the mapped memory.
+		  *
+		  * @return Pointer to the mapped memory
+		  */
+		void *operator->() { return GetPtr(); }
+
+		/**
+		 * Get pointer to the mapped region cast to a specific type.
+		 *
+		 * @param T Desired pointer type
+		 * @return Pointer to the mapped memory cast to type T
+		 */
+		template<typename T>
+		T *GetPtrAs() { return static_cast<T *>(ptr); }
+
 	private:
 		void *ptr = nullptr;
 		size_t size_ = 0;
 	};
 
 private:
-	int fd = -1;
+	void checkFileOpen() const;
+	struct FileInternal
+	{
+		FileInternal(int fd) : fd(fd) {}
+		~FileInternal();
+		int fd;
+	};
+	std::shared_ptr<FileInternal> fileInternal;
+	OpenFlags openFlags;
+	std::shared_ptr<Mmap> fileMapping = nullptr;
+};
+
+class TextFile : public File
+{
+public:
+	/**
+	 * Default constructor.
+	 */
+	TextFile() = default;
+
+	/**
+	 * Destructor.
+	 */
+	~TextFile() = default;
+
+	/**
+	 * Construct and open a text file.
+	 *
+	 * @param path File path
+	 * @throw std::system_error on open failure
+	 */
+	explicit
+	TextFile(const char *path);
+
+	/**
+	 * Read file contents into a string up to null character or end of file.
+	 *
+	 * @return File contents as a string
+	 */
+	std::string_view Read();
+
+	/**
+	 * Reset read offset to the beginning of the file.
+	 *
+	 * @return Reference to this TextFile object
+	 * @throw std::system_error on lseek failure
+	 */
+	File& Reset();
+
+	/**
+	 * Get the number of lines in the file based on the detected line-ending style.
+	 *
+	 * @return Number of lines in the file
+	 */
+	size_t GetLineCount() const { return lineCount; }
+
+	/**
+	 * Read a single line from the file based on the detected line-ending style.
+	 *
+	 * @return The next line from the file as a string, or an empty string if end of file is reached
+	 */
+	std::string_view ReadLine();
+
+	/**
+	 * Read all lines from the file into a vector of strings based on the detected line-ending style.
+	 * Each line is stored as a separate string in the vector.
+	 * @return A vector containing all lines from the file
+	 */
+	std::vector<std::string_view> ReadLines();
+protected:
+	char *readPos = nullptr;
+	char *endPos = nullptr;
+	off_t fileSize = 0;
+	size_t lineCount = 0;
+	enum lineEnding
+	{
+		CRLF,
+		LF
+	} lineEnding = LF;
+};
+
+class CSVFile : public TextFile
+{
+public:
+	/**
+	 * Default constructor.
+	 */
+	CSVFile() = default;
+
+	/**
+	 * Destructor.
+	 */
+	~CSVFile() = default;
+
+	/**
+	 * Construct and open a CSV file.
+	 *
+	 * @param path File path
+	 * @throw std::system_error on open failure
+	 */	explicit
+	CSVFile(const char *path) : TextFile(path) {}
+
+	/* Forward declaration */
+	class ParsedValue;
+
+	/**
+	 * Parse entire CSV file into a vector of vectors of ParsedValue objects, where each inner vector represents a line of parsed values.
+	 *
+	 * @return A vector of vectors of ParsedValue objects representing the parsed values from all remaining lines
+	 * @throw std::system_error on read failure
+	 */
+	std::vector<std::vector<ParsedValue>> Parse();
+
+	/* Nested types */
+	class ParsedValue
+	{
+	public:
+		ParsedValue() = default;
+		ParsedValue(const std::string_view str);
+
+		template<typename T>
+		T GetValue() const {
+			if (std::holds_alternative<T>(value))
+				return std::get<T>(value);
+			throw std::bad_variant_access();
+		}
+
+		std::variant<std::string, int, float> Get() const { return value; }
+	private:
+		std::variant<std::string, int, float> value;
+	};
+private:
+	std::vector<ParsedValue> ParseNextLine();
 };
 
 #endif /* FILE_OPS_H */

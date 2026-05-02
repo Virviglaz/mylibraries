@@ -27,7 +27,7 @@ public:
 						  std::optional<std::string> reply_message)
 		: ServerBase(port, MAX_MESSAGE_SIZE, 32, protocol), _name(std::move(name)), magic_number(magic_number), reply_message(std::move(reply_message))
 	{
-		log_file = std::make_unique<File>(log_file_path.c_str(), O_CREAT | O_WRONLY | O_APPEND);
+		log_file = std::make_unique<File>(log_file_path.c_str(), File::WRITE_ONLY);
 	}
 
 	void OnReceive(Network::MessageBase &msg) override
@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
 
 	/* Read and parse config file */
 	{
-		std::string config_content = File(config_path.c_str(), O_RDONLY).Read();
+		std::string config_content = File(config_path.c_str(), File::OpenFlags::READ_ONLY).Read();
 		if (!reader->parse(config_content.c_str(), config_content.c_str() + config_content.size(), &root, &errs)) {
 			std::cerr << "Failed to parse config: " << errs << std::endl;
 			return 1;

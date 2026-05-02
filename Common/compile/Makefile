@@ -8,7 +8,7 @@ INC					:= .
 INC					+= ../
 
 CFLAGS				+= -pedantic
-CPPFLAGS			+= -std=c++14 -O2
+CPPFLAGS			+= -std=c++17 -O2
 
 LDFLAGS				+= -ljsoncpp
 

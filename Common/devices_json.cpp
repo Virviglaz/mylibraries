@@ -53,7 +53,7 @@ GPIO_DeviceJSON::GPIO_DeviceJSON(const std::string &json_file,
 {
 	Json::Value root;
 	Json::Reader reader;
-	reader.parse(File(json_file.c_str(), O_RDONLY).Read(), root);
+	reader.parse(File(json_file.c_str(), File::OpenFlags::READ_ONLY).Read(), root);
 	auto device_type = root["Devices"];
 	for (const auto &device : device_type)
 	{
@@ -94,7 +94,7 @@ I2C_DeviceJSON::I2C_DeviceJSON(const std::string &json_file,
 {
 	Json::Value root;
 	Json::Reader reader;
-	reader.parse(File(json_file.c_str(), O_RDONLY).Read(), root);
+	reader.parse(File(json_file.c_str(), File::OpenFlags::READ_ONLY).Read(), root);
 	auto device_type = root["Devices"];
 	for (const auto &device : device_type)
 	{
@@ -144,7 +144,7 @@ SPI_DeviceJSON::SPI_DeviceJSON(const std::string &json_file,
 {
 	Json::Value root;
 	Json::Reader reader;
-	reader.parse(File(json_file.c_str(), O_RDONLY).Read(), root);
+	reader.parse(File(json_file.c_str(), File::OpenFlags::READ_ONLY).Read(), root);
 	auto device_type = root["Devices"];
 	for (const auto &device : device_type)
 	{
@@ -187,7 +187,7 @@ UART_DeviceJSON::UART_DeviceJSON(const std::string &json_file,
 {
 	Json::Value root;
 	Json::Reader reader;
-	reader.parse(File(json_file.c_str(), O_RDONLY).Read(), root);
+	reader.parse(File(json_file.c_str(), File::OpenFlags::READ_ONLY).Read(), root);
 	auto device_type = root["Devices"];
 	for (const auto &device : device_type)
 	{

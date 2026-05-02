@@ -1,0 +1,5 @@
+ProductID,ProductName,Category,Price,StockQuantity
+SKU001,Wireless Mouse,Electronics,25.99,150
+SKU002,Coffee Mug,Kitchenware,12.50,300
+SKU003,Cotton T-Shirt,Apparel,19.00,85
+SKU004,Desk Lamp,Home Office,45.00,42

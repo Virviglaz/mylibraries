@@ -51,7 +51,7 @@ DS18B20_Single_Json::DS18B20_Single_Json(const std::string &json_file, const std
 {
 	Json::Value root;
 	Json::Reader reader;
-	reader.parse(File(json_file.c_str(), O_RDONLY).Read(), root);
+	reader.parse(File(json_file.c_str(), File::OpenFlags::READ_ONLY).Read(), root);
 	auto device_type = root["Sensors"];
 	for (const auto &device : device_type)
 	{

@@ -52,29 +52,84 @@
 #include <cstdio>
 #include <sstream>
 #include <stdint.h>
+#include <algorithm>
+#include <charconv>
 
-File::File(const char *path, int flags)
+/******************** STATIC FUNCTIONS SECTION *********************/
+static std::vector<std::string_view> splitString(std::string_view str, char delimiter = ',')
 {
-	fd = open(path, flags, S_IRUSR | S_IWUSR);
+	std::vector<std::string_view> result;
+
+	size_t pos = 0;
+	size_t next = 0;
+
+	while ((next = str.find(delimiter, pos)) != std::string_view::npos)
+	{
+		result.push_back(str.substr(pos, next - pos));
+		pos = next + 1;
+	}
+
+	result.push_back(str.substr(pos, str.size() - pos - 1));
+
+	return result;
+}
+
+static bool isFloat(const std::string_view str)
+{
+	return str.find('.') != std::string_view::npos;
+}
+
+/***************** END OF STATIC FUNCTIONS SECTION ******************/
+
+File::File(const char *path, OpenFlags flags)
+{
+	Open(path, flags);
+}
+
+void File::Open(const char *path, OpenFlags flags)
+{
+	if (fileInternal)
+		throw std::runtime_error("File is already open");
+
+	openFlags = flags;
+	int _flags = static_cast<int>(flags);
+	if (_flags == WRITE_ONLY || _flags == READ_WRITE)
+		_flags |= O_CREAT;
+
+	int fd = open(path, _flags, S_IRUSR | S_IWUSR);
 
 	if (fd < 0)
 		throw std::system_error(errno, std::generic_category());
+
+	fileInternal = std::make_shared<FileInternal>(fd);
 }
 
-File::~File()
-{
-	Close();
-}
-
-void File::Close()
+File::FileInternal::~FileInternal()
 {
 	if (fd >= 0)
 		close(fd);
 	fd = -1;
 }
 
+void File::Close()
+{
+	/* Delete mapping if used */
+	if (fileMapping) {
+		fileMapping.reset();
+		fileMapping = nullptr;
+	}
+
+	/* Close file if opened */
+	if (fileInternal) {
+		fileInternal.reset();
+		fileInternal = nullptr;
+	}
+}
+
 File &File::Seek(off_t offset, enum SeekAt seekAt)
 {
+	checkFileOpen();
+
 	int whence = 0;
 
 	switch (seekAt)
@@ -90,7 +145,7 @@ File &File::Seek(off_t offset, enum SeekAt seekAt)
 		break;
 	}
 
-	off_t ret = lseek(fd, offset, whence);
+	off_t ret = lseek(fileInternal->fd, offset, whence);
 	if (ret < 0)
 		throw std::system_error(errno, std::generic_category());
 
@@ -99,7 +154,12 @@ File &File::Seek(off_t offset, enum SeekAt seekAt)
 
 File &File::Write(const void *data, size_t size)
 {
-	ssize_t ret = write(fd, data, size);
+	checkFileOpen();
+
+	if (openFlags == READ_ONLY)
+		throw std::runtime_error("File is not open for writing");
+
+	ssize_t ret = write(fileInternal->fd, data, size);
 
 	if (ret < 0)
 		throw std::system_error(errno, std::generic_category());
@@ -112,7 +172,12 @@ File &File::Write(const void *data, size_t size)
 
 File &File::Read(void *dst, size_t size)
 {
-	ssize_t ret = read(fd, dst, size);
+	checkFileOpen();
+
+	if (openFlags == WRITE_ONLY)
+		throw std::runtime_error("File is not open for reading");
+
+	ssize_t ret = read(fileInternal->fd, dst, size);
 
 	if (ret < 0)
 		throw std::system_error(errno, std::generic_category());
@@ -132,27 +197,30 @@ std::string File::Read()
 
 File &File::Sync()
 {
-	int ret = fsync(fd);
+	checkFileOpen();
+
+	if (openFlags == READ_ONLY)
+		throw std::runtime_error("File is not open for writing");
+
+	int ret = fsync(fileInternal->fd);
 	if (ret < 0)
 		throw std::system_error(errno, std::generic_category());
 
 	return *this;
 }
 
-File::File(File &&other) noexcept
-{
-	fd = other.fd;
-	other.fd = -1;
-}
-
 File::Stats File::GetStats()
 {
-	return Stats(fd);
+	return Stats(fileInternal->fd);
 }
 
-File::Mmap File::MapFile(size_t size, off_t offset, int flags)
+std::shared_ptr<File::Mmap> File::MapFile(size_t size, off_t offset)
 {
-	return Mmap(fd, size, offset, flags);
+	checkFileOpen();
+
+	if (!fileMapping)
+		fileMapping = std::shared_ptr<File::Mmap>(new File::Mmap(fileInternal->fd, size, offset, openFlags));
+	return fileMapping;
 }
 
 File::Stats::Stats(int fd)
@@ -161,32 +229,32 @@ File::Stats::Stats(int fd)
 		throw std::system_error(errno, std::generic_category());
 }
 
-time_t File::Stats::GetLastAccessTime()
+time_t File::Stats::GetLastAccessTime() const
 {
 	return s.st_atime;
 }
 
-time_t File::Stats::GetLastModTime()
+time_t File::Stats::GetLastModTime() const
 {
 	return s.st_mtime;
 }
 
-time_t File::Stats::GetLastStatusChangeTime()
+time_t File::Stats::GetLastStatusChangeTime() const
 {
 	return s.st_ctime;
 }
 
-off_t File::Stats::GetSize()
+off_t File::Stats::GetSize() const
 {
 	return s.st_size;
 }
 
-mode_t File::Stats::GetMode()
+mode_t File::Stats::GetMode() const
 {
 	return s.st_mode;
 }
 
-File::Mmap::Mmap(int fd, size_t size, off_t offset, int flags)
+File::Mmap::Mmap(int fd, size_t size, off_t offset, OpenFlags flags)
 {
 	if (size == 0) {
 		struct stat s;
@@ -195,7 +263,22 @@ File::Mmap::Mmap(int fd, size_t size, off_t offset, int flags)
 		size = s.st_size;
 	}
 
-	ptr = mmap(0, size, PROT_READ | PROT_WRITE, flags, fd, offset);
+	int mmap_flags = 0;
+
+	switch (flags)
+	{
+	case WRITE_ONLY:
+		mmap_flags = PROT_WRITE;
+		break;
+	case READ_ONLY:
+		mmap_flags = PROT_READ;
+		break;
+	case READ_WRITE:
+		mmap_flags = PROT_READ | PROT_WRITE;
+		break;
+	}
+
+	ptr = mmap(0, size, mmap_flags, MAP_SHARED, fd, offset);
 
 	if (ptr == MAP_FAILED)
 		throw std::system_error(errno, std::generic_category());
@@ -209,14 +292,6 @@ File::Mmap::~Mmap()
 		munmap(ptr, size_);
 }
 
-File::Mmap::Mmap(File::Mmap &&other) noexcept
-{
-	ptr = other.ptr;
-	size_ = other.size_;
-	other.ptr = nullptr;
-	other.size_ = 0;
-}
-
 void *File::Mmap::GetPtr()
 {
 	return ptr;
@@ -227,22 +302,22 @@ void *File::Mmap::GetPtr()
  */
 std::ostream &operator<<(std::ostream &out, const File &f)
 {
-	if (f.fd < 0)
+	if (f.fileInternal->fd < 0)
 		return out;
 
-	off_t ret = lseek(f.fd, 0, SEEK_SET);
+	off_t ret = lseek(f.fileInternal->fd, 0, SEEK_SET);
 	if (ret < 0)
 		throw std::system_error(errno, std::generic_category());
 
 	struct stat st;
-	if (fstat(f.fd, &st) == -1)
+	if (fstat(f.fileInternal->fd, &st) == -1)
 		return out;
 
 	off_t filesize = st.st_size;
 	if (filesize <= 0)
 		return out;
 
-	void *ptr = mmap(0, filesize, PROT_READ, MAP_SHARED, f.fd, 0);
+	void *ptr = mmap(0, filesize, PROT_READ, MAP_SHARED, f.fileInternal->fd, 0);
 	if (ptr == MAP_FAILED)
 		throw std::system_error(errno, std::generic_category());
 
@@ -266,13 +341,13 @@ std::ostream &operator<<(std::ostream &out, const File &f)
  */
 std::istream &operator>>(std::istream &in, File &f)
 {
-	if (f.fd < 0)
+	if (f.fileInternal->fd < 0)
 		return in;
 
 	// Truncate file to zero and seek to start
-	if (ftruncate(f.fd, 0) == -1)
+	if (ftruncate(f.fileInternal->fd, 0) == -1)
 		return in;
-	if (lseek(f.fd, 0, SEEK_CUR) == (off_t)-1)
+	if (lseek(f.fileInternal->fd, 0, SEEK_CUR) == (off_t)-1)
 		return in;
 
 	while(in.good())
@@ -280,10 +355,153 @@ std::istream &operator>>(std::istream &in, File &f)
 		char c = in.get();
 		if (!in)
 			break;
-		ssize_t w = write(f.fd, &c, 1);
+		ssize_t w = write(f.fileInternal->fd, &c, 1);
 		if (w <= 0)
 			return in;
 	}
 
 	return in;
+}
+
+void File::checkFileOpen() const
+{
+	if (!fileInternal)
+		throw std::runtime_error("File is not open");
+}
+
+TextFile::TextFile(const char *path) : File(path, READ_ONLY)
+{
+	std::string_view content = Read();
+
+	/* Determine line-endings */
+	auto r_cnt = std::count(content.begin(), content.end(), '\r');
+	auto n_cnt = std::count(content.begin(), content.end(), '\n');
+
+	if (r_cnt > 0 && n_cnt > 0) {
+		if (r_cnt != n_cnt)
+			throw std::runtime_error("Inconsistent line endings detected in file");
+		lineEnding = CRLF;
+	}
+
+	lineCount = n_cnt + 1; // Add 1 for the last line if it doesn't end with a newline character
+}
+
+std::string_view TextFile::Read()
+{
+	Reset();
+
+	return std::string_view(readPos, fileSize);
+}
+
+File &TextFile::Reset()
+{
+	fileSize = GetStats().GetSize();
+	readPos = MapFile(fileSize)->GetPtrAs<char>();
+	endPos = readPos + fileSize;
+
+	if (!fileSize)
+		throw std::length_error("File is empty");
+
+	return *this;
+}
+
+std::string_view TextFile::ReadLine()
+{
+	if (readPos == endPos)
+		return {}; // End of file reached
+
+	char *ptr = readPos;
+
+	while (ptr < endPos) {
+		if (lineEnding == CRLF && *ptr == '\r') {
+			ptr++; // Skip '\r'
+			break;
+		} else if (lineEnding == LF && *ptr == '\n') {
+			break;
+		}
+		ptr++;
+	}
+
+	if (ptr < endPos)
+		ptr++; // Move past the line-ending character(s)
+
+	off_t size = ptr - readPos;
+
+	std::string_view ret(readPos, size);
+
+	readPos += size;
+
+	return ret;
+}
+
+std::vector<std::string_view> TextFile::ReadLines()
+{
+	std::vector<std::string_view> lines(GetLineCount());
+
+	int lineIndex = 0;
+	while (true) {
+		std::string_view line = ReadLine();
+		if (line.empty())
+			break;
+		lines[lineIndex++] = line;
+	}
+
+	return lines;
+}
+
+CSVFile::ParsedValue::ParsedValue(const std::string_view str)
+{
+	if (isFloat(str))
+	{
+		float floatValue = 0.0f;
+		auto result = std::from_chars(str.data(), str.data() + str.size(), floatValue);
+		if (result.ec == std::errc())
+		{
+			value = floatValue;
+			return;
+		}
+	}
+
+	int intValue = 0;
+	auto result = std::from_chars(str.data(), str.data() + str.size(), intValue);
+	if (result.ec == std::errc())
+	{
+		value = intValue;
+		return;
+	}
+
+	value = std::string(str);
+}
+
+std::vector<CSVFile::ParsedValue> CSVFile::ParseNextLine()
+{
+	std::string_view line = ReadLine();
+	if (line.empty())
+		return {};
+
+	std::vector<std::string_view> columns = splitString(line);
+	std::vector<ParsedValue> parsedValues;
+	parsedValues.reserve(columns.size());
+
+	for (const auto &col : columns) {
+		parsedValues.emplace_back(col);
+	}
+
+	return parsedValues;
+}
+
+std::vector<std::vector<CSVFile::ParsedValue>> CSVFile::Parse()
+{
+	std::vector<std::vector<ParsedValue>> allValues(GetLineCount());
+
+	Reset(); // Reset read position to the beginning of the file
+	int lineIndex = 0;
+	while (true) {
+		std::vector<ParsedValue> lineValues = ParseNextLine();
+		if (lineValues.empty())
+			break;
+		allValues[lineIndex++] = std::move(lineValues);
+	}
+
+	return allValues;
 }

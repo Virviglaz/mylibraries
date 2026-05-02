@@ -85,7 +85,6 @@ private:
 
 	const char *filename_;
 	std::unique_ptr<File> output_file;
-	std::unique_ptr<File::Mmap> file_map;
 	char *mapped_ptr = nullptr;
 	char *cursor_pos_ = nullptr;
 	uint8_t rows_;
