@@ -42,3 +42,44 @@ int do_csv_file_test()
 
 	return 0;
 }
+
+int do_ext_file_test()
+{
+	CSVFile csv;
+
+	try {
+		csv.Parse();
+	} catch (const std::runtime_error &e) {
+		assert(std::string(e.what()) == "File is not open");
+	}
+
+	try {
+		csv.Open("nonexistent.csv", File::READ_ONLY);
+	} catch (const std::system_error &e) {
+		assert(e.code().value() == ENOENT);
+	}
+
+	try {
+		csv.Close();
+	} catch (const std::runtime_error &e) {
+		assert(std::string(e.what()) == "File is not open");
+	}
+
+	try {
+		csv.Seek(0, File::SeekAt::SET);
+	} catch (const std::runtime_error &e) {
+		assert(std::string(e.what()) == "File is not open");
+	}
+
+	csv.Open("test.csv", File::READ_ONLY);
+
+	try {
+		csv.Write("data", 4);
+	} catch (const std::runtime_error &e) {
+		assert(std::string(e.what()) == "File is not open for writing");
+	}
+
+	csv.Close();
+
+	return 0;
+}

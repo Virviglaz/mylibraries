@@ -211,6 +211,8 @@ File &File::Sync()
 
 File::Stats File::GetStats()
 {
+	checkFileOpen();
+
 	return Stats(fileInternal->fd);
 }
 
