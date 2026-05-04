@@ -210,9 +210,15 @@ public:
 	/**
 	 * Memory-map a file region.
 	 *
+	 * @note The returned Mmap object is managed by a shared pointer to ensure proper cleanup via RAII.
+	 * The mapping will be released when the shared pointer goes out of scope.
+	 * The mapping is created with MAP_SHARED, so changes to the mapped region will be reflected
+	 * in the underlying file and visible to other processes mapping the same file.
+	 * Once created, the Mmap object provides access to the mapped memory region and will
+	 * automatically unmap it in its destructor.
+	 *
 	 * @param size Size of the mapping
 	 * @param offset Offset in the file to map
-	 * @param flags Mapping flags (READ, WRITE, or RW)
 	 * @return Shared pointer to the Mmap object representing the mapped region
 	 * @throw std::system_error on mmap failure
 	 */
