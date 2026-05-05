@@ -54,12 +54,12 @@ endif
 clean:
 	@$(RM) $(BUILDDIR)
 
-$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.c.o: %.c
+$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.c.o: $(subst ../,,%.c)
 	@$(MKDIRP) -p $(dir $@)
 	@echo "Compiling C file $<"
 	@$(CC) $(CFLAGS) $(EXTRAF) -c $< -o $@ $(INCD) $(DEFS)
 
-$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.cpp.o: %.cpp
+$(BUILDDIR)/$(TARGET)_$(BUILDDIR)/%.cpp.o: $(subst ../,,%.cpp)
 	@$(MKDIRP) -p $(dir $@)
 	@echo "Compiling C++ file $<"
 	@$(CPP) $(CPPFLAGS) $(EXTRAF) -c $< -o $@ $(INCD) $(DEFS)

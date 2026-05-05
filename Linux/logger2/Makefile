@@ -2,8 +2,8 @@ BUILDDIR			?= build
 TARGET				?= logger2
 
 SRC					:= logger2.cpp
-SRC					+= file_ops.cpp
-SRC					+= server.cpp
+SRC					+= ../../Common/file_ops.cpp
+SRC					+= ../server/server.cpp
 
 INC					:= ../../Common
 INC					+= ../server

@@ -48,17 +48,17 @@ endif
 clean:
 	@$(RM) $(BUILDDIR)
 
-$(BUILDDIR)/$(TARGET)/%.s.o: %.s
+$(BUILDDIR)/$(TARGET)/%.s.o: $(subst ../,,%.s)
 	@$(MKDIRP) -p $(dir $@)
 	@echo "Assembling $<"
 	@$(CC) -o $@ $< -c $(ASMFLAGS)
 
-$(BUILDDIR)/$(TARGET)/%.c.o: %.c
+$(BUILDDIR)/$(TARGET)/%.c.o: $(subst ../,,%.c)
 	@$(MKDIRP) -p $(dir $@)
 	@echo "Compiling C file $<"
 	@$(CC) $(CFLAGS) -c $< -o $@ $(INCD) $(DEFS)
 
-$(BUILDDIR)/$(TARGET)/%.cpp.o: %.cpp
+$(BUILDDIR)/$(TARGET)/%.cpp.o: $(subst ../,,%.cpp)
 	@$(MKDIRP) -p $(dir $@)
 	@echo "Compiling C++ file $<"
 	@$(CPP) $(CPPFLAGS) -c $< -o $@ $(INCD) $(DEFS)
