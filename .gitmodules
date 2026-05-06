@@ -19,3 +19,6 @@
 [submodule "Common/LTC6804-2"]
 	path = Common/LTC6804-2
 	url = https://github.com/Virviglaz/LTC6804-2.git
+[submodule "BuildServices"]
+	path = BuildServices
+	url = https://github.com/Virviglaz/BuildServices.git
