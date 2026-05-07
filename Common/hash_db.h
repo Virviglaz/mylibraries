@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2025 Pavel Nadein
+ * Copyright (c) 2025-2026 Pavel Nadein
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,7 +36,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Hash based database header file.
+ * Hash based database header file. No exceptions are used in this class,
+ * all errors are returned as errno codes. No waiting or locking is
+ * implemented, this class is not thread safe. Ment for embedded use,
+ * where memory is limited and exceptions are not desired.
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
@@ -48,6 +51,7 @@
 #ifdef __cplusplus
 
 #include <stdint.h>
+#include "hash.h"
 
 /**
  * HashDB class providing simple hash based database functionality.
@@ -60,16 +64,18 @@ public:
      * @param max_size		Maximum size of the database in bytes.
      * @param name_hash		Hash of the database name.
      */
-    explicit HashDB(uint32_t max_size,
+    explicit
+	HashDB(uint32_t max_size,
            uint32_t name_hash = 0);
 
     /**
      * Constructor using preallocated database memory.
      *
-     * @param location		Pointer to preallocated memory.
+     * @param location		Pointer to preallocated memory (32-bit aligned).
      * @param max_size		Maximum size of the database in bytes.
      * @param name_hash		Hash of the database name.
      */
+	explicit
     HashDB(uint32_t *location,
            uint32_t max_size,
            uint32_t name_hash = 0);
@@ -82,6 +88,7 @@ public:
     /**
      * Write data to hash database.
      *
+	 * @tparam T            Type of data to write.
      * @param name_hash		Hash of the entry name.
      * @param data          Data to write.
      *
@@ -91,6 +98,20 @@ public:
     int Write(uint32_t name_hash, const T& data) noexcept {
         return write_int(name_hash, reinterpret_cast<const void *>(&data), sizeof(data));
     }
+
+	/**
+	 * Write data to hash database using string name.
+	 *
+	 * @tparam T            Type of data to write.
+	 * @param name          String name of the entry.
+	 * @param data          Data to write.
+	 *
+	 * @return 0 on success, errno code on failure.
+	 */
+	template <class T, uint32_t N>
+	int Write(const char (&name)[N], const T& data) noexcept {
+		return write_int(Hash(name), reinterpret_cast<const void *>(&data), sizeof(data));
+	}	
 
     /**
      * Read data from hash database.
@@ -105,12 +126,26 @@ public:
         return read_int(name_hash, reinterpret_cast<void *>(&data), sizeof(data));
     }
 
+	/**
+	 * Read data from hash database using string name.
+	 *
+	 * @tparam T            Type of data to read.
+	 * @param name          String name of the entry.
+	 * @param data          Reference to store read data.
+	 *
+	 * @return 0 on success, errno code on failure.
+	 */
+	template <class T, uint32_t N>
+	int Read(const char (&name)[N], T &data) noexcept {
+		return read_int(Hash(name), reinterpret_cast<void *>(&data), sizeof(data));
+	}
+
     /**
      * Get maximum size of the database.
      *
      * @return Maximum size in bytes.
      */
-    uint32_t GetMaxSize() const {
+    uint32_t GetMaxSize() const noexcept {
         return max_size_;
     }
 
@@ -119,7 +154,7 @@ public:
      *
      * @return Used size in bytes.
      */
-    uint32_t GetUsedSize() const {
+    uint32_t GetUsedSize() const noexcept {
         const db_header_t *header = reinterpret_cast<db_header_t *>(location_);
         return header->db_size;
     }
@@ -135,6 +170,18 @@ public:
         const db_header_t *header = reinterpret_cast<db_header_t *>(location_);
         return header->name_hash == name_hash;
     }
+
+	/**
+	 * Check if database name matches using string name.
+	 *
+	 * @param name		String name to check.
+	 *
+	 * @return true if name matches, false otherwise.
+	 */
+	template <uint32_t N>
+	bool CheckName(const char (&name)[N]) const noexcept {
+		return CheckName(Hash(name));
+	}
 
 private:
     uint32_t *location_;
