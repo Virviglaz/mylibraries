@@ -46,11 +46,14 @@ SRC					+= singleton_test.cpp
 
 INC					:= .
 INC					+= ../
+INC					+= /usr/local/include/gtest
 
 CFLAGS				+=
 CPPFLAGS			+= -std=c++17 -O0
 
 LDFLAGS				+= -ljsoncpp
+LDFLAGS				+= $(shell find /usr -name libgtest.a)
+LDFLAGS             += $(shell find /usr -name libgtest_main.a)
 
 include Makefile.common
 
@@ -58,5 +61,5 @@ test: $(BUILDDIR)/$(TARGET)
 	@echo "Running test application..."
 	@./$(BUILDDIR)/$(TARGET)
 
-install_json:
-	sudo apt-get install libjsoncpp-dev
+install_deps:
+	sudo apt-get install libjsoncpp-dev libgtest-dev

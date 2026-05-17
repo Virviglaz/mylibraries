@@ -1,7 +1,7 @@
 #include "file_ops.h"
 #include <cstring>
 #include <iostream>
-#include <assert.h>
+#include <gtest/gtest.h>
 
 int do_file_ops_test()
 {
@@ -13,10 +13,7 @@ int do_file_ops_test()
     char rd[sizeof(str)];
     f.Seek(0, File::SeekAt::SET);
     f.Read(static_cast<void *>(rd), sizeof(rd));
-
-    std::cout << "File size: " << f.GetStats().GetSize() << std::endl;
-    std::cout << "File contents:\n";
-    std::cout << f;
+	EXPECT_EQ(f.GetStats().GetSize(), 13);
 
     return strcmp(str, rd);
 }
@@ -25,13 +22,10 @@ int do_csv_file_test()
 {
 	CSVFile csv("test.csv");
 
-	std::cout << "CSV file header:\n";
-	std::cout << csv.ReadLine() << std::endl;
-
-	assert(csv.GetLineCount() == 5);
+	EXPECT_EQ(csv.GetLineCount(), 5);
 
 	auto csvData = csv.Parse();
-	assert(csvData.size() == 5);
+	EXPECT_EQ(csvData.size(), 5);
 
 	for (const auto &line : csvData) {
 		for (const auto &value : line) {
@@ -50,25 +44,25 @@ int do_ext_file_test()
 	try {
 		csv.Parse();
 	} catch (const std::runtime_error &e) {
-		assert(std::string(e.what()) == "File is not open");
+		EXPECT_STREQ(e.what(), "File is not open");
 	}
 
 	try {
 		csv.Open("nonexistent.csv", File::READ_ONLY);
 	} catch (const std::system_error &e) {
-		assert(e.code().value() == ENOENT);
+		EXPECT_EQ(e.code().value(), ENOENT);
 	}
 
 	try {
 		csv.Close();
 	} catch (const std::runtime_error &e) {
-		assert(std::string(e.what()) == "File is not open");
+		EXPECT_STREQ(e.what(), "File is not open");
 	}
 
 	try {
 		csv.Seek(0, File::SeekAt::SET);
 	} catch (const std::runtime_error &e) {
-		assert(std::string(e.what()) == "File is not open");
+		EXPECT_STREQ(e.what(), "File is not open");
 	}
 
 	csv.Open("test.csv", File::READ_ONLY);
@@ -76,7 +70,7 @@ int do_ext_file_test()
 	try {
 		csv.Write("data", 4);
 	} catch (const std::runtime_error &e) {
-		assert(std::string(e.what()) == "File is not open for writing");
+		EXPECT_STREQ(e.what(), "File is not open for writing");
 	}
 
 	csv.Close();

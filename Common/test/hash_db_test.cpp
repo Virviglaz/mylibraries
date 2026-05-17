@@ -1,48 +1,33 @@
 #include "hash_db.h"
 #include "hash.h"
-#include <cassert>
-#include <iostream>
+#include <gtest/gtest.h>
 
 int do_hash_db_test()
 {
-    std::cout << "Starting HashDB [hash_db.cpp] test..." << std::endl;
-
     HashDB db(1024, Hash("db1"));
-    assert(db.Write<int>("value1", 42) == 0);
-    assert(db.Write<int>("value2", 43) == 0);
-    assert(db.Write<int>("value3", 44) == 0);
+    EXPECT_EQ(db.Write<int>("value1", 42), 0);
+    EXPECT_EQ(db.Write<int>("value2", 43), 0);
+    EXPECT_EQ(db.Write<int>("value3", 44), 0);
 
     int read_value[3] = { 0 };
-    assert(!db.Read<int>("value1", read_value[0]));
-    assert(!db.Read<int>("value2", read_value[1]));
-    assert(!db.Read<int>("value3", read_value[2]));
-    std::cout << "Read from HashDB: " << read_value[0] << std::endl;
-    std::cout << "Read from HashDB: " << read_value[1] << std::endl;
-    std::cout << "Read from HashDB: " << read_value[2] << std::endl;
+    EXPECT_EQ(db.Read<int>("value1", read_value[0]), 0);
+    EXPECT_EQ(db.Read<int>("value2", read_value[1]), 0);
+    EXPECT_EQ(db.Read<int>("value3", read_value[2]), 0);
 
-    assert(read_value[0] == 42);
-    assert(read_value[1] == 43);
-    assert(read_value[2] == 44);
+    EXPECT_EQ(read_value[0], 42);
+    EXPECT_EQ(read_value[1], 43);
+    EXPECT_EQ(read_value[2], 44);
 
-    assert(!db.Write<int>("value1", 52));
-    std::cout << "Used size: " << db.GetUsedSize() << " / "
-              << db.GetMaxSize() << std::endl;
-    assert(!db.Write<int>("value2", 53));
-    std::cout << "Used size: " << db.GetUsedSize() << " / "
-              << db.GetMaxSize() << std::endl;
-    assert(!db.Write<int>("value3", 54));
-    std::cout << "Used size: " << db.GetUsedSize() << " / "
-              << db.GetMaxSize() << std::endl;
-    assert(!db.Read<int>("value1", read_value[0]));
-    assert(!db.Read<int>("value2", read_value[1]));
-    assert(!db.Read<int>("value1", read_value[2]));
-    std::cout << "Read from HashDB: " << read_value[0] << std::endl;
-    std::cout << "Read from HashDB: " << read_value[1] << std::endl;
-    std::cout << "Read from HashDB: " << read_value[2] << std::endl;
+    EXPECT_EQ(db.Write<int>("value1", 52), 0);
+    EXPECT_EQ(db.Write<int>("value2", 53), 0);
+    EXPECT_EQ(db.Write<int>("value3", 54), 0);
+    EXPECT_EQ(db.Read<int>("value1", read_value[0]), 0);
+    EXPECT_EQ(db.Read<int>("value2", read_value[1]), 0);
+    EXPECT_EQ(db.Read<int>("value1", read_value[2]), 0);
 
-    assert(read_value[0] == 52);
-    assert(read_value[1] == 53);
-    assert(read_value[2] == 52);
+    EXPECT_EQ(read_value[0], 52);
+    EXPECT_EQ(read_value[1], 53);
+    EXPECT_EQ(read_value[2], 52);
 
     struct somedata {
         char buf[17];
@@ -50,18 +35,12 @@ int do_hash_db_test()
     } __attribute__((packed));
 
     somedata data = { "example", 23 };
-    assert(!db.Write<somedata>("data1", data));  
+    EXPECT_EQ(db.Write<somedata>("data1", data), 0);
     somedata read_data;
-    assert(!db.Read<somedata>("data1", read_data));
-    std::cout << "Read from HashDB: " << read_data.buf << ", "
-              << (uint32_t)read_data.val << std::endl;
+    EXPECT_EQ(db.Read<somedata>("data1", read_data), 0);
 
-    assert(db.Read<somedata>("data1", read_data) == 0);
-    std::cout << "Used size: " << db.GetUsedSize() << " / "
-              << db.GetMaxSize() << std::endl;
-    assert(db.CheckName("db1"));
-
-    std::cout << "HashDB test completed successfully." << std::endl;
+    EXPECT_EQ(db.Read<somedata>("data1", read_data), 0);
+    EXPECT_TRUE(db.CheckName("db1"));
 
     return 0;
 }

@@ -1,13 +1,12 @@
 #include "state_machine.h"
-#include <iostream>
-#include <cassert>
+#include <gtest/gtest.h>
 #include <hash.h>
 
 static void validate_state(int step_num)
 {
 	static int current_step = 0;
 
-	assert(step_num == current_step++);
+	EXPECT_EQ(step_num, current_step++);
 }
 
 int do_state_machine_test()
@@ -21,20 +20,17 @@ int do_state_machine_test()
 
 		uint32_t enter(void *user_data) override
 		{
-			std::cout << "Entering State 1 Success" << std::endl;
 			validate_state(0);
 			return Hash("TestState2"); // Transition to State 2
 		}
 
 		uint32_t work(void *user_data) override
 		{
-			std::cout << "Working in State 1 Error" << std::endl;
 			return 1; // Error to trigger exit
 		}
 
 		uint32_t exit(void *user_data) override
 		{
-			std::cout << "Exiting from State 1 Error" << std::endl;
 			return 1; // Error to trigger exit
 		}
 	};
@@ -46,21 +42,18 @@ int do_state_machine_test()
 
 		uint32_t enter(void *user_data) override
 		{
-			std::cout << "Entering State 2 Success" << std::endl;
 			validate_state(1);
 			return 0;
 		}
 
 		uint32_t work(void *user_data) override
 		{
-			std::cout << "Working in State 2 Success" << std::endl;
 			validate_state(2);
 			return Hash("TestState3"); // Transition to State 3
 		}
 
 		uint32_t exit(void *user_data) override
 		{
-			std::cout << "Exiting State 2 Success" << std::endl;
 			validate_state(3);
 			return 0;
 		}
@@ -73,21 +66,18 @@ int do_state_machine_test()
 
 		uint32_t enter(void *user_data) override
 		{
-			std::cout << "Entering State 3 Success" << std::endl;
 			validate_state(4);
 			return 0;
 		}
 
 		uint32_t work(void *user_data) override
 		{
-			std::cout << "Working in State 3 Success" << std::endl;
 			validate_state(5);
 			return 0;
 		}
 
 		uint32_t exit(void *user_data) override
 		{
-			std::cout << "Exiting State 3 Success" << std::endl;
 			return Hash("TestState1"); // Transition back to State 1
 		}
 	};
@@ -104,7 +94,7 @@ int do_state_machine_test()
 	for (int i = 0; i < 3; ++i)
 	{
 		int ret = sm.DoStep();
-		assert(ret == 0);
+		EXPECT_EQ(ret, 0);
 	}
 
 	return 0;

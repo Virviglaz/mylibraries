@@ -25,6 +25,10 @@ jobs:
         release: '13.2.Rel1'
     - name: Install JSONCPP
       run: sudo apt-get install libjsoncpp-dev
+    - name: Setup Google Test
+      uses: Bacondish2023/setup-googletest@v1
+      with:
+        tag: v1.14.0
     - name: Compile only
       run: make -C Common/compile all
     - name: Built and test

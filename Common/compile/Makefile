@@ -1,8 +1,8 @@
 BUILDDIR			?= build
 TARGET				?= compile_only
 
-SRC					+= $(shell find .. -name '*.cpp')
-SRC					+= $(shell find .. -name '*.c')
+SRC					+= $(shell find .. -maxdepth 1 -name '*.cpp' )
+SRC					+= $(shell find .. -maxdepth 1 -name '*.c' )
 
 INC					:= .
 INC					+= ../

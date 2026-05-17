@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <gtest/gtest.h>
 
 class Tracker
 {
@@ -62,13 +63,13 @@ public:
 	void DoSome(const std::string &work)
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-		std::cout << work << std::endl;
+		EXPECT_GT(work.size(), 0);
 	}
 };
 
 #define MAX_THREADS	10
 
-int do_signleton_test()
+int do_singleton_test()
 {
 	auto ptr = SingletonTest::getInstance();
 
