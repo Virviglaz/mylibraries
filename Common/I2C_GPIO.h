@@ -47,8 +47,20 @@
 
 #include "interfaces.h"
 #include "devices.h"
-#include <functional>
 
+/**
+ * Software I2C implementation using GPIO pins
+ *
+ * @note This class implements the I2C protocol using two GPIO pins
+ * for SDA and SCL lines. It provides methods for writing to and
+ * reading from I2C devices by bit-banging the signals on the GPIO pins.
+ * The timing of the signals is controlled by a user-provided delay
+ * function, which should ensure that the signals meet the timing
+ * requirements of the I2C protocol.
+ * This implementation is suitable for low-speed I2C communication
+ * and can be used on platforms that do not have hardware
+ * I2C support or when additional I2C buses are needed.
+ */
 class I2C_GPIO : public I2C_InterfaceBase
 {
 public:
@@ -58,8 +70,8 @@ public:
 	 * @param sda_pin GPIO pin for SDA line
 	 * @param scl_pin GPIO pin for SCL line
 	 */
-	I2C_GPIO(GPIO_DeviceBase &sda_pin, GPIO_DeviceBase &scl_pin, std::function<void()> delay_func)
-		: sda_pin_(sda_pin), scl_pin_(scl_pin), delay_func_(delay_func) {}
+	I2C_GPIO(GPIO_DeviceBase &sda_pin, GPIO_DeviceBase &scl_pin)
+		: sda_pin_(sda_pin), scl_pin_(scl_pin) {}
 
 	/**
 	 * @brief Write data to I2C device
@@ -95,10 +107,17 @@ public:
 			 uint8_t *data,
 			 uint32_t data_length) override;
 
+	/**
+	 * @brief Delay function to be called between I2C signal changes
+	 * @note This function should provide a delay of at least 5 microseconds
+	 * to ensure proper timing of the I2C signals. The actual delay required
+	 * may depend on the specific devices being used and the speed of the GPIO
+	 * operations, so it may need to be adjusted accordingly.
+	 */
+	virtual void DelayFunc() = 0;
 private:
 	GPIO_DeviceBase &sda_pin_;
 	GPIO_DeviceBase &scl_pin_;
-	std::function<void()> delay_func_;
 
 	int  StartCondition();
 	void RepeatStartCondition();

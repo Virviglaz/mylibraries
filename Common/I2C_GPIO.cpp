@@ -49,16 +49,16 @@ int I2C_GPIO::StartCondition()
 {
 	sda_pin_.Set(1);
 	scl_pin_.Set(1);
-	delay_func_();
+	DelayFunc();
 
 	/* Check bus is busy */
 	if (sda_pin_.Get() == 0 || scl_pin_.Get() == 0)
 		return -EBUSY;
 
 	sda_pin_.Set(0);
-	delay_func_();
+	DelayFunc();
 	scl_pin_.Set(0);
-	delay_func_();
+	DelayFunc();
 	return 0;
 }
 
@@ -66,21 +66,21 @@ void I2C_GPIO::RepeatStartCondition()
 {
 	sda_pin_.Set(1);
 	scl_pin_.Set(1);
-	delay_func_();
+	DelayFunc();
 	sda_pin_.Set(0);
-	delay_func_();
+	DelayFunc();
 	scl_pin_.Set(0);
-	delay_func_();
+	DelayFunc();
 }
 
 void I2C_GPIO::StopCondition()
 {
-	delay_func_();
+	DelayFunc();
 	sda_pin_.Set(0);
 	scl_pin_.Set(1);
-	delay_func_();
+	DelayFunc();
 	sda_pin_.Set(1);
-	delay_func_();
+	DelayFunc();
 }
 
 uint16_t I2C_GPIO::WriteByte(uint8_t data)
@@ -95,19 +95,19 @@ uint16_t I2C_GPIO::WriteByte(uint8_t data)
 		else
 			sda_pin_.Set(0);
 		scl_pin_.Set(1);
-		delay_func_();
+		DelayFunc();
 		scl_pin_.Set(0);
-		delay_func_();
+		DelayFunc();
 		mask >>= 1;
 	}
 
 	sda_pin_.Set(1); // Release SDA for ACK bit
-	delay_func_();
+	DelayFunc();
 	scl_pin_.Set(1);
-	delay_func_();
+	DelayFunc();
 	ack = sda_pin_.Get();
 	scl_pin_.Set(0);
-	delay_func_();
+	DelayFunc();
 
 	return ack;
 }
@@ -121,11 +121,11 @@ uint16_t I2C_GPIO::ReadByte(bool ack)
 	while (mask)
 	{
 		scl_pin_.Set(1);
-		delay_func_();
+		DelayFunc();
 		if (sda_pin_.Get())
 			data |= mask;
 		scl_pin_.Set(0);
-		delay_func_();
+		DelayFunc();
 		mask >>= 1;
 	}
 
@@ -134,11 +134,11 @@ uint16_t I2C_GPIO::ReadByte(bool ack)
 		sda_pin_.Set(0);
 	else
 		sda_pin_.Set(1);
-	delay_func_();
+	DelayFunc();
 	scl_pin_.Set(1);
-	delay_func_();
+	DelayFunc();
 	scl_pin_.Set(0);
-	delay_func_();
+	DelayFunc();
 	sda_pin_.Set(1); // Release SDA
 
 	return data;
