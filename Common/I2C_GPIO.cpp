@@ -43,6 +43,7 @@
  */
 
 #include "I2C_GPIO.h"
+#include "monads.h"
 #include <errno.h>
 
 int I2C_GPIO::StartCondition()
@@ -150,37 +151,46 @@ int I2C_GPIO::Write(uint8_t device_addr,
 					const uint8_t *data,
 					uint32_t data_length)
 {
-	if (StartCondition() != 0)
-		return -EBUSY;
+	bool started = false;
 
-	// Send device address with write flag
-	if (WriteByte((device_addr << 1) | 0) != 0)
+	auto start = [&]() -> Result<Unit>
 	{
+		int rc = StartCondition();
+		if (rc != 0)
+			return Result<Unit>::Err(rc);
+		started = true;
+		return Result<Unit>::Ok();
+	};
+
+	auto writeByte = [&](uint8_t byte) -> Result<Unit>
+	{
+		if (WriteByte(byte) != 0)
+			return Result<Unit>::Err(-EIO);
+		return Result<Unit>::Ok();
+	};
+
+	auto writeMany = [&](const uint8_t *buffer, uint32_t length) -> Result<Unit>
+	{
+		for (uint32_t i = 0; i < length; i++)
+		{
+			if (WriteByte(buffer[i]) != 0)
+				return Result<Unit>::Err(-EIO);
+		}
+		return Result<Unit>::Ok();
+	};
+
+	const Result<Unit> result = Result<Unit>::Ok()
+		.AndThen(start)
+		.AndThen([&]() { return writeByte(static_cast<uint8_t>((device_addr << 1) | 0)); })
+		.AndThen([&]() { return writeMany(reg_addr, reg_addr_length); })
+		.AndThen([&]() { return writeMany(data, data_length); });
+
+	if (started)
 		StopCondition();
-		return -EIO;
-	}
 
-	// Send register address
-	for (uint32_t i = 0; i < reg_addr_length; i++)
-	{
-		if (WriteByte(*reg_addr++) != 0)
-		{
-			StopCondition();
-			return -EIO;
-		}
-	}
+	if (!result.IsOk())
+		return result.Error();
 
-	// Send data bytes
-	for (uint32_t i = 0; i < data_length; i++)
-	{
-		if (WriteByte(data[i]) != 0)
-		{
-			StopCondition();
-			return -EIO;
-		}
-	}
-
-	StopCondition();
 	return 0;
 }
 
@@ -190,43 +200,63 @@ int I2C_GPIO::Read(uint8_t device_addr,
 				   uint8_t *data,
 				   uint32_t data_length)
 {
-	if (StartCondition() != 0)
-		return -EBUSY;
+	bool started = false;
 
-	// Send device address with write flag
-	if (WriteByte((device_addr << 1) | 0) != 0)
+	auto start = [&]() -> Result<Unit>
 	{
-		StopCondition();
-		return -EIO;
-	}
+		int rc = StartCondition();
+		if (rc != 0)
+			return Result<Unit>::Err(rc);
+		started = true;
+		return Result<Unit>::Ok();
+	};
 
-	// Send register address
-	for (uint32_t i = 0; i < reg_addr_length; i++)
+	auto writeByte = [&](uint8_t byte) -> Result<Unit>
 	{
-		if (WriteByte(*reg_addr++) != 0)
+		if (WriteByte(byte) != 0)
+			return Result<Unit>::Err(-EIO);
+		return Result<Unit>::Ok();
+	};
+
+	auto writeMany = [&](const uint8_t *buffer, uint32_t length) -> Result<Unit>
+	{
+		for (uint32_t i = 0; i < length; i++)
 		{
-			StopCondition();
-			return -EIO;
+			if (WriteByte(buffer[i]) != 0)
+				return Result<Unit>::Err(-EIO);
 		}
-	}
+		return Result<Unit>::Ok();
+	};
 
-	// Repeat start condition
-	RepeatStartCondition();
-
-	// Send device address with read flag
-	if (WriteByte((device_addr << 1) | 1) != 0)
+	auto repeatStart = [&]() -> Result<Unit>
 	{
+		RepeatStartCondition();
+		return Result<Unit>::Ok();
+	};
+
+	auto readMany = [&]() -> Result<Unit>
+	{
+		for (uint32_t i = 0; i < data_length; i++)
+		{
+			bool ack = (i + 1u < data_length);
+			data[i] = static_cast<uint8_t>(ReadByte(ack));
+		}
+		return Result<Unit>::Ok();
+	};
+
+	const Result<Unit> result = Result<Unit>::Ok()
+		.AndThen(start)
+		.AndThen([&]() { return writeByte(static_cast<uint8_t>((device_addr << 1) | 0)); })
+		.AndThen([&]() { return writeMany(reg_addr, reg_addr_length); })
+		.AndThen(repeatStart)
+		.AndThen([&]() { return writeByte(static_cast<uint8_t>((device_addr << 1) | 1)); })
+		.AndThen(readMany);
+
+	if (started)
 		StopCondition();
-		return -EIO;
-	}
 
-	// Read data bytes
-	for (uint32_t i = 0; i < data_length; i++)
-	{
-		bool ack = (i < (data_length - 1));
-		data[i] = ReadByte(ack);
-	}
+	if (!result.IsOk())
+		return result.Error();
 
-	StopCondition();
 	return 0;
 }
