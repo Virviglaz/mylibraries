@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2021 Pavel Nadein
+ * Copyright (c) 2021-2026 Pavel Nadein
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,7 +36,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * PID
+ * PID controller implementation.
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
@@ -45,12 +45,96 @@
 #ifndef __PID_H__
 #define __PID_H__
 
+#ifdef __cplusplus
+
+#include <algorithm>
+#include <limits>
+
+template<class T = float>
+class PID {
+public:
+	explicit PID() = default;
+	~PID() = default;
+
+    /**
+     * @brief Constructor to initialize the PID controller.
+     * @param kp Proportional gain
+     * @param ki Integral gain
+     * @param kd Derivative gain
+     * @param max_output Maximum allowable control signal
+     * @param min_output Minimum allowable control signal
+     * @param dt Sampling time step in seconds
+     */
+    PID(T kp = static_cast<T>(1.0),
+		T ki = static_cast<T>(0.0),
+		T kd = static_cast<T>(0.0),
+		T max_output = std::numeric_limits<T>::max(),
+		T min_output = std::numeric_limits<T>::lowest(),
+		T dt = static_cast<T>(1.0))
+        : m_kp(kp), m_ki(ki), m_kd(kd), 
+          m_max_output(max_output), m_min_output(min_output), 
+          m_dt(dt), m_prev_error(0.0), m_integral(0.0) {}
+
+    /**
+     * @brief Computes the control output based on the setpoint and current process value.
+     * @param setpoint Desired target value
+     * @param current_val Actual measured value from the system
+     * @return Clamped control signal
+     */
+    T Calculate(T setpoint, T current_val) noexcept {
+        // Calculate the tracking error
+        T error = setpoint - current_val;
+
+        // Proportional term (P)
+        T P_term = m_kp * error;
+
+        // Integral term (I) with anti-windup clamping to prevent saturation
+        m_integral += error * m_dt;
+        m_integral = std::clamp(m_integral, m_min_output / m_ki, m_max_output / m_ki);
+        T I_term = m_ki * m_integral;
+
+        // Derivative term (D) based on error rate of change
+        T derivative = (error - m_prev_error) / m_dt;
+        T D_term = m_kd * derivative;
+
+        // Total calculated controller output
+        T output = P_term + I_term + D_term;
+
+        // Clamp the final output to match hardware physical limits
+        output = std::clamp(output, m_min_output, m_max_output);
+
+        // Save current error for the next iteration
+        m_prev_error = error;
+
+        return output;
+    }
+
+    /**
+     * @brief Resets the internal state (integral sum and previous error).
+     * Useful when changing setpoints drastically or restarting the system.
+     */
+    void Reset() noexcept {
+        m_prev_error = 0.0;
+        m_integral = 0.0;
+    }
+
+private:
+    T m_kp; // Proportional coefficient
+    T m_ki; // Integral coefficient
+    T m_kd; // Derivative coefficient
+
+    T m_max_output; // Upper limit of the control signal
+    T m_min_output; // Lower limit of the control signal
+    T m_dt;         // Fixed time step between execution cycles
+
+    T m_prev_error; // Error stored from the last calculation step
+    T m_integral;   // Accumulated error sum over time
+};
+
+#else /* __cplusplus */
+
 #ifndef PID_T
 #define PID_T	double
-#endif
-
-#ifdef __cplusplus
-	extern "C" {
 #endif
 
 #include <stdbool.h>
@@ -78,8 +162,6 @@ void pid_set_limits(struct pid *, PID_T, PID_T);
 void pid_set_target(struct pid *, PID_T);
 PID_T pid_calc(struct pid *, PID_T);
 
-#ifdef __cplusplus
-}
-#endif
+#endif /* __cplusplus */
 
 #endif /* __PID_H__ */

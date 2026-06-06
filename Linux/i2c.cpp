@@ -50,14 +50,15 @@
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 #include <unistd.h>
+#include <vector>
 
-I2C::I2C(const char *dev)
+I2C_Interface::I2C_Interface(const char *dev)
 	: fd(-1)
 {
 	Init(dev);
 }
 
-void I2C::Init(const char *dev)
+void I2C_Interface::Init(const char *dev)
 {
 	fd = open(dev, O_RDWR);
 	if (fd < 0) {
@@ -66,47 +67,44 @@ void I2C::Init(const char *dev)
 	}
 }
 
-int I2C::Write(uint8_t device_addr,
+int I2C_Interface::Write(uint8_t device_addr,
 			   const uint8_t *reg_addr,
-			   uint16_t reg_addr_length,
+			   size_t reg_addr_length,
 			   const uint8_t *data,
-			   uint32_t data_length)
+			   size_t data_length)
 {
-	struct i2c_msg msg[2] = {
-		{ device_addr,	0,				reg_addr_length,					const_cast<uint8_t *>(reg_addr) },
-		{ device_addr,	I2C_M_NOSTART,	static_cast<uint16_t>(data_length),	const_cast<uint8_t *>(data) }
-	};
-
-	struct i2c_rdwr_ioctl_data msgset = { msg, 2 };
-
-	if (ioctl(fd, I2C_RDWR, &msgset))
+	std::vector<uint8_t> buf(reg_addr_length + data_length);
+	memcpy(buf.data(), reg_addr, reg_addr_length);
+	memcpy(buf.data() + reg_addr_length, data, data_length);
+	struct i2c_msg msg = { device_addr, 0, static_cast<uint16_t>(buf.size()), buf.data() };
+	struct i2c_rdwr_ioctl_data msgset = { &msg, 1 };
+	if (ioctl(fd, I2C_RDWR, &msgset) != 1)
 		throw std::runtime_error("Failed to write to I2C device, error: " +
 			std::string(std::strerror(errno)));
-
 	return 0;
 }
 
-int I2C::Read(uint8_t device_addr,
+int I2C_Interface::Read(uint8_t device_addr,
 			  const uint8_t *reg_addr,
-			  uint16_t reg_addr_length,
+			  size_t reg_addr_length,
 			  uint8_t *data,
-			  uint32_t data_length)
+			  size_t data_length)
 {
 	struct i2c_msg msg[2] = {
-		{ device_addr,	0,				reg_addr_length,					const_cast<uint8_t *>(reg_addr) },
-		{ device_addr,	I2C_M_RD,		static_cast<uint16_t>(data_length),	data }
+		{ device_addr,	0,				static_cast<uint16_t>(reg_addr_length),		const_cast<uint8_t *>(reg_addr) },
+		{ device_addr,	I2C_M_RD,		static_cast<uint16_t>(data_length),			data }
 	};
 
 	struct i2c_rdwr_ioctl_data msgset = { msg, 2 };
 
-	if (ioctl(fd, I2C_RDWR, &msgset))
+	if (ioctl(fd, I2C_RDWR, &msgset) != 2)
 		throw std::runtime_error("Failed to read from I2C device, error: " +
 			std::string(std::strerror(errno)));
 
 	return 0;
 }
 
-I2C::~I2C()
+I2C_Interface::~I2C_Interface()
 {
 	if (fd >= 0)
 		close(fd);

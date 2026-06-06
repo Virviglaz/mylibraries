@@ -52,6 +52,52 @@
 #endif
 
 #if defined(__cplusplus)
+#include <type_traits>
+#include <cstdint>
+
+// Определение порядка байт через макросы компилятора
+#if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__)
+#define IS_LITTLE_ENDIAN (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+#elif defined(_REG_MSVC) || defined(_M_IX86) || defined(_M_X64) || defined(_M_ARM) || defined(_M_ARM64)
+#define IS_LITTLE_ENDIAN 1 // MSVC целевые платформы практически всегда Little Endian
+#else
+#define IS_LITTLE_ENDIAN 1 // Разумный дефолт для большинства современных систем
+#endif
+
+template <typename T> constexpr
+T BigEndianToNative(T value)
+{
+    if constexpr (IS_LITTLE_ENDIAN)
+    {
+        if constexpr (sizeof(T) == 2)
+        {
+#if defined(__GNUC__) || defined(__clang__)
+            return __builtin_bswap16(reinterpret_cast<uint16_t&>(value));
+#elif defined(_MSC_VER)
+            return _byteswap_ushort(reinterpret_cast<uint16_t&>(value));
+#endif
+        }
+    }
+    return value;
+}
+
+template <typename T> constexpr
+T NativeToBigEndian(T value)
+{
+    if constexpr (IS_LITTLE_ENDIAN)
+    {
+        if constexpr (sizeof(T) == 2)
+        {
+#if defined(__GNUC__) || defined(__clang__)
+            return __builtin_bswap16(reinterpret_cast<uint16_t&>(value));
+#elif defined(_MSC_VER)
+            return _byteswap_ushort(reinterpret_cast<uint16_t&>(value));
+#endif
+        }
+    }
+    return value;
+}
+
 extern "C" {
 #endif
 

@@ -46,7 +46,7 @@
 #define DEVICES_H
 
 #include "interfaces.h"
-#include <stddef.h>
+#include <cstddef>
 
 #ifndef __cplusplus
 #error "This header requires C++11 or higher"
@@ -130,7 +130,7 @@ protected:
 /**
  * I2C Device Base Class
  */
-class I2C_DeviceBase : public SimpleInterfaceBase
+class I2C_DeviceBase
 {
 public:
 	/** Default constructor */
@@ -147,41 +147,85 @@ public:
 	I2C_DeviceBase(I2C_InterfaceBase &ifs, uint8_t address) : ifs_(ifs), address_(address) {}
 
 	/**
-	 * Write data to I2C device (optional)
+	 * Write data to I2C device
 	 *
 	 * @param reg_addr Register address to write to
-	 * @param dst Data to write
-	 * @param size Length of data to write
+	 * @param reg_addr_size Size of register address in bytes
+	 * @param data Data to write
+	 * @param length Length of data to write
 	 *
 	 * @return Reference to the I2C device
 	 */
-
-	virtual I2C_DeviceBase &Write(uint8_t reg_addr,
+	virtual I2C_DeviceBase &Write(const uint8_t *reg_addr,
+								  size_t reg_addr_size,
 								  const uint8_t *data,
-								  uint32_t length) { return *this; };
+								  size_t length)
+	{
+		ifs_.Write(address_, reg_addr, reg_addr_size, data, length);
+		return *this;
+	};
+
+	/**
+	 * Convenience template method to write data of any type
+	 *
+	 * @param reg_addr Register address to write to
+	 * @param data Data to write
+	 * @return Reference to the I2C device
+	 */
+	I2C_DeviceBase &Write(uint8_t reg_addr, const uint8_t *data, size_t length) {
+		return Write(reinterpret_cast<const uint8_t*>(&reg_addr), sizeof(reg_addr), data, length);
+	}
+
+	/**
+	 * Convenience template method to write data of any type
+	 *
+	 * @param reg_addr Register address to write to
+	 * @param data Data to write
+	 */
+	I2C_DeviceBase &Write(uint8_t reg_addr, uint8_t data) {
+		return Write(reinterpret_cast<const uint8_t*>(&reg_addr), sizeof(reg_addr), reinterpret_cast<const uint8_t*>(&data), sizeof(data));
+	}
+
 	/**
 	 * Read data from I2C device
 	 *
 	 * @param reg_addr Register address to read from
-	 * @param dst Buffer to store read data
-	 * @param size Length of data to read
+	 * @param reg_addr_size Size of register address in bytes
+	 * @param data Buffer to store read data
+	 * @param length Length of data to read
 	 *
 	 * @return Reference to the I2C device
 	 */
-	virtual I2C_DeviceBase &Read(uint8_t reg_addr,
+	virtual I2C_DeviceBase &Read(const uint8_t *reg_addr,
+								 size_t reg_addr_size,
 								 uint8_t *data,
-								 uint32_t length) = 0;
+								 size_t length)
+	{
+		ifs_.Read(address_, reg_addr, reg_addr_size, data, length);
+		return *this;
+	}
 
 	/**
-	 * Write a single byte of data
+	 * Read data from I2C device (optional)
 	 *
-	 * @param data Byte to write
-	 * @return Reference to the interface object
+	 * @param reg_addr Register address to read from
+	 * @param data Buffer to store read data
+	 * @param length Length of data to read
+	 * @return Reference to the I2C device
 	 */
-	SimpleInterfaceBase &WriteByte(uint8_t data) override
-	{
-		Write(data, nullptr, 0);
-		return *this;
+	I2C_DeviceBase &Read(uint8_t reg_addr, uint8_t *data, size_t length) {
+		return Read(reinterpret_cast<const uint8_t*>(&reg_addr), sizeof(reg_addr), data, length);
+	}
+
+	/**
+	 * Read data from I2C device (optional)
+	 *
+	 * @param reg_addr Register address to read from
+	 * @param data Buffer to store read data
+	 * @return Reference to the I2C device
+	 */
+	I2C_DeviceBase &Read(uint8_t reg_addr, uint8_t &data) {
+		return Read(reinterpret_cast<const uint8_t*>(&reg_addr), sizeof(reg_addr), reinterpret_cast<uint8_t*>(&data), sizeof(data));
 	}
 
 protected:

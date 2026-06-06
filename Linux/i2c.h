@@ -53,13 +53,13 @@
 /**
  * Linux I2C Interface Implementation
  */
-class I2C : public I2C_InterfaceBase
+class I2C_Interface : public I2C_InterfaceBase
 {
 public:
 	/**
 	 * @brief Default constructor (does not initialize the interface)
 	 */
-	explicit I2C() = default;
+	explicit I2C_Interface() = default;
 
 	/**
 	 * Constructor (initializes the interface)
@@ -67,8 +67,8 @@ public:
 	 * @param dev I2C device file (e.g. "/dev/i2c-1")
 	 * @throws std::runtime_error if initialization fails
 	 */
-	explicit I2C(const char *dev);
-	virtual ~I2C() override;
+	explicit I2C_Interface(const char *dev);
+	virtual ~I2C_Interface() override;
 
 	/**
 	 * @brief Initialize I2C interface
@@ -91,9 +91,9 @@ public:
 	 */
 	virtual int Write(uint8_t device_addr,
 					  const uint8_t *reg_addr,
-					  uint16_t reg_addr_length,
+					  size_t reg_addr_length,
 					  const uint8_t *data,
-					  uint32_t data_length) override;
+					  size_t data_length) override;
 
 	/**
 	 * @brief Read data from I2C device
@@ -108,9 +108,9 @@ public:
 	 */
 	virtual int Read(uint8_t device_addr,
 					 const uint8_t *reg_addr,
-					 uint16_t reg_addr_length,
+					 size_t reg_addr_length,
 					 uint8_t *data,
-					 uint32_t data_length) override;
+					 size_t data_length) override;
 
 private:
 	int fd;
