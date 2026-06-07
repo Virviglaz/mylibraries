@@ -289,4 +289,23 @@ public:
 	virtual uint8_t ReadBit() { return 0; }
 };
 
+class Time_InterfaceBase
+{
+public:
+	explicit Time_InterfaceBase() = default;
+	virtual ~Time_InterfaceBase() = default;
+
+	/**
+	 * Get current time in microseconds since the last reset.
+	 *
+	 * @return Time in microseconds
+	 */
+	virtual uint64_t GetTimeUs() = 0;
+
+	/**
+	 * Reset the time counter.
+	 */
+	virtual void ResetTime() = 0;
+};
+
 #endif // INTERFACES_H
