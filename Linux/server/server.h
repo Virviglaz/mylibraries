@@ -117,7 +117,7 @@ private:
 class ServerBase
 {
 public:
-	enum Protocol { TCP, UDP };
+	enum class Protocol { TCP, UDP };
 
 	explicit ServerBase() = default;
 	~ServerBase();

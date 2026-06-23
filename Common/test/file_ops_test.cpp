@@ -48,7 +48,7 @@ int do_ext_file_test()
 	}
 
 	try {
-		csv.Open("nonexistent.csv", File::READ_ONLY);
+		csv.Open("nonexistent.csv", File::OpenFlags::READ_ONLY);
 	} catch (const std::system_error &e) {
 		EXPECT_EQ(e.code().value(), ENOENT);
 	}
@@ -65,7 +65,7 @@ int do_ext_file_test()
 		EXPECT_STREQ(e.what(), "File is not open");
 	}
 
-	csv.Open("test.csv", File::READ_ONLY);
+	csv.Open("test.csv", File::OpenFlags::READ_ONLY);
 
 	try {
 		csv.Write("data", 4);

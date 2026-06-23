@@ -55,9 +55,9 @@ UART_InterfaceBase &UART_Device::Init()
 
 int UART_Device::SendReceive(const uint8_t *tx_data,
 							uint8_t *rx_data,
-							uint32_t length)
+							size_t length)
 {
-	for (uint32_t i = 0; i < length; i++)
+	for (size_t i = 0; i < length; i++)
 	{
 		// Transmit byte
 		while (!(uart_instance_->SR & USART_SR_TXE));

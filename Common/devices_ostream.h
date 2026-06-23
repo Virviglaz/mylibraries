@@ -69,10 +69,9 @@ public:
 	GPIO_DeviceOStream(const std::string &name,
 					   uint16_t port,
 					   uint16_t pin,
-					   GPIO_DeviceBase::dir dir,
+					   GPIO_DeviceBase::Direction dir,
 					   int read_value = 0) :
-					   GPIO_DeviceBase(port, pin, dir),
-					   name_(name), dir_(dir), read_value_(read_value) {}
+					   name_(name), dir_(dir), _port(port), _pin(pin), read_value_(read_value) {}
 
 	/**
 	 * Set value to output pin.
@@ -80,7 +79,7 @@ public:
 	 * @param state State to set (only for OUTPUT direction)
 	 * @throws std::invalid_argument if GPIO is not configured as OUTPUT
 	 */
-	GPIO_DeviceOStream& Set(uint16_t state);
+	GPIO_DeviceOStream& Set(bool state) override;
 
 	/**
 	 * Read value from input pin.
@@ -88,15 +87,17 @@ public:
 	 * @return Current GPIO state (only for INPUT direction)
 	 * @throws std::invalid_argument if GPIO is not configured as INPUT
 	 */
-    int Get();
+    bool Get() override;
 private:
     std::string name_;
-    GPIO_DeviceBase::dir dir_;
+    GPIO_DeviceBase::Direction dir_;
+	uint16_t _port;
+	uint16_t _pin;
     int read_value_;
 };
 
 /**
- * I2C Device streaming to standart output
+ * I2C Device streaming to standard output
  */
 class I2C_DeviceOStream : public I2C_DeviceBase
 {
@@ -123,7 +124,7 @@ public:
 	 */
 	I2C_DeviceOStream &Write(uint8_t reg_addr,
 							 const uint8_t *data,
-							 uint32_t length) override;
+							 size_t length) override;
 
 	/**
 	 * Read data from I2C Device.
@@ -137,7 +138,7 @@ public:
 	 */
 	I2C_DeviceOStream &Read(uint8_t reg_addr,
 							uint8_t *data,
-							uint32_t length) override;
+							size_t length) override;
 
 private:
 	I2C_InterfaceDummy dummy_ifs_;
@@ -153,7 +154,7 @@ public:
 	 * @param name Device name for logging
 	 */
 	SPI_DeviceOStream(const std::string &name) :
-		SPI_DeviceBase(dummy_spi_interface, dummy_gpio_device),
+		SPI_DeviceBase(dummy_spi_interface),
 		name_(name) {}
 
 	/**
@@ -167,11 +168,10 @@ public:
 	 */
 	SPI_DeviceOStream &Transfer(const uint8_t *tx_data,
 								uint8_t *rx_data,
-								uint32_t length);
+								size_t length);
 
 private:
 	SPI_InterfaceDummy dummy_spi_interface;
-	GPIO_DeviceDummy dummy_gpio_device;
 	std::string name_;
 };
 

@@ -147,9 +147,9 @@ uint16_t I2C_GPIO::ReadByte(bool ack)
 
 int I2C_GPIO::Write(uint8_t device_addr,
 					const uint8_t *reg_addr,
-					uint16_t reg_addr_length,
+					size_t reg_addr_length,
 					const uint8_t *data,
-					uint32_t data_length)
+					size_t data_length)
 {
 	bool started = false;
 
@@ -169,9 +169,9 @@ int I2C_GPIO::Write(uint8_t device_addr,
 		return Result<Unit>::Ok();
 	};
 
-	auto writeMany = [&](const uint8_t *buffer, uint32_t length) -> Result<Unit>
+	auto writeMany = [&](const uint8_t *buffer, size_t length) -> Result<Unit>
 	{
-		for (uint32_t i = 0; i < length; i++)
+		for (size_t i = 0; i < length; i++)
 		{
 			if (WriteByte(buffer[i]) != 0)
 				return Result<Unit>::Err(-EIO);
@@ -196,9 +196,9 @@ int I2C_GPIO::Write(uint8_t device_addr,
 
 int I2C_GPIO::Read(uint8_t device_addr,
 				   const uint8_t *reg_addr,
-				   uint16_t reg_addr_length,
+				   size_t reg_addr_length,
 				   uint8_t *data,
-				   uint32_t data_length)
+				   size_t data_length)
 {
 	bool started = false;
 
@@ -218,9 +218,9 @@ int I2C_GPIO::Read(uint8_t device_addr,
 		return Result<Unit>::Ok();
 	};
 
-	auto writeMany = [&](const uint8_t *buffer, uint32_t length) -> Result<Unit>
+	auto writeMany = [&](const uint8_t *buffer, size_t length) -> Result<Unit>
 	{
-		for (uint32_t i = 0; i < length; i++)
+		for (size_t i = 0; i < length; i++)
 		{
 			if (WriteByte(buffer[i]) != 0)
 				return Result<Unit>::Err(-EIO);
@@ -236,7 +236,7 @@ int I2C_GPIO::Read(uint8_t device_addr,
 
 	auto readMany = [&]() -> Result<Unit>
 	{
-		for (uint32_t i = 0; i < data_length; i++)
+		for (size_t i = 0; i < data_length; i++)
 		{
 			bool ack = (i + 1u < data_length);
 			data[i] = static_cast<uint8_t>(ReadByte(ack));

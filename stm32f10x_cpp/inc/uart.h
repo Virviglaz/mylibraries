@@ -64,7 +64,7 @@ public:
 	 * @param peripheral_clock Peripheral clock frequency
 	 *
 	 * @note Peripheral clock frequency is CPU frequency by default.
-	 * When using defailt value, class constructor will become runtime expression.
+	 * When using default value, class constructor will become runtime expression.
 	 * Thus, if you need a compile-time constant constructor,
 	 * you should provide peripheral clock frequency explicitly.
 	 */
@@ -72,7 +72,7 @@ public:
 	UART_Device(uint8_t port_number,
 				uint32_t baudrate,
 				uint32_t peripheral_clock = Clocks::GetCPUFreqHz()) :
-				UART_InterfaceBase(port_number),
+				UART_InterfaceBase(),
 				brr_value_(UART_BRR_SAMPLING8(peripheral_clock, baudrate)),
 				uart_instance_(Get_UART_Instance(port_number)) {}
 
@@ -95,7 +95,7 @@ public:
 	 */
 	virtual int SendReceive(const uint8_t *tx_data,
 							uint8_t *rx_data,
-							uint32_t length) override;
+							size_t length) override;
 
 private:
 	static constexpr uint16_t UART_BRR_SAMPLING8(uint32_t pclk, uint32_t baud)
@@ -108,7 +108,7 @@ private:
 	{
 		USART_TypeDef *instances[] = { USART1, USART2, USART3 };
 		return (port_number > 0 && (port_number <= 3)) ?
-			instances[port_number] : nullptr;
+			instances[port_number - 1] : nullptr;
 	}
 
 	uint32_t brr_value_;

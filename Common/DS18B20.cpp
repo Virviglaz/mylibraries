@@ -69,7 +69,7 @@ uint16_t DS18B20_InterfaceBase::GetConversionDelayMs()
 OneWire_InterfaceBase::Result DS18B20_Single::Init(uint8_t devices)
 {
 	auto res = interface_.Reset();
-	if (res != OneWire_InterfaceBase::Success)
+	if (res != OneWire_InterfaceBase::Result::Success)
 		return res;
 
 	interface_.Write(SKIP_ROM);
@@ -84,7 +84,7 @@ OneWire_InterfaceBase::Result DS18B20_Single::Init(uint8_t devices)
 OneWire_InterfaceBase::Result DS18B20_Single::StartConversion()
 {
 	auto res = interface_.Reset();
-	if (res != OneWire_InterfaceBase::Success)
+	if (res != OneWire_InterfaceBase::Result::Success)
 		return res;
 
 	/* Start conversion skipping ROM */
@@ -100,7 +100,7 @@ OneWire_InterfaceBase::Result DS18B20_Single::ReadTemperature(float &temp, int n
 	int16_t rawvalue;
 
 	auto res = interface_.Reset();
-	if (res != OneWire_InterfaceBase::Success)
+	if (res != OneWire_InterfaceBase::Result::Success)
 		return res;
 
 	interface_.Write(SKIP_ROM);
@@ -118,7 +118,7 @@ OneWire_InterfaceBase::Result DS18B20_Single::ReadTemperature(float &temp, int n
 
 	temp = static_cast<float>(rawvalue) / 16.0f;
 
-	return OneWire_InterfaceBase::Success;
+	return OneWire_InterfaceBase::Result::Success;
 }
 
 template<int max_devices>
@@ -135,7 +135,7 @@ OneWire_InterfaceBase::Result DS18B20_Multi<max_devices>::SearchSensors(uint8_t 
 		 * Each ROM search pass
 		 */
 		auto res = interface_.Reset();
-		if (res != OneWire_InterfaceBase::Success)
+		if (res != OneWire_InterfaceBase::Result::Success)
 			return res;
 
 		interface_.Write(SEARCH_ROM);
@@ -180,7 +180,7 @@ OneWire_InterfaceBase::Result DS18B20_Multi<max_devices>::SearchSensors(uint8_t 
 		*devices_found = cnt_num;
 
 	return *devices_found == max_devices ? \
-		OneWire_InterfaceBase::Success : OneWire_InterfaceBase::NotAllDevicesFound;
+		OneWire_InterfaceBase::Result::Success : OneWire_InterfaceBase::Result::NotAllDevicesFound;
 }
 
 template<int max_devices>
@@ -191,7 +191,7 @@ OneWire_InterfaceBase::Result DS18B20_Multi<max_devices>::Init(uint8_t devices)
 	for (uint8_t i = 0; i != devices ? devices : max_devices; i++)
 	{
 		res = interface_.Reset();
-		if (res != OneWire_InterfaceBase::Success)
+		if (res != OneWire_InterfaceBase::Result::Success)
 			return res;
 
 		interface_.Write(MATCH_ROM);
@@ -216,7 +216,7 @@ OneWire_InterfaceBase::Result DS18B20_Multi<max_devices>::StartConversion(int nu
 	{
 		// Start conversion on all sensors
 		res = interface_.Reset();
-		if (res != OneWire_InterfaceBase::Success)
+		if (res != OneWire_InterfaceBase::Result::Success)
 			return res;
 
 		interface_.Write(SKIP_ROM);
@@ -226,7 +226,7 @@ OneWire_InterfaceBase::Result DS18B20_Multi<max_devices>::StartConversion(int nu
 	{
 		// Start conversion on a single sensor
 		res = interface_.Reset();
-		if (res != OneWire_InterfaceBase::Success)
+		if (res != OneWire_InterfaceBase::Result::Success)
 			return res;
 
 		interface_.Write(MATCH_ROM);
@@ -245,7 +245,7 @@ OneWire_InterfaceBase::Result DS18B20_Multi<max_devices>::ReadTemperature(float 
 	int16_t rawvalue;
 
 	auto res = interface_.Reset();
-	if (res != OneWire_InterfaceBase::Success)
+	if (res != OneWire_InterfaceBase::Result::Success)
 		return res;
 
 	interface_.Write(MATCH_ROM);
@@ -266,7 +266,7 @@ OneWire_InterfaceBase::Result DS18B20_Multi<max_devices>::ReadTemperature(float 
 
 	temp = static_cast<float>(rawvalue) / 16.0f;
 
-	return OneWire_InterfaceBase::Success;
+	return OneWire_InterfaceBase::Result::Success;
 }
 
 template<int max_devices>
@@ -277,7 +277,7 @@ std::vector<float> DS18B20_Multi<max_devices>::ReadAllTemperatures()
 
 	for (uint8_t i = 0; i != max_devices; i++)
 	{
-		if (ReadTemperature(i, temp) == OneWire_InterfaceBase::Success)
+		if (ReadTemperature(i, temp) == OneWire_InterfaceBase::Result::Success)
 			temperatures.push_back(temp);
 	}
 
@@ -292,7 +292,7 @@ std::map<uint8_t, float> DS18B20_Multi<max_devices>::ReadAllTemperaturesMap()
 
 	for (uint8_t i = 0; i != max_devices; i++)
 	{
-		if (ReadTemperature(i, temp) == OneWire_InterfaceBase::Success)
+		if (ReadTemperature(i, temp) == OneWire_InterfaceBase::Result::Success)
 			temperatures[i] = temp;
 	}
 

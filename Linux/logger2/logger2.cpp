@@ -27,7 +27,7 @@ public:
 						  std::optional<std::string> reply_message)
 		: ServerBase(port, MAX_MESSAGE_SIZE, 32, protocol), _name(std::move(name)), magic_number(magic_number), reply_message(std::move(reply_message))
 	{
-		log_file = std::make_unique<File>(log_file_path.c_str(), File::WRITE_ONLY);
+		log_file = std::make_unique<File>(log_file_path.c_str(), File::OpenFlags::WRITE_ONLY);
 	}
 
 	void OnReceive(Network::MessageBase &msg) override

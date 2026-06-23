@@ -94,16 +94,18 @@ public:
 	explicit GPIO_DeviceJSON(const std::string &json_file,
 							 uint16_t port,
 							 uint16_t pin,
-							 GPIO_DeviceBase::dir dir);
+							 GPIO_DeviceBase::Direction dir);
 
 	/**
 	 * Get pin state
 	 *
 	 * @return Pin state
 	 */
-	int Get() override;
+	bool Get() override;
 private:
 	std::vector<uint16_t> steps{};
+	uint16_t port_;
+	uint16_t pin_;
 };
 
 /**
@@ -127,7 +129,7 @@ public:
 
 	I2C_DeviceJSON &Read(uint8_t reg_addr,
 						 uint8_t *data,
-						 uint32_t length) override;
+						 size_t length) override;
 
 private:
 	I2C_InterfaceDummy dummy_interface;
@@ -154,10 +156,9 @@ public:
 
 	SPI_DeviceJSON &Transfer(const uint8_t *tx_data,
 							 uint8_t *rx_data,
-							 uint32_t length) override;
+							 size_t length) override;
 
 private:
-	GPIO_DeviceDummy dummy_gpio_device;
 	SPI_InterfaceDummy dummy_spi_interface;
 	std::vector<std::vector<uint8_t>> steps{};
 };
@@ -189,7 +190,7 @@ public:
 	 */
 	int SendReceive(const uint8_t *tx_data,
 					uint8_t *rx_data,
-					uint32_t length) override;
+					size_t length) override;
 private:
 	std::vector<std::vector<uint8_t>> steps{};
 };

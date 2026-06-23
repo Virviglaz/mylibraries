@@ -68,7 +68,7 @@ DS18B20_Single_Json::DS18B20_Single_Json(const std::string &json_file, const std
 OneWire_InterfaceBase::Result DS18B20_Single_Json::Init(uint8_t devices)
 {
 	initialized = true;
-	return OneWire_InterfaceBase::Success;
+	return OneWire_InterfaceBase::Result::Success;
 }
 
 OneWire_InterfaceBase::Result DS18B20_Single_Json::StartConversion()
@@ -77,7 +77,7 @@ OneWire_InterfaceBase::Result DS18B20_Single_Json::StartConversion()
 		throw std::runtime_error("Device not initialized");
 
 	conversion_started = true;
-	return OneWire_InterfaceBase::Success;
+	return OneWire_InterfaceBase::Result::Success;
 }
 
 OneWire_InterfaceBase::Result DS18B20_Single_Json::ReadTemperature(float &temp, int num)
@@ -95,5 +95,5 @@ OneWire_InterfaceBase::Result DS18B20_Single_Json::ReadTemperature(float &temp, 
 		throw std::out_of_range("Step count exceeds defined steps");
 	}
 
-	return OneWire_InterfaceBase::Success;
+	return OneWire_InterfaceBase::Result::Success;
 }

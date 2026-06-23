@@ -57,51 +57,45 @@
 #error "This file requires at least a C++17 compliant compiler"
 #endif
 
-int GPIO_Interface::Read(uint16_t port, uint16_t pin)
+#if 0
+bool GPIO_Interface::Read(uint16_t port, uint16_t pin)
 {
 	GPIO_TypeDef* gpio = GPIO_Device::getGPIOPort(port);
-	if (gpio == nullptr)
-		return -1;
 
-	return (gpio->IDR & pin) ? 1 : 0;
+	return (gpio->IDR & pin) ? true : false;
 }
 
-void GPIO_Interface::Write(uint16_t port, uint16_t pin, int state)
+void GPIO_Interface::Write(uint16_t port, uint16_t pin, bool state)
 {
 	GPIO_TypeDef* gpio = GPIO_Device::getGPIOPort(port);
-	if (gpio == nullptr)
-		return;
 
 	if (state)
 		gpio->BSRR = pin;
 	else
 		gpio->BRR = pin;
 }
+#endif
 
 GPIO_Device &GPIO_Device::Init()
 {
 	RCC->APB2ENR |= config_.rcc_mask;
 	GPIO_TypeDef *gpio = config_.gpio;
-	if (gpio == nullptr)
-		return *this;
 
 	gpio->CRL &= ~config_.crl_clear;
 	gpio->CRL |= config_.crl_set;
 	gpio->CRH &= ~config_.crh_clear;
 	gpio->CRH |= config_.crh_set;
-	if (config_.direction == PULL_UP)
-		Set(1);
-	else if (config_.direction == PULL_DOWN)
-		Set(0);
+	if (config_.direction == GPIO_DeviceBase::Direction::PULL_UP)
+		Set(true);
+	else if (config_.direction == GPIO_DeviceBase::Direction::PULL_DOWN)
+		Set(false);
 
 	return *this;
 }
 
-GPIO_Device &GPIO_Device::Set(uint16_t state)
+GPIO_Device &GPIO_Device::Set(bool state)
 {
 	GPIO_TypeDef* gpio = getGPIOPort(port_);
-	if (gpio == nullptr)
-		return *this;
 
 	if (state)
 		gpio->BSRR = BIT(pin_);
@@ -111,11 +105,7 @@ GPIO_Device &GPIO_Device::Set(uint16_t state)
 	return *this;
 }
 
-int GPIO_Device::Get()
+bool GPIO_Device::Get()
 {
-	GPIO_TypeDef* gpio = getGPIOPort(port_);
-	if (gpio == nullptr)
-		return -1;
-
-	return (gpio->IDR & BIT(pin_)) ? 1 : 0;
+	return (getGPIOPort(port_)->IDR & BIT(pin_)) ? true : false;
 }

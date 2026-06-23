@@ -4,7 +4,7 @@
  *
  *   MIT License
  *
- *   Copyright (c) 2025 Pavel Nadein
+ *   Copyright (c) 2025-2026 Pavel Nadein
  *
  *   Permission is hereby granted, free of charge, to any person obtaining a copy
  *   of this software and associated documentation files (the "Software"), to deal
@@ -36,7 +36,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Abstract interface for ebmedded systems peripherals.
+ * Abstract interface for embedded systems peripherals.
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
@@ -51,93 +51,6 @@
 
 #include <cstdint>
 #include <cstddef>
-
-/**
- * Simple Interface Base Class
- *
- * This class provides basic read and write methods for simple interfaces.
- * For example, it can be used as a base class for interfaces that only need to
- * send and receive single bytes of data.
- */
-class SimpleInterfaceBase
-{
-public:
-	explicit SimpleInterfaceBase() = default;
-	virtual ~SimpleInterfaceBase() = default;
-
-	/**
-	 * Write a single byte of data
-	 *
-	 * @param data Byte to write
-	 *
-	 * @return Reference to the interface object
-	 */
-	virtual SimpleInterfaceBase& WriteByte(uint8_t data)
-	{
-		(void)data;
-		return *this;
-	}
-
-	/**
-	 * Read a single byte of data
-	 *
-	 * @return Read byte
-	 */
-	virtual uint8_t ReadByte()
-	{
-		return 0;
-	}
-
-	/**
-	 * Write a single word of data
-	 *
-	 * @param data Word to write
-	 *
-	 * @return Reference to the interface object
-	 */
-	virtual SimpleInterfaceBase& WriteWord(uint16_t data)
-	{
-		(void)data;
-		return *this;
-	}
-
-	/**
-	 * Read a single word of data
-	 *
-	 * @return Read word
-	 */
-	virtual uint16_t ReadWord()
-	{
-		return 0;
-	}
-};
-
-/**
- * GPIO Interface Base Class
- */
-class GPIO_InterfaceBase
-{
-public:
-	explicit GPIO_InterfaceBase() = default;
-	virtual ~GPIO_InterfaceBase() = default;
-
-	/**
-	 * Read pin state
-	 *
-	 * @param pin GPIO pin number
-	 *
-	 * @return Pin state
-	 */
-	virtual int Read(uint16_t port, uint16_t pin) = 0;
-
-	/**
-	 * Write pin state
-	 *
-	 * @param pin GPIO pin number
-	 * @param state Pin state
-	 */
-	virtual void Write(uint16_t port, uint16_t pin, int state) = 0;
-};
 
 /**
  * I2C Interface Base Class
@@ -186,7 +99,7 @@ public:
 /**
  * SPI Interface Base Class
  */
-class SPI_InterfaceBase : public SimpleInterfaceBase
+class SPI_InterfaceBase
 {
 public:
 	explicit SPI_InterfaceBase() = default;
@@ -201,25 +114,17 @@ public:
 	 */
 	virtual int Transfer(const uint8_t *tx_data,
 						 uint8_t *rx_data,
-						 uint32_t length) = 0;
+						 size_t length) = 0;
 };
 
 /**
  * UART Interface Base Class
  */
-class UART_InterfaceBase : public SimpleInterfaceBase
+class UART_InterfaceBase 
 {
 public:
-	explicit UART_InterfaceBase() = delete;
+	explicit UART_InterfaceBase() = default;
 	virtual ~UART_InterfaceBase() = default;
-
-	/**
-	 * Constructor
-	 *
-	 * @param port_number UART port number
-	 */
-	explicit constexpr
-	UART_InterfaceBase(uint8_t port_number) : port_number_(port_number) {}
 
 	/**
 	 * @param tx_data Data to send
@@ -228,9 +133,7 @@ public:
 	 *
 	 * @return 0 on success, negative value on error
 	 */
-	virtual int SendReceive(const uint8_t *tx_data, uint8_t *rx_data, uint32_t length) = 0;
-protected:
-	uint8_t port_number_;
+	virtual int SendReceive(const uint8_t *tx_data, uint8_t *rx_data, size_t length) = 0;
 };
 
 /**
@@ -245,7 +148,7 @@ public:
 	/**
 	 * Result of the Reset operation
 	 */
-	enum Result {
+	enum class Result {
 		Success = 0,
 		NoDevice = 1,
 		CrcMissmatch = 2,
@@ -258,7 +161,7 @@ public:
 	 *
 	 * @return Result of the reset operation
 	 */
-	virtual Result Reset() { return Success; };
+	virtual Result Reset() { return Result::Success; };
 
 	/**
 	 * Write a byte to the One-Wire bus

@@ -93,7 +93,7 @@ void File::Open(const char *path, OpenFlags flags)
 
 	openFlags = flags;
 	int _flags = static_cast<int>(flags);
-	if (_flags == WRITE_ONLY || _flags == READ_WRITE)
+	if (_flags == static_cast<int>(OpenFlags::WRITE_ONLY) || _flags == static_cast<int>(OpenFlags::READ_WRITE))
 		_flags |= O_CREAT;
 
 	int fd = open(path, _flags, S_IRUSR | S_IWUSR);
@@ -156,7 +156,7 @@ File &File::Write(const void *data, size_t size)
 {
 	checkFileOpen();
 
-	if (openFlags == READ_ONLY)
+	if (openFlags == OpenFlags::READ_ONLY)
 		throw std::runtime_error("File is not open for writing");
 
 	ssize_t ret = write(fileInternal->fd, data, size);
@@ -174,7 +174,7 @@ File &File::Read(void *dst, size_t size)
 {
 	checkFileOpen();
 
-	if (openFlags == WRITE_ONLY)
+	if (openFlags == OpenFlags::WRITE_ONLY)
 		throw std::runtime_error("File is not open for reading");
 
 	ssize_t ret = read(fileInternal->fd, dst, size);
@@ -199,7 +199,7 @@ File &File::Sync()
 {
 	checkFileOpen();
 
-	if (openFlags == READ_ONLY)
+	if (openFlags == OpenFlags::READ_ONLY)
 		throw std::runtime_error("File is not open for writing");
 
 	int ret = fsync(fileInternal->fd);
@@ -269,13 +269,13 @@ File::Mmap::Mmap(int fd, size_t size, off_t offset, OpenFlags flags)
 
 	switch (flags)
 	{
-	case WRITE_ONLY:
+	case OpenFlags::WRITE_ONLY:
 		mmap_flags = PROT_WRITE;
 		break;
-	case READ_ONLY:
+	case OpenFlags::READ_ONLY:
 		mmap_flags = PROT_READ;
 		break;
-	case READ_WRITE:
+	case OpenFlags::READ_WRITE:
 		mmap_flags = PROT_READ | PROT_WRITE;
 		break;
 	}
@@ -371,7 +371,7 @@ void File::checkFileOpen() const
 		throw std::runtime_error("File is not open");
 }
 
-TextFile::TextFile(const char *path) : File(path, READ_ONLY)
+TextFile::TextFile(const char *path) : File(path, OpenFlags::READ_ONLY)
 {
 	std::string_view content = Read();
 
@@ -382,7 +382,7 @@ TextFile::TextFile(const char *path) : File(path, READ_ONLY)
 	if (r_cnt > 0 && n_cnt > 0) {
 		if (r_cnt != n_cnt)
 			throw std::runtime_error("Inconsistent line endings detected in file");
-		lineEnding = CRLF;
+		lineEnding = LineEnding::CRLF;
 	}
 
 	lineCount = n_cnt + 1; // Add 1 for the last line if it doesn't end with a newline character
@@ -415,10 +415,10 @@ std::string_view TextFile::ReadLine()
 	char *ptr = readPos;
 
 	while (ptr < endPos) {
-		if (lineEnding == CRLF && *ptr == '\r') {
+		if (lineEnding == LineEnding::CRLF && *ptr == '\r') {
 			ptr++; // Skip '\r'
 			break;
-		} else if (lineEnding == LF && *ptr == '\n') {
+		} else if (lineEnding == LineEnding::LF && *ptr == '\n') {
 			break;
 		}
 		ptr++;

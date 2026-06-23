@@ -90,7 +90,7 @@ public:
 	 */
 	virtual int Transfer(const uint8_t *tx_data,
 						 uint8_t *rx_data,
-						 uint32_t length) override;
+						 size_t length) override;
 
 private:
 	int fd_ = -1; // File descriptor for the SPI device

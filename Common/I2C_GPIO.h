@@ -86,9 +86,9 @@ public:
 	 */
 	int Write(uint8_t device_addr,
 			  const uint8_t *reg_addr,
-			  uint16_t reg_addr_length,
+			  size_t reg_addr_length,
 			  const uint8_t *data,
-			  uint32_t data_length) override;
+			  size_t data_length) override;
 
 	/**
 	 * @brief Read data from I2C device
@@ -97,15 +97,15 @@ public:
 	 * @param reg_addr Pointer to register address to read from
 	 * @param reg_addr_length Length of the register address (1, 2 or 4 bytes)
 	 * @param data Buffer to store read data
-	 * @param length Length of data to read
+	 * @param data_length Length of data to read
 	 *
 	 * @return 0 on success, negative value on error
 	 */
 	int Read(uint8_t device_addr,
 			 const uint8_t *reg_addr,
-			 uint16_t reg_addr_length,
+			 size_t reg_addr_length,
 			 uint8_t *data,
-			 uint32_t data_length) override;
+			 size_t data_length) override;
 
 	/**
 	 * @brief Delay function to be called between I2C signal changes

@@ -4,7 +4,7 @@
  *
  *   MIT License
  *
- *   Copyright (c) 2025 Pavel Nadein
+ *   Copyright (c) 2025-2026 Pavel Nadein
  *
  *   Permission is hereby granted, free of charge, to any person obtaining a copy
  *   of this software and associated documentation files (the "Software"), to deal
@@ -36,7 +36,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Streaming interface for ebmedded devices. Prints trace to standart output.
+ * Streaming interface for embedded devices. Prints trace to standard output.
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
@@ -56,9 +56,9 @@ static void print_data(const uint8_t *data, uint32_t length)
 	std::cout << std::dec << std::endl;
 }
 
-GPIO_DeviceOStream& GPIO_DeviceOStream::Set(uint16_t state)
+GPIO_DeviceOStream& GPIO_DeviceOStream::Set(bool state)
 {
-	if (dir_ != GPIO_DeviceBase::dir::OUTPUT)
+	if (dir_ != GPIO_DeviceBase::Direction::OUTPUT)
 	{
 		throw std::invalid_argument("GPIO configured as intput");
 	}
@@ -68,9 +68,9 @@ GPIO_DeviceOStream& GPIO_DeviceOStream::Set(uint16_t state)
 	return *this;
 }
 
-int GPIO_DeviceOStream::Get()
+bool GPIO_DeviceOStream::Get()
 {
-	if (dir_ != GPIO_DeviceBase::dir::INPUT)
+	if (dir_ != GPIO_DeviceBase::Direction::INPUT)
 	{
 		throw std::invalid_argument("GPIO configured as output");
 	}
@@ -82,7 +82,7 @@ int GPIO_DeviceOStream::Get()
 
 I2C_DeviceOStream &I2C_DeviceOStream::Write(uint8_t reg_addr,
 											const uint8_t *data,
-											uint32_t length)
+											size_t length)
 {
 	if (!data || length == 0)
 	{
@@ -98,7 +98,7 @@ I2C_DeviceOStream &I2C_DeviceOStream::Write(uint8_t reg_addr,
 
 I2C_DeviceOStream &I2C_DeviceOStream::Read(uint8_t reg_addr,
 										   uint8_t *data,
-										   uint32_t length)
+										   size_t length)
 {
 	if (!data || length == 0)
 	{
@@ -113,7 +113,7 @@ I2C_DeviceOStream &I2C_DeviceOStream::Read(uint8_t reg_addr,
 
 SPI_DeviceOStream& SPI_DeviceOStream::Transfer(const uint8_t *tx_data,
 								uint8_t *rx_data,
-								uint32_t length)
+								size_t length)
 {
 	if (length == 0)
 	{

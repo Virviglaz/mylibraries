@@ -49,31 +49,6 @@
 #include "devices.h"
 #include <stm32f10x.h>
 
-class GPIO_Interface : public GPIO_InterfaceBase
-{
-public:
-		/** Default constructor */
-		explicit GPIO_Interface() = delete;
-		virtual ~GPIO_Interface() = default;
-
-		/**
-		 * Read pin state
-		 *
-		 * @param pin GPIO pin number
-		 *
-		 * @return Pin state
-		 */
-		int Read(uint16_t port, uint16_t pin) override;
-
-		/**
-		 * Write pin state
-		 *
-		 * @param pin GPIO pin number
-		 * @param state Pin state
-		 */
-		void Write(uint16_t port, uint16_t pin, int state) override;
-};
-
 class GPIO_Device : public GPIO_DeviceBase
 {
 public:
@@ -91,8 +66,8 @@ public:
 		 * @param dir Pin direction
 		 */
 		explicit constexpr
-		GPIO_Device(uint16_t port, uint16_t pin, GPIO_DeviceBase::dir dir) :
-			GPIO_DeviceBase(port, pin, dir), config_(GPIO_Config(port, pin, dir)) {}
+		GPIO_Device(uint16_t port, uint16_t pin, GPIO_DeviceBase::Direction dir) :
+			port_(port), pin_(pin), config_(GPIO_Config(port, pin, dir)) {}
 
 		/**
 		 * Initialize GPIO pin
@@ -106,15 +81,18 @@ public:
 		 *
 		 * @param state Pin state
 		 */
-		GPIO_Device &Set(uint16_t state) override;
+		GPIO_Device &Set(bool state) override;
 
 		/**
 		 * Get pin state
 		 *
 		 * @return Pin state
 		 */
-		int Get() override;
+		bool Get() override;
 private:
+	uint16_t port_;
+	uint16_t pin_;
+
 	constexpr static GPIO_TypeDef *getGPIOPort(uint16_t port)
 	{
 		GPIO_TypeDef *gpios[] = {GPIOA, GPIOB, GPIOC, GPIOD, GPIOE,
@@ -145,26 +123,26 @@ private:
 
 	struct GPIO_Config
 	{
-		constexpr explicit GPIO_Config(uint16_t port, uint16_t pin, GPIO_DeviceBase::dir dir)
+		constexpr explicit GPIO_Config(uint16_t port, uint16_t pin, GPIO_DeviceBase::Direction dir)
 		    : gpio(getGPIOPort(port)), direction(dir), rcc_mask(rcc_enable(port))
 		{
 			uint32_t mode = 0, cnf = 0;
 
 			switch (dir)
 			{
-			case GPIO_DeviceBase::dir::INPUT:
+			case GPIO_DeviceBase::Direction::INPUT:
 				mode = 0, cnf = 2; // Input mode, floating input
 				break;
-			case GPIO_DeviceBase::dir::OUTPUT:
+			case GPIO_DeviceBase::Direction::OUTPUT:
 				mode = 3, cnf = 0; // Output mode, max speed 50MHz, push-pull
 				break;
-			case GPIO_DeviceBase::dir::OPEN_DRAIN:
+			case GPIO_DeviceBase::Direction::OPEN_DRAIN:
 				mode = 3, cnf = 1; // Output mode, max speed 50MHz, open-drain
 				break;
-			case GPIO_DeviceBase::dir::PULL_UP:
+			case GPIO_DeviceBase::Direction::PULL_UP:
 				mode = 0, cnf = 2; // Input mode, pull-up
 				break;
-			case GPIO_DeviceBase::dir::PULL_DOWN:
+			case GPIO_DeviceBase::Direction::PULL_DOWN:
 				mode = 0, cnf = 2; // Input mode, pull-down
 				break;
 			}
@@ -186,7 +164,7 @@ private:
 		}
 
 		GPIO_TypeDef *gpio = nullptr;
-		GPIO_DeviceBase::dir direction = GPIO_DeviceBase::INPUT;
+		GPIO_DeviceBase::Direction direction = GPIO_DeviceBase::Direction::INPUT;
 		uint32_t rcc_mask = 0;
 		uint32_t crl_set = 0, crl_clear = 0;
 		uint32_t crh_set = 0, crh_clear = 0;

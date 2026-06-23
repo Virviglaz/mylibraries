@@ -59,11 +59,20 @@ public:
 
 	/**
 	 * Delay for specified number of milliseconds.
+	 *
+	 * @param ms Number of milliseconds to delay
+	 * @note Maximum delay is limited by 24-bit systick timer,
+	 * so for high CPU frequencies it may be less than 1 second.
+	 * For 72 MHz CPU frequency maximum delay is about 4 seconds.
 	 */
 	static void DelayMs(uint32_t ms);
 
 	/**
 	 * Delay for specified number of microseconds.
+	 *
+	 * @param us Number of microseconds to delay
+	 * @note Maximum delay is limited by 24-bit systick timer,
+	 * so for high CPU frequencies it may be less than 1 second.
 	 */
 	static void DelayUs(uint32_t us);
 };

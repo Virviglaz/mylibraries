@@ -49,7 +49,7 @@
 GPIO_DeviceJSON::GPIO_DeviceJSON(const std::string &json_file,
 								 uint16_t port,
 								 uint16_t pin,
-								 GPIO_DeviceBase::dir dir) : GPIO_DeviceBase(port, pin, dir)
+								 GPIO_DeviceBase::Direction dir) : GPIO_DeviceBase(), port_(port), pin_(pin)
 {
 	Json::Value root;
 	Json::Reader reader;
@@ -69,10 +69,10 @@ GPIO_DeviceJSON::GPIO_DeviceJSON(const std::string &json_file,
 	}
 }
 
-int GPIO_DeviceJSON::Get()
+bool GPIO_DeviceJSON::Get()
 {
 	if (step_count < steps.size())
-		return steps[step_count];
+		return steps[step_count] != 0;
 	else
 		throw std::out_of_range("Step count exceeds defined steps");
 }
@@ -113,7 +113,7 @@ I2C_DeviceJSON::I2C_DeviceJSON(const std::string &json_file,
 
 I2C_DeviceJSON &I2C_DeviceJSON::Read(uint8_t reg_addr,
 									 uint8_t *data,
-									 uint32_t length)
+									 size_t length)
 {
 	if (steps.find(address_) == steps.end())
 		throw std::out_of_range("No data defined for this device address");
@@ -140,7 +140,7 @@ I2C_DeviceJSON &I2C_DeviceJSON::Read(uint8_t reg_addr,
 }
 
 SPI_DeviceJSON::SPI_DeviceJSON(const std::string &json_file,
-	uint16_t cs_pin) : SPI_DeviceBase(dummy_spi_interface, dummy_gpio_device)
+	uint16_t cs_pin) : SPI_DeviceBase(dummy_spi_interface)
 {
 	Json::Value root;
 	Json::Reader reader;
@@ -165,7 +165,7 @@ SPI_DeviceJSON::SPI_DeviceJSON(const std::string &json_file,
 
 SPI_DeviceJSON &SPI_DeviceJSON::Transfer(const uint8_t *tx_data,
 										 uint8_t *rx_data,
-										 uint32_t length)
+										 size_t length)
 {
 
 	if (steps.empty())
@@ -183,7 +183,7 @@ SPI_DeviceJSON &SPI_DeviceJSON::Transfer(const uint8_t *tx_data,
 }
 
 UART_DeviceJSON::UART_DeviceJSON(const std::string &json_file,
-								 const std::string &name) : UART_InterfaceBase(0)
+								 const std::string &name) : UART_InterfaceBase(), DeviceJSON_StepHandler()
 {
 	Json::Value root;
 	Json::Reader reader;
@@ -221,7 +221,7 @@ UART_DeviceJSON::UART_DeviceJSON(const std::string &json_file,
 
 int UART_DeviceJSON::SendReceive(const uint8_t *tx_data,
 								 uint8_t *rx_data,
-								 uint32_t length)
+								 size_t length)
 {
 	if (steps.empty())
 		throw std::out_of_range("No data defined for this UART device");

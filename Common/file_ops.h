@@ -66,7 +66,7 @@ public:
 	/**
 	 * Open flags enumeration.
 	 */
-	enum OpenFlags
+	enum class OpenFlags
 	{
 		/**
 		 * Open file for reading only, writing only, or both reading and writing.
@@ -93,19 +93,19 @@ public:
 	 * Construct and open a file.
 	 *
 	 * @param path File path
-	 * @param flags Pen open flags (READ_ONLY, WRITE_ONLY, or READ_WRITE)
+	 * @param flags Open flags (READ_ONLY, WRITE_ONLY, or READ_WRITE)
 	 * @throw std::system_error on open failure
 	 */
-	File(const char *path, OpenFlags flags = READ_WRITE);
+	File(const char *path, OpenFlags flags = OpenFlags::READ_WRITE);
 
 	/**
 	 * Construct and open a file.
 	 *
 	 * @param path File path
-	 * @param flags Pen open flags (READ_ONLY, WRITE_ONLY, or READ_WRITE)
+	 * @param flags Open flags (READ_ONLY, WRITE_ONLY, or READ_WRITE)
 	 * @throw std::system_error on open failure
 	 */
-	File(const std::string &path, OpenFlags flags = READ_WRITE) : File(path.c_str(), flags) {}
+	File(const std::string &path, OpenFlags flags = OpenFlags::READ_WRITE) : File(path.c_str(), flags) {}
 
 	/**
 	 * Dummy destructor.
@@ -123,7 +123,7 @@ public:
 	 * @return Reference to this File object
 	 * @throw std::system_error on open failure
 	 */
-	void Open(const char *path, OpenFlags flags = READ_WRITE);
+	void Open(const char *path, OpenFlags flags = OpenFlags::READ_WRITE);
 
 	/**
 	 * Close the file.
@@ -284,7 +284,7 @@ public:
 		 * @param flags Access flags (READ, WRITE, or RW)
 		 * @throw std::system_error on mmap failure
 		 */
-		Mmap(int fd, size_t size, off_t offset = 0, OpenFlags flags = READ_WRITE);
+		Mmap(int fd, size_t size, off_t offset = 0, OpenFlags flags = OpenFlags::READ_WRITE);
 
 		/**
 		 * Class destructor unmaps the region.
@@ -394,11 +394,11 @@ protected:
 	char *endPos = nullptr;
 	off_t fileSize = 0;
 	size_t lineCount = 0;
-	enum lineEnding
+	enum class LineEnding
 	{
 		CRLF,
 		LF
-	} lineEnding = LF;
+	} lineEnding = LineEnding::LF;
 };
 
 class CSVFile : public TextFile

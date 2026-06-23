@@ -58,13 +58,13 @@
 class GPIO_DeviceBase
 {
 public:
-	explicit GPIO_DeviceBase() = delete;
+	explicit GPIO_DeviceBase() = default;
 	virtual ~GPIO_DeviceBase() = default;
 
 	/**
 	 * GPIO pin direction
 	 */
-	enum dir
+	enum class Direction
 	{
 		/**
 		 * Input direction
@@ -91,40 +91,18 @@ public:
 	};
 
 	/**
-	 * Constructor
-	 *
-	 * @param pin GPIO pin number
-	 * @param dir Pin direction
-	 */
-	explicit constexpr
-	GPIO_DeviceBase(uint16_t port, uint16_t pin, dir dir)
-		: port_(port), pin_(pin) {}
-
-	/**
 	 * Set pin state (optional)
 	 *
 	 * @param state Pin state
 	 */
-	virtual GPIO_DeviceBase &Set(uint16_t state)
-		{ return *this; }
+	virtual GPIO_DeviceBase &Set(bool) { return *this; };
 
 	/**
 	 * Get pin state
 	 *
 	 * @return Pin state
 	 */
-	virtual int Get() = 0;
-
-	/**
-	 * Get pin number
-	 *
-	 * @return Pin number
-	 */
-	uint16_t GetPin() const { return pin_; }
-
-protected:
-	uint16_t port_;
-	uint16_t pin_;
+	virtual bool Get() = 0;
 };
 
 /**
@@ -144,7 +122,8 @@ public:
 	 * @param address I2C device address
 	 */
 	explicit
-	I2C_DeviceBase(I2C_InterfaceBase &ifs, uint8_t address) : ifs_(ifs), address_(address) {}
+	I2C_DeviceBase(I2C_InterfaceBase &ifs, uint8_t address) :
+		ifs_(ifs), address_(address) {}
 
 	/**
 	 * Write data to I2C device
@@ -172,8 +151,11 @@ public:
 	 * @param data Data to write
 	 * @return Reference to the I2C device
 	 */
-	I2C_DeviceBase &Write(uint8_t reg_addr, const uint8_t *data, size_t length) {
-		return Write(reinterpret_cast<const uint8_t*>(&reg_addr), sizeof(reg_addr), data, length);
+	virtual I2C_DeviceBase &Write(uint8_t reg_addr,
+								  const uint8_t *data,
+								  size_t length)
+	{
+		return Write(reinterpret_cast<const uint8_t *>(&reg_addr), sizeof(reg_addr), data, length);
 	}
 
 	/**
@@ -182,7 +164,7 @@ public:
 	 * @param reg_addr Register address to write to
 	 * @param data Data to write
 	 */
-	I2C_DeviceBase &Write(uint8_t reg_addr, uint8_t data) {
+	virtual I2C_DeviceBase &Write(uint8_t reg_addr, uint8_t data) {
 		return Write(reinterpret_cast<const uint8_t*>(&reg_addr), sizeof(reg_addr), reinterpret_cast<const uint8_t*>(&data), sizeof(data));
 	}
 
@@ -213,8 +195,11 @@ public:
 	 * @param length Length of data to read
 	 * @return Reference to the I2C device
 	 */
-	I2C_DeviceBase &Read(uint8_t reg_addr, uint8_t *data, size_t length) {
-		return Read(reinterpret_cast<const uint8_t*>(&reg_addr), sizeof(reg_addr), data, length);
+	virtual I2C_DeviceBase &Read(uint8_t reg_addr,
+								 uint8_t *data,
+								 size_t length)
+	{
+		return Read(reinterpret_cast<const uint8_t *>(&reg_addr), sizeof(reg_addr), data, length);
 	}
 
 	/**
@@ -224,7 +209,7 @@ public:
 	 * @param data Buffer to store read data
 	 * @return Reference to the I2C device
 	 */
-	I2C_DeviceBase &Read(uint8_t reg_addr, uint8_t &data) {
+	virtual I2C_DeviceBase &Read(uint8_t reg_addr, uint8_t &data) {
 		return Read(reinterpret_cast<const uint8_t*>(&reg_addr), sizeof(reg_addr), reinterpret_cast<uint8_t*>(&data), sizeof(data));
 	}
 
@@ -252,7 +237,7 @@ public:
 	 * @param cs_pin Chip select GPIO pin
 	 */
 	explicit
-	SPI_DeviceBase(SPI_InterfaceBase &ifs, GPIO_DeviceBase &cs_pin) : ifs_(ifs), cs_pin_(cs_pin) {}
+	SPI_DeviceBase(SPI_InterfaceBase &ifs) : ifs_(ifs) {}
 
 	/**
 	 * Transfer data over SPI
@@ -263,13 +248,12 @@ public:
 	 *
 	 * @return 0 on success, negative value on error
 	 */
-	virtual SPI_DeviceBase& Transfer(const uint8_t *tx_data,
-						 uint8_t *rx_data,
-						 uint32_t length) = 0;
+	virtual SPI_DeviceBase &Transfer(const uint8_t *tx_data,
+									 uint8_t *rx_data,
+									 size_t length) = 0;
 
 protected:
 	SPI_InterfaceBase &ifs_;
-	GPIO_DeviceBase &cs_pin_;
 };
 
 /**
@@ -312,18 +296,6 @@ public:
 #endif
 protected:
 	uint8_t tim_;
-};
-
-/**
- * Dummy GPIO Device for base class construction
- *
- * This interface does nothing and is only used to satisfy the base class constructor
- */
-class GPIO_DeviceDummy : public GPIO_DeviceBase
-{
-public:
-	GPIO_DeviceDummy() : GPIO_DeviceBase(0, 0, GPIO_DeviceBase::INPUT) {}
-	int Get() override { return 0; }
 };
 
 #endif /* DEVICES_H */

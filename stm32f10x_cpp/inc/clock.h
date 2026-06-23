@@ -69,7 +69,7 @@ public:
 		INV_CLOCK,		  /* Invalid value */
 	};
 
-	Clocks();
+	explicit Clocks();
 
 	/**
 	 * Update current clock configuration

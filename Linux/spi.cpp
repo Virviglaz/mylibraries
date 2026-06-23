@@ -70,12 +70,12 @@ SPI::~SPI()
 
 int SPI::Transfer(const uint8_t *tx_data,
 	uint8_t *rx_data,
-	uint32_t length)
+	size_t length)
 {
 	struct spi_ioc_transfer xfer = {
 		reinterpret_cast<uint64_t>(tx_data),
 		reinterpret_cast<uint64_t>(rx_data),
-		length,
+		static_cast<uint32_t>(length),
 		0, // speed_hz (use default)
 		0, // delay_usecs
 		0, // bits_per_word (use default)
