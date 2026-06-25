@@ -51,6 +51,7 @@
 
 class GPIO_Device : public GPIO_PinBase
 {
+	friend class GPIO_Port;
 public:
 		/** Default constructor */
 		explicit GPIO_Device() = delete;
@@ -169,6 +170,47 @@ private:
 		uint32_t crl_set = 0, crl_clear = 0;
 		uint32_t crh_set = 0, crh_clear = 0;
 	} config_;
+};
+
+/**
+ * @brief GPIO Port Class. Allows access to entire port.
+ */
+class GPIO_Port : public GPIO_PortBase<uint16_t>
+{
+public:
+	/** Default constructor */
+	explicit GPIO_Port() = delete;
+	virtual ~GPIO_Port() = default;
+
+	/**
+	 * Constructor
+	 *
+	 * @param port GPIO port number
+	 */
+	explicit constexpr
+	GPIO_Port(uint16_t port) : port_(GPIO_Device::getGPIOPort(port)) {}
+
+	/**
+	 * Read port bitmask.
+	 *
+	 * @return Port pins state.
+	 */
+	uint16_t Read() override {
+		return port_->IDR;
+	}
+
+	/**
+	 * Write bitmask to GPIO port.
+	 *
+	 * @param bitmask Bitmask to write.
+	 * @return Reference to itself.
+	 */
+	GPIO_PortBase &Write(uint16_t bitmask) override {
+		port_->ODR = bitmask;
+		return *this;
+	}
+private:
+	GPIO_TypeDef *port_;
 };
 
 #endif /* STM32F10X_GPIO_H */
