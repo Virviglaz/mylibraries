@@ -58,7 +58,7 @@ static void print_data(const uint8_t *data, uint32_t length)
 
 GPIO_DeviceOStream& GPIO_DeviceOStream::Set(bool state)
 {
-	if (dir_ != GPIO_DeviceBase::Direction::OUTPUT)
+	if (dir_ != GPIO_PinBase::Direction::OUTPUT)
 	{
 		throw std::invalid_argument("GPIO configured as intput");
 	}
@@ -70,7 +70,7 @@ GPIO_DeviceOStream& GPIO_DeviceOStream::Set(bool state)
 
 bool GPIO_DeviceOStream::Get()
 {
-	if (dir_ != GPIO_DeviceBase::Direction::INPUT)
+	if (dir_ != GPIO_PinBase::Direction::INPUT)
 	{
 		throw std::invalid_argument("GPIO configured as output");
 	}

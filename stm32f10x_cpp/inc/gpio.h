@@ -49,7 +49,7 @@
 #include "devices.h"
 #include <stm32f10x.h>
 
-class GPIO_Device : public GPIO_DeviceBase
+class GPIO_Device : public GPIO_PinBase
 {
 public:
 		/** Default constructor */
@@ -66,7 +66,7 @@ public:
 		 * @param dir Pin direction
 		 */
 		explicit constexpr
-		GPIO_Device(uint16_t port, uint16_t pin, GPIO_DeviceBase::Direction dir) :
+		GPIO_Device(uint16_t port, uint16_t pin, GPIO_PinBase::Direction dir) :
 			port_(port), pin_(pin), config_(GPIO_Config(port, pin, dir)) {}
 
 		/**
@@ -123,26 +123,26 @@ private:
 
 	struct GPIO_Config
 	{
-		constexpr explicit GPIO_Config(uint16_t port, uint16_t pin, GPIO_DeviceBase::Direction dir)
+		constexpr explicit GPIO_Config(uint16_t port, uint16_t pin, GPIO_PinBase::Direction dir)
 		    : gpio(getGPIOPort(port)), direction(dir), rcc_mask(rcc_enable(port))
 		{
 			uint32_t mode = 0, cnf = 0;
 
 			switch (dir)
 			{
-			case GPIO_DeviceBase::Direction::INPUT:
+			case GPIO_PinBase::Direction::INPUT:
 				mode = 0, cnf = 2; // Input mode, floating input
 				break;
-			case GPIO_DeviceBase::Direction::OUTPUT:
+			case GPIO_PinBase::Direction::OUTPUT:
 				mode = 3, cnf = 0; // Output mode, max speed 50MHz, push-pull
 				break;
-			case GPIO_DeviceBase::Direction::OPEN_DRAIN:
+			case GPIO_PinBase::Direction::OPEN_DRAIN:
 				mode = 3, cnf = 1; // Output mode, max speed 50MHz, open-drain
 				break;
-			case GPIO_DeviceBase::Direction::PULL_UP:
+			case GPIO_PinBase::Direction::PULL_UP:
 				mode = 0, cnf = 2; // Input mode, pull-up
 				break;
-			case GPIO_DeviceBase::Direction::PULL_DOWN:
+			case GPIO_PinBase::Direction::PULL_DOWN:
 				mode = 0, cnf = 2; // Input mode, pull-down
 				break;
 			}
@@ -164,7 +164,7 @@ private:
 		}
 
 		GPIO_TypeDef *gpio = nullptr;
-		GPIO_DeviceBase::Direction direction = GPIO_DeviceBase::Direction::INPUT;
+		GPIO_PinBase::Direction direction = GPIO_PinBase::Direction::INPUT;
 		uint32_t rcc_mask = 0;
 		uint32_t crl_set = 0, crl_clear = 0;
 		uint32_t crh_set = 0, crh_clear = 0;

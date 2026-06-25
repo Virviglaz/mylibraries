@@ -85,9 +85,9 @@ GPIO_Device &GPIO_Device::Init()
 	gpio->CRL |= config_.crl_set;
 	gpio->CRH &= ~config_.crh_clear;
 	gpio->CRH |= config_.crh_set;
-	if (config_.direction == GPIO_DeviceBase::Direction::PULL_UP)
+	if (config_.direction == GPIO_PinBase::Direction::PULL_UP)
 		Set(true);
-	else if (config_.direction == GPIO_DeviceBase::Direction::PULL_DOWN)
+	else if (config_.direction == GPIO_PinBase::Direction::PULL_DOWN)
 		Set(false);
 
 	return *this;

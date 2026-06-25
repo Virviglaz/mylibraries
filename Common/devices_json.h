@@ -79,7 +79,7 @@ protected:
 /**
  * GPIO Device JSON Class. Implements GPIO device behavior based on JSON configuration.
  */
-class GPIO_DeviceJSON : public GPIO_DeviceBase, public DeviceJSON_StepHandler
+class GPIO_DeviceJSON : public GPIO_PinBase, public DeviceJSON_StepHandler
 {
 public:
 	GPIO_DeviceJSON() = delete;
@@ -94,7 +94,7 @@ public:
 	explicit GPIO_DeviceJSON(const std::string &json_file,
 							 uint16_t port,
 							 uint16_t pin,
-							 GPIO_DeviceBase::Direction dir);
+							 GPIO_PinBase::Direction dir);
 
 	/**
 	 * Get pin state

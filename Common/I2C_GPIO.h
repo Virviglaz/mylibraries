@@ -70,7 +70,7 @@ public:
 	 * @param sda_pin GPIO pin for SDA line
 	 * @param scl_pin GPIO pin for SCL line
 	 */
-	I2C_GPIO(GPIO_DeviceBase &sda_pin, GPIO_DeviceBase &scl_pin)
+	I2C_GPIO(GPIO_PinBase &sda_pin, GPIO_PinBase &scl_pin)
 		: sda_pin_(sda_pin), scl_pin_(scl_pin) {}
 
 	/**
@@ -116,8 +116,8 @@ public:
 	 */
 	virtual void DelayFunc() = 0;
 private:
-	GPIO_DeviceBase &sda_pin_;
-	GPIO_DeviceBase &scl_pin_;
+	GPIO_PinBase &sda_pin_;
+	GPIO_PinBase &scl_pin_;
 
 	int  StartCondition();
 	void RepeatStartCondition();

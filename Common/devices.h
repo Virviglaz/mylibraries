@@ -53,16 +53,16 @@
 #endif
 
 /**
- * GPIO Device Base Class
+ * @brief GPIO Pin Base Class. Access to individual pin.
  */
-class GPIO_DeviceBase
+class GPIO_PinBase
 {
 public:
-	explicit GPIO_DeviceBase() = default;
-	virtual ~GPIO_DeviceBase() = default;
+	explicit GPIO_PinBase() = default;
+	virtual ~GPIO_PinBase() = default;
 
 	/**
-	 * GPIO pin direction
+	 * @brief GPIO pin direction
 	 */
 	enum class Direction
 	{
@@ -91,14 +91,14 @@ public:
 	};
 
 	/**
-	 * Set pin state (optional)
+	 * @brief Set pin state (optional)
 	 *
 	 * @param state Pin state
 	 */
-	virtual GPIO_DeviceBase &Set(bool) { return *this; };
+	virtual GPIO_PinBase &Set(bool) { return *this; };
 
 	/**
-	 * Get pin state
+	 * @brief Get pin state
 	 *
 	 * @return Pin state
 	 */
@@ -106,17 +106,44 @@ public:
 };
 
 /**
- * I2C Device Base Class
+ * @brief GPIO Port Base Class. Allows access to entire port.
+ * 
+ * @tparam T 
+ */
+template <class T>
+class GPIO_PortBase
+{
+public:
+	explicit GPIO_PortBase() = default;
+	virtual ~GPIO_PortBase() = default;
+
+	/**
+	 * @brief Read port bitmask.
+	 * 
+	 * @return T Port pins state.
+	 */
+	virtual T Read() = 0;
+
+	/**
+	 * @brief Write bitmask to GPIO port.
+	 * 
+	 * @param bitmask Bitmask to write.
+	 * @return GPIO_PortBase& reference to itself.
+	 */
+	virtual GPIO_PortBase &Write(T bitmask) = 0;
+};
+
+/**
+ * @brief I2C Device Base Class
  */
 class I2C_DeviceBase
 {
 public:
-	/** Default constructor */
 	explicit I2C_DeviceBase() = delete;
 	virtual ~I2C_DeviceBase() = default;
 
 	/**
-	 * Constructor
+	 * @brief Constructor
 	 *
 	 * @param ifs I2C interface
 	 * @param address I2C device address
@@ -126,7 +153,7 @@ public:
 		ifs_(ifs), address_(address) {}
 
 	/**
-	 * Write data to I2C device
+	 * @brief Write data to I2C device
 	 *
 	 * @param reg_addr Register address to write to
 	 * @param reg_addr_size Size of register address in bytes
@@ -145,7 +172,7 @@ public:
 	};
 
 	/**
-	 * Convenience template method to write data of any type
+	 * @brief Convenience template method to write data of any type
 	 *
 	 * @param reg_addr Register address to write to
 	 * @param data Data to write
@@ -159,7 +186,7 @@ public:
 	}
 
 	/**
-	 * Convenience template method to write data of any type
+	 * @brief Convenience template method to write data of any type
 	 *
 	 * @param reg_addr Register address to write to
 	 * @param data Data to write
@@ -169,7 +196,7 @@ public:
 	}
 
 	/**
-	 * Read data from I2C device
+	 * @brief Read data from I2C device
 	 *
 	 * @param reg_addr Register address to read from
 	 * @param reg_addr_size Size of register address in bytes
@@ -188,7 +215,7 @@ public:
 	}
 
 	/**
-	 * Read data from I2C device (optional)
+	 * @brief Read data from I2C device (optional)
 	 *
 	 * @param reg_addr Register address to read from
 	 * @param data Buffer to store read data
@@ -203,7 +230,7 @@ public:
 	}
 
 	/**
-	 * Read data from I2C device (optional)
+	 * @brief Read data from I2C device (optional)
 	 *
 	 * @param reg_addr Register address to read from
 	 * @param data Buffer to store read data
@@ -219,19 +246,16 @@ protected:
 };
 
 /**
- * SPI Device Base Class
+ * @brief SPI Device Base Class
  */
 class SPI_DeviceBase
 {
 public:
-	/**
-	 * Constructor
-	 */
 	explicit SPI_DeviceBase() = delete;
 	virtual ~SPI_DeviceBase() = default;
 
 	/**
-	 * Constructor
+	 * @brief Constructor
 	 *
 	 * @param ifs SPI interface
 	 * @param cs_pin Chip select GPIO pin
@@ -240,7 +264,7 @@ public:
 	SPI_DeviceBase(SPI_InterfaceBase &ifs) : ifs_(ifs) {}
 
 	/**
-	 * Transfer data over SPI
+	 * @brief Transfer data over SPI
 	 *
 	 * @param tx_data Data to send
 	 * @param rx_data Buffer to store received data
@@ -257,7 +281,7 @@ protected:
 };
 
 /**
- * Timer Device Base Class
+ * @brief Timer Device Base Class
  */
 class Timer_DeviceBase
 {
@@ -266,7 +290,7 @@ public:
 	virtual ~Timer_DeviceBase() = default;
 
 	/**
-	 * Constructor
+	 * @brief Constructor
 	 *
 	 * @param tim Timer number
 	 */

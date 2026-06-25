@@ -4,7 +4,7 @@
 #include "uart.h"
 #include "delays.h"
 
-static GPIO_Device led(2, 13, GPIO_DeviceBase::Direction::OUTPUT);
+static GPIO_Device led(2, 13, GPIO_PinBase::Direction::OUTPUT);
 static Timer_Device timer(2);
 static UART_Device uart(1, 115200, 8000000);
 

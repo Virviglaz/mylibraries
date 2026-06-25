@@ -49,7 +49,7 @@
 GPIO_DeviceJSON::GPIO_DeviceJSON(const std::string &json_file,
 								 uint16_t port,
 								 uint16_t pin,
-								 GPIO_DeviceBase::Direction dir) : GPIO_DeviceBase(), port_(port), pin_(pin)
+								 GPIO_PinBase::Direction dir) : GPIO_PinBase(), port_(port), pin_(pin)
 {
 	Json::Value root;
 	Json::Reader reader;

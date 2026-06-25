@@ -52,7 +52,7 @@
 /**
  * GPIO Device streaming to standart output
  */
-class GPIO_DeviceOStream : public GPIO_DeviceBase
+class GPIO_DeviceOStream : public GPIO_PinBase
 {
 public:
 	GPIO_DeviceOStream() = delete;
@@ -69,7 +69,7 @@ public:
 	GPIO_DeviceOStream(const std::string &name,
 					   uint16_t port,
 					   uint16_t pin,
-					   GPIO_DeviceBase::Direction dir,
+					   GPIO_PinBase::Direction dir,
 					   int read_value = 0) :
 					   name_(name), dir_(dir), _port(port), _pin(pin), read_value_(read_value) {}
 
@@ -90,7 +90,7 @@ public:
     bool Get() override;
 private:
     std::string name_;
-    GPIO_DeviceBase::Direction dir_;
+    GPIO_PinBase::Direction dir_;
 	uint16_t _port;
 	uint16_t _pin;
     int read_value_;
