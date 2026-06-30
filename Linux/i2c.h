@@ -60,14 +60,6 @@ public:
 	 * @brief Default constructor (does not initialize the interface)
 	 */
 	explicit I2C_Interface() = default;
-
-	/**
-	 * Constructor (initializes the interface)
-	 *
-	 * @param dev I2C device file (e.g. "/dev/i2c-1")
-	 * @throws std::runtime_error if initialization fails
-	 */
-	explicit I2C_Interface(const char *dev);
 	virtual ~I2C_Interface() override;
 
 	/**

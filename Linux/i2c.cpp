@@ -52,12 +52,6 @@
 #include <unistd.h>
 #include <vector>
 
-I2C_Interface::I2C_Interface(const char *dev)
-	: fd(-1)
-{
-	Init(dev);
-}
-
 void I2C_Interface::Init(const char *dev)
 {
 	fd = open(dev, O_RDWR);
@@ -68,10 +62,10 @@ void I2C_Interface::Init(const char *dev)
 }
 
 int I2C_Interface::Write(uint8_t device_addr,
-			   const uint8_t *reg_addr,
-			   size_t reg_addr_length,
-			   const uint8_t *data,
-			   size_t data_length)
+						 const uint8_t *reg_addr,
+						 size_t reg_addr_length,
+						 const uint8_t *data,
+						 size_t data_length)
 {
 	std::vector<uint8_t> buf(reg_addr_length + data_length);
 	memcpy(buf.data(), reg_addr, reg_addr_length);
@@ -85,10 +79,10 @@ int I2C_Interface::Write(uint8_t device_addr,
 }
 
 int I2C_Interface::Read(uint8_t device_addr,
-			  const uint8_t *reg_addr,
-			  size_t reg_addr_length,
-			  uint8_t *data,
-			  size_t data_length)
+						const uint8_t *reg_addr,
+						size_t reg_addr_length,
+						uint8_t *data,
+						size_t data_length)
 {
 	struct i2c_msg msg[2] = {
 		{ device_addr,	0,				static_cast<uint16_t>(reg_addr_length),		const_cast<uint8_t *>(reg_addr) },

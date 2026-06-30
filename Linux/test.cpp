@@ -9,13 +9,15 @@ int main(int argc, char *argv[])
 	assert(Backtrace().Print().GetFrames().size() > 0);
 
 	try {
-		I2C_Interface i2c("/dev/i2c-X");
+		I2C_Interface i2c;
+		i2c.Init("/dev/i2c-X");
 	} catch (const std::exception &e) {
 		std::cout << "Expected error: " << e.what() << std::endl;
 	}
 
 	try {
-		SPI spi("/dev/spidevX.Y");
+		SPI_Interface spi;
+		spi.Init("/dev/spidevX.Y");
 	} catch (const std::exception &e) {
 		std::cout << "Expected error: " << e.what() << std::endl;
 	}

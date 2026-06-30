@@ -52,31 +52,35 @@
 #include <linux/spi/spidev.h>
 #include <sys/ioctl.h>
 
-void SPI::Init(const char *dev)
+void SPI_Interface::Init(const char *dev)
 {
 	fd_ = open(dev, O_RDWR);
 	if (fd_ < 0) {
 		throw std::runtime_error("Failed to open SPI device: " + std::string(dev) + \
 			", error: " + strerror(errno));
 	}
+
+	if (ioctl(fd_, SPI_IOC_WR_MODE, &mode_) < 0) {
+        throw std::runtime_error("Failed to set SPI write mode: " + std::string(strerror(errno)));
+    }
 }
 
-SPI::~SPI()
+SPI_Interface::~SPI_Interface()
 {
 	if (fd_ >= 0) {
 		close(fd_);
 	}
 }
 
-int SPI::Transfer(const uint8_t *tx_data,
-	uint8_t *rx_data,
-	size_t length)
+int SPI_Interface::Transfer(const uint8_t *tx_data,
+							uint8_t *rx_data,
+							size_t length)
 {
 	struct spi_ioc_transfer xfer = {
 		reinterpret_cast<uint64_t>(tx_data),
 		reinterpret_cast<uint64_t>(rx_data),
 		static_cast<uint32_t>(length),
-		0, // speed_hz (use default)
+		freq_, // speed_hz (use default)
 		0, // delay_usecs
 		0, // bits_per_word (use default)
 		0, // cs_change
@@ -88,7 +92,6 @@ int SPI::Transfer(const uint8_t *tx_data,
 
 	if (ioctl(fd_, SPI_IOC_MESSAGE(1), &xfer) < 0) {
 		throw std::runtime_error("SPI transfer failed: " + std::string(strerror(errno)));
-		return errno;
 	}
 
 	return 0;

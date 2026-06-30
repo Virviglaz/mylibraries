@@ -36,7 +36,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Abstract interface for ebmedded systems peripherals.
+ * Abstract interface for embedded systems peripherals.
  *
  * Contact Information:
  * Pavel Nadein <pavelnadein@gmail.com>
@@ -274,7 +274,11 @@ public:
 	 */
 	virtual SPI_DeviceBase &Transfer(const uint8_t *tx_data,
 									 uint8_t *rx_data,
-									 size_t length) = 0;
+									 size_t length)
+	{
+		ifs_.Transfer(tx_data, rx_data, length);
+		return *this;
+	};
 
 protected:
 	SPI_InterfaceBase &ifs_;

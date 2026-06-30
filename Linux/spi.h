@@ -51,25 +51,16 @@
 
 #include "interfaces.h"
 
-class SPI : public SPI_InterfaceBase
+class SPI_Interface : public SPI_InterfaceBase
 {
 public:
 	/**
 	 * @brief Constructor (does not initialize the interface)
 	 */
-	explicit SPI() = default;
-	virtual ~SPI() override;
-
-	/**
-	 * @brief Constructor (initializes the interface)
-	 *
-	 * @param dev SPI device file (e.g. "/dev/spidev0.0")
-	 * @throws std::runtime_error if initialization fails
-	 */
-	explicit SPI(const char *dev)
-	{
-		Init(dev);
-	}
+	explicit SPI_Interface(uint8_t mode = 0,
+						   uint32_t freq = 1000000)
+		: mode_(mode), freq_(freq) {};
+	virtual ~SPI_Interface() override;
 
 	/**
 	 * @brief Initialize SPI interface
@@ -94,6 +85,8 @@ public:
 
 private:
 	int fd_ = -1; // File descriptor for the SPI device
+	uint8_t mode_; // SPI mode (0-3)
+	uint32_t freq_; // Default SPI frequency (1 MHz)
 };
 
 #endif /* SPI_H */
