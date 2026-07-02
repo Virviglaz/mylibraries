@@ -56,6 +56,12 @@ public:
 	explicit UART_Device() = default;
 	virtual ~UART_Device() = default;
 
+	enum class UartDevice : uint8_t {
+		UART_1 = 0,
+		UART_2 = 1,
+		UART_3 = 2
+	};
+
 	/**
 	 * Constructor
 	 *
@@ -69,12 +75,12 @@ public:
 	 * you should provide peripheral clock frequency explicitly.
 	 */
 	explicit constexpr
-	UART_Device(uint8_t port_number,
+	UART_Device(UartDevice device,
 				uint32_t baudrate,
-				uint32_t peripheral_clock = Clocks::GetCPUFreqHz()) :
+				uint32_t peripheral_clock = SystemCoreClock) :
 				UART_InterfaceBase(),
-				brr_value_(UART_BRR_SAMPLING8(peripheral_clock, baudrate)),
-				uart_instance_(Get_UART_Instance(port_number)) {}
+				brr_value_(UART_BRR_SAMPLING16(peripheral_clock, baudrate)),
+				uart_instance_(Get_UART_Instance(device)) {}
 
 	/**
 	 * Initialize UART peripheral
@@ -97,18 +103,20 @@ public:
 							uint8_t *rx_data,
 							size_t length) override;
 
+	void UseForPrintf();
+
 private:
-	static constexpr uint16_t UART_BRR_SAMPLING8(uint32_t pclk, uint32_t baud)
+	static constexpr uint16_t UART_BRR_SAMPLING16(uint32_t pclk, uint32_t baud)
 	{
-		uint16_t div = (uint16_t)((pclk + baud / 2) / baud);
-		return ((uint16_t)((div & ~0x7) << 1) | (uint16_t)(div & 0x07));
+	    // Add (baud / 2) for correct rounding before integer division
+	    uint32_t div = (pclk + (baud / 2)) / baud;
+	    return static_cast<uint16_t>(div);
 	}
 
-	static constexpr USART_TypeDef* Get_UART_Instance(uint8_t port_number)
+	static constexpr USART_TypeDef* Get_UART_Instance(UartDevice port_number)
 	{
-		USART_TypeDef *instances[] = { USART1, USART2, USART3 };
-		return (port_number > 0 && (port_number <= 3)) ?
-			instances[port_number - 1] : nullptr;
+		USART_TypeDef * const instances[] = { USART1, USART2, USART3 };
+		return instances[static_cast<uint8_t>(port_number)];
 	}
 
 	uint32_t brr_value_;

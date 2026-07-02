@@ -6,7 +6,7 @@
 
 static GPIO_Device led(GPIO_Device::GpioPort::PC, 13, GPIO_PinBase::Direction::OUTPUT);
 static Timer_Device timer(2);
-static UART_Device uart(1, 115200, 8000000);
+static UART_Device uart1(UART_Device::UartDevice::UART_1, 115200);
 
 /*
 ./JLinkGDBServer -select USB -device STM32F103C8 -endian little -if SWD -speed auto -ir -noLocalhostOnly -nologtofile -port 2331 -SWOPort 2332 -TelnetPort 2333
@@ -35,7 +35,8 @@ int main(void)
 
 	//timer.InitAt().Enable();
 	led.Init();
-	//uart.Init();
+	uart1.Init();
+	uart1.UseForPrintf();
 	Delays::Init();
 
 	while (true)
