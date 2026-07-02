@@ -95,7 +95,7 @@ GPIO_Device &GPIO_Device::Init()
 
 GPIO_Device &GPIO_Device::Set(bool state)
 {
-	GPIO_TypeDef* gpio = getGPIOPort(port_);
+	GPIO_TypeDef* gpio = getGPIOPort( port_);
 
 	if (state)
 		gpio->BSRR = BIT(pin_);

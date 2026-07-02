@@ -59,6 +59,17 @@ public:
 
 		friend class GPIO_Interface;
 
+		enum class GpioPort : uint8_t {
+			PA = 0,
+			PB = 1,
+			PC = 2,
+			PD = 3,
+			PE = 4,
+#if defined(STM32F10X_HD) || defined(STM32F10X_XL)
+			PF = 5,
+			PG = 6,
+#endif
+		};
 		/**
 		 * Constructor
 		 *
@@ -67,7 +78,7 @@ public:
 		 * @param dir Pin direction
 		 */
 		explicit constexpr
-		GPIO_Device(uint16_t port, uint16_t pin, GPIO_PinBase::Direction dir) :
+		GPIO_Device(GpioPort port, uint16_t pin, GPIO_PinBase::Direction dir) :
 			port_(port), pin_(pin), config_(GPIO_Config(port, pin, dir)) {}
 
 		/**
@@ -91,10 +102,10 @@ public:
 		 */
 		bool Get() override;
 private:
-	uint16_t port_;
+	GpioPort port_;
 	uint16_t pin_;
 
-	constexpr static GPIO_TypeDef *getGPIOPort(uint16_t port)
+	constexpr static GPIO_TypeDef *getGPIOPort(GpioPort port)
 	{
 		GPIO_TypeDef *gpios[] = {GPIOA, GPIOB, GPIOC, GPIOD, GPIOE,
 #if defined(STM32F10X_HD) || defined(STM32F10X_XL)
@@ -102,10 +113,10 @@ private:
 #endif /* STM32F10X_HD STM32F10X_XL */
 		};
 
-		return (port >= (sizeof(gpios) / sizeof(gpios[0]))) ? nullptr : gpios[port];
+		return gpios[static_cast<uint8_t>(port)];
 	}
 
-	constexpr static uint32_t rcc_enable(uint16_t port)
+	constexpr static uint32_t rcc_enable(GpioPort port)
 	{
 		const uint32_t rcc_masks[] = {
 		    RCC_APB2ENR_IOPAEN,
@@ -119,12 +130,12 @@ private:
 #endif /* STM32F10X_HD STM32F10X_XL */
 		};
 
-		return (port >= (sizeof(rcc_masks) / sizeof(rcc_masks[0]))) ? 0 : rcc_masks[port];
+		return rcc_masks[static_cast<uint8_t>(port)];
 	}
 
 	struct GPIO_Config
 	{
-		constexpr explicit GPIO_Config(uint16_t port, uint16_t pin, GPIO_PinBase::Direction dir)
+		constexpr explicit GPIO_Config(GPIO_Device::GpioPort port, uint16_t pin, GPIO_PinBase::Direction dir)
 		    : gpio(getGPIOPort(port)), direction(dir), rcc_mask(rcc_enable(port))
 		{
 			uint32_t mode = 0, cnf = 0;
@@ -188,7 +199,7 @@ public:
 	 * @param port GPIO port number
 	 */
 	explicit constexpr
-	GPIO_Port(uint16_t port) : port_(GPIO_Device::getGPIOPort(port)) {}
+	GPIO_Port(GPIO_Device::GpioPort port) : port_(GPIO_Device::getGPIOPort(port)) {}
 
 	/**
 	 * Read port bitmask.

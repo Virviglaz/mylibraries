@@ -60,7 +60,7 @@ static void delay_ticks(uint32_t ticks) {
 
 void Delays::DelayMs(uint32_t ms) {
 	uint32_t ticks = ms * Clocks::GetCPUFreqHz() / 1000UL;
-	while (ms--)
+	while (--ticks)
 		DelayUs(1000);
 }
 
