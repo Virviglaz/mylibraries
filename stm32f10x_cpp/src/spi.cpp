@@ -61,7 +61,7 @@ static uint16_t calc_clock_div(uint32_t bus_freq, uint32_t expected_freq)
 
 SPI_InterfaceBase &SPI_Bus::Init(SPI_ClockPolarity mode, uint32_t clk_freq)
 {
-	uint16_t clock_div;
+	uint16_t clock_div = 0;
 
 	switch (spiBus_)
 	{

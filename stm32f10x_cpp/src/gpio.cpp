@@ -78,34 +78,31 @@ void GPIO_Interface::Write(uint16_t port, uint16_t pin, bool state)
 
 GPIO_Device &GPIO_Device::Init()
 {
-	RCC->APB2ENR |= config_.rcc_mask;
-	GPIO_TypeDef *gpio = config_.gpio;
+	RCC->APB2ENR |= rcc_enable(port_);
 
-	gpio->CRL &= ~config_.crl_clear;
-	gpio->CRL |= config_.crl_set;
-	gpio->CRH &= ~config_.crh_clear;
-	gpio->CRH |= config_.crh_set;
-	if (config_.direction == GPIO_PinBase::Direction::PULL_UP)
-		Set(true);
-	else if (config_.direction == GPIO_PinBase::Direction::PULL_DOWN)
-		Set(false);
+	if (pin_ < 8) {
+		port_->CRL &= ~(0xF << (pin_ * 4));
+		port_->CRL |= crl_crh << (pin_ * 4);
+	} else {
+		pin_ -= 8;
+		port_->CRH &= ~(0xF << (pin_ * 4));
+		port_->CRH |= crl_crh << (pin_* 4);
+	}
 
 	return *this;
 }
 
 GPIO_Device &GPIO_Device::Set(bool state)
 {
-	GPIO_TypeDef* gpio = getGPIOPort( port_);
-
 	if (state)
-		gpio->BSRR = BIT(pin_);
+		port_->BSRR = BIT(pin_);
 	else
-		gpio->BRR = BIT(pin_);
+		port_->BRR = BIT(pin_);
 
 	return *this;
 }
 
 bool GPIO_Device::Get()
 {
-	return (getGPIOPort(port_)->IDR & BIT(pin_)) ? true : false;
+	return port_->IDR & BIT(pin_);
 }
