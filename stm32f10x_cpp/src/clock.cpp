@@ -51,13 +51,17 @@ static uint32_t cpu_freq_hz_ = HSI_CLOCK_FREQ;
 static uint32_t ahb_freq_hz_ = HSI_CLOCK_FREQ;
 static uint32_t apb1_freq_hz_ = HSI_CLOCK_FREQ;
 static uint32_t apb2_freq_hz_ = HSI_CLOCK_FREQ;
+static uint32_t apb1_timer_freq_hz_ = HSI_CLOCK_FREQ;
+static uint32_t apb2_timer_freq_hz_ = HSI_CLOCK_FREQ;
 static Clocks::ClockSource current_source_ = Clocks::ClockSource::HSI_CLOCK;
 
 Clocks::Clocks()
 	: cpu_freq_hz(cpu_freq_hz_),
 	  ahb_freq_hz(ahb_freq_hz_),
 	  apb1_freq_hz(apb1_freq_hz_),
-	  apb2_freq_hz(apb2_freq_hz_)
+	  apb2_freq_hz(apb2_freq_hz_),
+	  apb1_timer_freq_hz(apb1_timer_freq_hz_),
+	  apb2_timer_freq_hz(apb2_timer_freq_hz_)
 {}
 
 static uint32_t get_ahb_mult(void)
@@ -79,6 +83,16 @@ static uint32_t get_apb2_mult(void)
 	uint32_t mult = (RCC->CFGR & RCC_CFGR_PPRE2) >> 11;
 
 	return mult < 4 ? 1 : (1 << (mult - 3));
+}
+
+/**
+ * Per the STM32F10x reference manual: if the corresponding APBx prescaler
+ * is 1, the timers on that bus are clocked at apb_freq_hz; otherwise they
+ * are clocked at 2 * apb_freq_hz.
+ */
+static inline uint32_t get_timer_freq_hz(uint32_t apb_freq_hz, uint32_t apb_mult)
+{
+	return apb_mult == 1 ? apb_freq_hz : apb_freq_hz * 2;
 }
 
 static inline Clocks::ClockSource get_pll_source(void)
@@ -116,6 +130,8 @@ Clocks &Clocks::Update()
 	ahb_freq_hz = cpu_freq_hz / get_ahb_mult();
 	apb1_freq_hz = ahb_freq_hz / get_apb1_mult();
 	apb2_freq_hz = ahb_freq_hz / get_apb2_mult();
+	apb1_timer_freq_hz = get_timer_freq_hz(apb1_freq_hz, get_apb1_mult());
+	apb2_timer_freq_hz = get_timer_freq_hz(apb2_freq_hz, get_apb2_mult());
 
 	return *this;
 }
@@ -200,6 +216,8 @@ void Clocks::EnablePLL(uint8_t mult)
 	ahb_freq_hz_ = cpu_freq_hz_ / get_ahb_mult();
 	apb1_freq_hz_ = ahb_freq_hz_ / get_apb1_mult();
 	apb2_freq_hz_ = ahb_freq_hz_ / get_apb2_mult();
+	apb1_timer_freq_hz_ = get_timer_freq_hz(apb1_freq_hz_, get_apb1_mult());
+	apb2_timer_freq_hz_ = get_timer_freq_hz(apb2_freq_hz_, get_apb2_mult());
 }
 
 uint32_t Clocks::GetCPUFreqHz()

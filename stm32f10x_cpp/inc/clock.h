@@ -130,6 +130,26 @@ public:
 	 * APB2 bus frequency in Hz
 	 */
 	uint32_t apb2_freq_hz;
+
+	/**
+	 * APB1 timer clock frequency in Hz.
+	 *
+	 * Per the STM32F10x reference manual, timers clocked from APB1 run at
+	 * apb1_freq_hz when the APB1 prescaler is 1, but at 2 * apb1_freq_hz
+	 * whenever the APB1 prescaler is not 1. Always use this field (instead
+	 * of apb1_freq_hz) to compute a timer's prescaler/reload values.
+	 */
+	uint32_t apb1_timer_freq_hz;
+
+	/**
+	 * APB2 timer clock frequency in Hz.
+	 *
+	 * Per the STM32F10x reference manual, timers clocked from APB2 run at
+	 * apb2_freq_hz when the APB2 prescaler is 1, but at 2 * apb2_freq_hz
+	 * whenever the APB2 prescaler is not 1. Always use this field (instead
+	 * of apb2_freq_hz) to compute a timer's prescaler/reload values.
+	 */
+	uint32_t apb2_timer_freq_hz;
 };
 
 #endif /* STM32F10X_CLOCK_H */

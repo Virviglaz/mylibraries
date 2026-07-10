@@ -60,15 +60,18 @@ Timer_DeviceBase &Timer_Device::InitAt(uint32_t freq_hz)
 {
 	Init();
 
-	if (clock_enable_reg_ == &RCC->APB1ENR)
-	{
-		tim_base_->PSC = (Clocks().apb1_freq_hz / freq_hz) - 1;
-	}
-	else
-	{
-		tim_base_->PSC = (Clocks().apb2_freq_hz / freq_hz) - 1;
-	}
+	// NOTE: Use the timer input clock, not the raw APBx bus clock. Per the
+	// STM32F10x reference manual, a timer's input clock equals its APBx bus
+	// clock only when that APBx prescaler is 1; otherwise it is doubled.
+	// Using apb1_freq_hz/apb2_freq_hz directly here would compute a wrong
+	// prescaler (off by 2x) whenever the APBx prescaler isn't 1, so the
+	// timer would not actually tick at freq_hz (e.g. not truly at 1 MHz).
+	Clocks clocks;
+	uint32_t timer_clock_hz = (clock_enable_reg_ == &RCC->APB1ENR)
+			? clocks.apb1_timer_freq_hz
+			: clocks.apb2_timer_freq_hz;
 
+	tim_base_->PSC = (timer_clock_hz / freq_hz) - 1;
 	tim_base_->EGR = TIM_EGR_UG;
 
 	return *this;
@@ -92,14 +95,21 @@ Timer_DeviceBase &Timer_Device::Reset()
 	return *this;
 }
 
+static inline void wait_internal(TIM_TypeDef *t, uint32_t timer_ticks)
+{
+	t->CNT = 0;
+
+	while (t->CNT < timer_ticks) {}
+}
+
 Timer_DeviceBase &Timer_Device::Wait(uint32_t timer_ticks)
 {
-	tim_base_->CNT = 0;
-
-	while (tim_base_->CNT < timer_ticks)
+	while (timer_ticks > UINT16_MAX)
 	{
-		__NOP();
+		wait_internal(tim_base_, UINT16_MAX);
+		timer_ticks -= UINT16_MAX;
 	}
 
+	wait_internal(tim_base_, timer_ticks);
 	return *this;
 }

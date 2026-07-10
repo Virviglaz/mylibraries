@@ -84,9 +84,9 @@ GPIO_Device &GPIO_Device::Init()
 		port_->CRL &= ~(0xF << (pin_ * 4));
 		port_->CRL |= crl_crh << (pin_ * 4);
 	} else {
-		pin_ -= 8;
-		port_->CRH &= ~(0xF << (pin_ * 4));
-		port_->CRH |= crl_crh << (pin_* 4);
+		uint16_t pin_h = pin_ - 8;
+		port_->CRH &= ~(0xF << (pin_h * 4));
+		port_->CRH |= crl_crh << (pin_h * 4);
 	}
 
 	return *this;
