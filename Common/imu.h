@@ -141,6 +141,32 @@ namespace IMU
 		Vector3D velocity;
 		Vector3D position;
 	};
+
+	/**
+	 * @brief Abstract base class for IMU devices.
+	 */
+	class IMU_DeviceBase
+	{
+	public:
+		explicit IMU_DeviceBase() = default;
+		virtual ~IMU_DeviceBase() = default;
+
+		virtual int Reset() = 0;
+		virtual int Init() = 0;
+		virtual RawData_6DOF_Base& GetData() = 0;
+		virtual RawData_6DOF_Base& WaitForData() = 0;
+	};
+
+	template <class T>
+	class IMU_DMP_DeviceBase
+	{
+	public:
+		explicit IMU_DMP_DeviceBase() = default;
+		virtual ~IMU_DMP_DeviceBase() = default;
+
+		virtual ImuRealData<T>& GetRealIMUData() = 0;
+		virtual ImuRealData<T>& WaitForRealIMUData() = 0;
+	};
 }
 
 #endif // IMU_H

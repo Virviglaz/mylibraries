@@ -110,21 +110,42 @@ IMU_Position& IMU_Position::Update(
 	T acc_world_z = R31 * acc_local_x + R32 * acc_local_y
 			+ R33 * acc_local_z;
 
-	// 4. Gravity compensation (assuming gravity acts in the negative Z direction)
+	// 4. Gravity compensation (gravity acts in the negative Z direction in world frame)
 	T linear_acc_x = acc_world_x;
 	T linear_acc_y = acc_world_y;
-	T linear_acc_z = acc_world_z;// - GRAVITY; // Subtract gravity
+	T linear_acc_z = acc_world_z - GRAVITY; // Subtract gravity so a stationary sensor reads ~0
 
-	// 5. First-order integration to update velocity
-	T deadband = 0.05f; // Remove small noise in acceleration
-	if (std::abs(linear_acc_x) > deadband)
+	// 5. Zero-velocity update (ZUPT): if the *total* linear acceleration is small,
+	// assume the device is stationary and clamp velocity to zero. This is required
+	// because pure accelerometer double integration always drifts - any residual
+	// bias/noise (even below a per-axis deadband) accumulates without bound over time.
+	T acc_mag = std::sqrt(linear_acc_x * linear_acc_x +
+			linear_acc_y * linear_acc_y +
+			linear_acc_z * linear_acc_z);
+	const T stationary_threshold = 0.15f; // m/s^2, tune to your sensor noise floor
+
+	if (acc_mag < stationary_threshold) {
+		// Treat as stationary: do not integrate acceleration, and quickly bleed off
+		// any residual velocity so the position does not keep drifting.
+		velocity.x *= 0.90f;
+		velocity.y *= 0.90f;
+		velocity.z *= 0.90f;
+	} else {
+		// 6. First-order integration to update velocity
 		velocity.x += linear_acc_x * dt;
-	if (std::abs(linear_acc_y) > deadband)
 		velocity.y += linear_acc_y * dt;
-	if (std::abs(linear_acc_z) > deadband)
 		velocity.z += linear_acc_z * dt;
 
-	// 6. Second-order integration to update position
+		// 7. Continuous velocity leak (high-pass behavior) to bound long-term drift
+		// caused by any remaining constant acceleration bias/orientation error.
+		const T leak = static_cast<T>(0.02); // 1/s, small compared to dt scale
+		T decay = static_cast<T>(1.0) - leak * dt;
+		velocity.x *= decay;
+		velocity.y *= decay;
+		velocity.z *= decay;
+	}
+
+	// 8. Second-order integration to update position
 	position.x += velocity.x * dt;
 	position.y += velocity.y * dt;
 	position.z += velocity.z * dt;
