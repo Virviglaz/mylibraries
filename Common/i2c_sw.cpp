@@ -42,11 +42,11 @@
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
-#include "I2C_GPIO.h"
+#include "i2c_sw.h"
 #include "monads.h"
 #include <errno.h>
 
-int I2C_GPIO::StartCondition()
+int I2C_SW_Base::StartCondition()
 {
 	sda_pin_.Set(1);
 	scl_pin_.Set(1);
@@ -63,7 +63,7 @@ int I2C_GPIO::StartCondition()
 	return 0;
 }
 
-void I2C_GPIO::RepeatStartCondition()
+void I2C_SW_Base::RepeatStartCondition()
 {
 	sda_pin_.Set(1);
 	scl_pin_.Set(1);
@@ -74,7 +74,7 @@ void I2C_GPIO::RepeatStartCondition()
 	DelayFunc();
 }
 
-void I2C_GPIO::StopCondition()
+void I2C_SW_Base::StopCondition()
 {
 	DelayFunc();
 	sda_pin_.Set(0);
@@ -84,7 +84,7 @@ void I2C_GPIO::StopCondition()
 	DelayFunc();
 }
 
-uint16_t I2C_GPIO::WriteByte(uint8_t data)
+uint16_t I2C_SW_Base::WriteByte(uint8_t data)
 {
 	uint8_t mask = 0x80;
 	uint16_t ack;
@@ -113,11 +113,12 @@ uint16_t I2C_GPIO::WriteByte(uint8_t data)
 	return ack;
 }
 
-uint16_t I2C_GPIO::ReadByte(bool ack)
+uint16_t I2C_SW_Base::ReadByte(bool ack)
 {
 	uint8_t data = 0, mask = 0x80;
 
 	sda_pin_.Set(1); // Release SDA for reading
+	DelayFunc();
 
 	while (mask)
 	{
@@ -145,11 +146,11 @@ uint16_t I2C_GPIO::ReadByte(bool ack)
 	return data;
 }
 
-int I2C_GPIO::Write(uint8_t device_addr,
-					const uint8_t *reg_addr,
-					size_t reg_addr_length,
-					const uint8_t *data,
-					size_t data_length)
+int I2C_SW_Base::Write(uint8_t device_addr,
+					   const uint8_t *reg_addr,
+					   size_t reg_addr_length,
+					   const uint8_t *data,
+					   size_t data_length)
 {
 	bool started = false;
 
@@ -194,11 +195,11 @@ int I2C_GPIO::Write(uint8_t device_addr,
 	return 0;
 }
 
-int I2C_GPIO::Read(uint8_t device_addr,
-				   const uint8_t *reg_addr,
-				   size_t reg_addr_length,
-				   uint8_t *data,
-				   size_t data_length)
+int I2C_SW_Base::Read(uint8_t device_addr,
+				      const uint8_t *reg_addr,
+				      size_t reg_addr_length,
+				      uint8_t *data,
+				      size_t data_length)
 {
 	bool started = false;
 

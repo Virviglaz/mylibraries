@@ -42,8 +42,8 @@
  * Pavel Nadein <pavelnadein@gmail.com>
  */
 
-#ifndef I2C_GPIO_H
-#define I2C_GPIO_H
+#ifndef I2C_SW_H
+#define I2C_SW_H
 
 #include "interfaces.h"
 #include "devices.h"
@@ -61,7 +61,7 @@
  * and can be used on platforms that do not have hardware
  * I2C support or when additional I2C buses are needed.
  */
-class I2C_GPIO : public I2C_InterfaceBase
+class I2C_SW_Base : public I2C_InterfaceBase
 {
 public:
 	/**
@@ -70,7 +70,7 @@ public:
 	 * @param sda_pin GPIO pin for SDA line
 	 * @param scl_pin GPIO pin for SCL line
 	 */
-	I2C_GPIO(GPIO_PinBase &sda_pin, GPIO_PinBase &scl_pin)
+	I2C_SW_Base(GPIO_PinBase &sda_pin, GPIO_PinBase &scl_pin)
 		: sda_pin_(sda_pin), scl_pin_(scl_pin) {}
 
 	/**
@@ -107,6 +107,7 @@ public:
 			 uint8_t *data,
 			 size_t data_length) override;
 
+protected:
 	/**
 	 * @brief Delay function to be called between I2C signal changes
 	 * @note This function should provide a delay of at least 5 microseconds
@@ -126,4 +127,30 @@ private:
 	uint16_t ReadByte(bool ack);
 };
 
-#endif /* I2C_GPIO_H */
+/**
+ * @brief Software I2C implementation using GPIO pins
+ * based on simple delay function.
+ */
+class I2C_SW_Simple : public I2C_SW_Base
+{
+public:
+	/**
+	 * Constructor
+	 *
+	 * @param sda_pin GPIO pin for SDA line
+	 * @param scl_pin GPIO pin for SCL line
+	 * @param delay cpu cycles to wait between I2C signal changes (default: 20)
+	 */
+	explicit I2C_SW_Simple(GPIO_PinBase &sda_pin, GPIO_PinBase &scl_pin, uint32_t delay = 20)
+		: I2C_SW_Base(sda_pin, scl_pin), delay_(delay) {}
+private:
+	void DelayFunc() override {
+		for (volatile uint32_t i = 0; i < delay_; ++i) {
+			__asm volatile("nop");
+		}
+	}
+private:
+	uint32_t delay_;
+};
+
+#endif /* I2C_SW_H */
