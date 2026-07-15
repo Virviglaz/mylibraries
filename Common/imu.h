@@ -97,11 +97,11 @@ namespace IMU
 	 * @tparam T Floating-point type (float or double) for the real data.
 	 */
 	template <class T>
-	class ImuRealData
+	class RealData
 	{
 	public:
-		ImuRealData() = default;
-		ImuRealData(T x, T y, T z, T w);
+		RealData() = default;
+		RealData(T x, T y, T z, T w);
 
 		T GetRollDeg() const { return roll; }
 		T GetPitchDeg() const { return pitch; }
@@ -117,10 +117,10 @@ namespace IMU
 				"ImuData template parameter T must be a floating-point type");
 	};
 
-	class IMU_Position
+	class Position
 	{
 	public:
-		explicit IMU_Position() = default;
+		explicit Position() = default;
 
 		struct Vector3D {
 		    float x = 0.0f;
@@ -129,13 +129,13 @@ namespace IMU
 		};
 
 		template <class T>
-		IMU_Position& Update(const RawData_6DOF_Base &raw_data,
-				const ImuRealData<T> &real_data, T dt);
+		Position& Update(const RawData_6DOF_Base &raw_data,
+				const RealData<T> &real_data, T dt);
 
 		Vector3D getPosition() const { return position; }
 		Vector3D getVelocity() const { return velocity; }
 
-		IMU_Position& Reset();
+		Position& Reset();
 	protected:
 		const float GRAVITY = 9.80665f; // м/с^2
 		Vector3D velocity;
@@ -145,11 +145,11 @@ namespace IMU
 	/**
 	 * @brief Abstract base class for IMU devices.
 	 */
-	class IMU_DeviceBase
+	class DeviceBase
 	{
 	public:
-		explicit IMU_DeviceBase() = default;
-		virtual ~IMU_DeviceBase() = default;
+		explicit DeviceBase() = default;
+		virtual ~DeviceBase() = default;
 
 		virtual int Reset() = 0;
 		virtual int Init() = 0;
@@ -158,14 +158,14 @@ namespace IMU
 	};
 
 	template <class T>
-	class IMU_DMP_DeviceBase
+	class DMP_DeviceBase
 	{
 	public:
-		explicit IMU_DMP_DeviceBase() = default;
-		virtual ~IMU_DMP_DeviceBase() = default;
+		explicit DMP_DeviceBase() = default;
+		virtual ~DMP_DeviceBase() = default;
 
-		virtual ImuRealData<T>& GetRealIMUData() = 0;
-		virtual ImuRealData<T>& WaitForRealIMUData() = 0;
+		virtual RealData<T>& GetRealIMUData() = 0;
+		virtual RealData<T>& WaitForRealIMUData() = 0;
 	};
 }
 

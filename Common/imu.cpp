@@ -49,7 +49,7 @@
 using namespace IMU;
 
 template <class T>
-ImuRealData<T>::ImuRealData(T x, T y, T z, T w)
+RealData<T>::RealData(T x, T y, T z, T w)
 {
 	T norm = std::sqrt(w * w + x * x + y * y + z * z);
 	if (norm > 0.0f) {
@@ -72,9 +72,9 @@ ImuRealData<T>::ImuRealData(T x, T y, T z, T w)
 }
 
 template <class T>
-IMU_Position& IMU_Position::Update(
+Position& Position::Update(
 		const RawData_6DOF_Base &raw_data,
-		const ImuRealData<T> &real_data,
+		const RealData<T> &real_data,
 		T dt) {
 	// 1. Transform acceleration from body frame to world frame using the orientation (real_data)
 	T acc_local_x = (static_cast<float>(raw_data.Accel.GetX())) * GRAVITY;
@@ -153,24 +153,24 @@ IMU_Position& IMU_Position::Update(
 	return *this;
 }
 
-IMU_Position& IMU_Position::Reset() {
+Position& Position::Reset() {
 	velocity = { 0.0f, 0.0f, 0.0f };
 	position = { 0.0f, 0.0f, 0.0f };
 	return *this;
 }
 
-template class IMU::ImuRealData<float>;
-template class IMU::ImuRealData<double>;
+template class IMU::RealData<float>;
+template class IMU::RealData<double>;
 
 // IMU_Position is not a class template, but Update() is a template member
 // function defined here in the .cpp file. Without explicit instantiation,
 // no object code for Update<float>/Update<double> is ever emitted, causing
 // "undefined reference to IMU_Position::Update<double>(...)" at link time.
-template IMU_Position& IMU::IMU_Position::Update<float>(
+template Position& IMU::Position::Update<float>(
 		const RawData_6DOF_Base &raw_data,
-		const ImuRealData<float> &real_data,
+		const RealData<float> &real_data,
 		float dt);
-template IMU_Position& IMU::IMU_Position::Update<double>(
+template Position& IMU::Position::Update<double>(
 		const RawData_6DOF_Base &raw_data,
-		const ImuRealData<double> &real_data,
+		const RealData<double> &real_data,
 		double dt);
