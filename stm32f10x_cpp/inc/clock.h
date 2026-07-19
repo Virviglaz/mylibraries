@@ -49,14 +49,15 @@
 #error "This header requires C++11 or higher"
 #endif
 
-#include <stm32f10x.h>
-
 #define HSE_DEFAULT_CLOCK_FREQ		8000000UL
+
+#include <cstdint>
+#include <chrono>
 
 class Clocks
 {
 public:
-	enum ClockSource
+	enum class ClockSource
 	{
 		NO_CLOCK,
 		HSI_CLOCK,		  /* High speed internal clock */
@@ -69,14 +70,15 @@ public:
 		INV_CLOCK,		  /* Invalid value */
 	};
 
-	explicit Clocks();
+	explicit Clocks() = delete;
+	virtual ~Clocks() = delete;
 
 	/**
 	 * Update current clock configuration
 	 *
 	 * @return Reference to updated clock configuration
 	 */
-	Clocks &Update();
+	static void Update();
 
 	/**
 	 * Get current clock source
@@ -104,52 +106,47 @@ public:
 	 */
 	static void EnablePLL(uint8_t mult);
 
+	enum class BusClock
+	{
+		HSE_FREQ,
+		CPU_FREQ,
+		AHB_FREQ,
+		APB1_FREQ,
+		APB2_FREQ,
+	};
 	/**
 	 * CPU frequency in Hz
 	 *
 	 * @return CPU frequency in Hz
 	 */
-	static uint32_t GetCPUFreqHz();
+	static uint32_t GetFreqHz(BusClock source);
+};
 
-	/**
-	 * CPU frequency in Hz
-	 */
-	uint32_t cpu_freq_hz;
+/**
+ * @brief System clock configuration and timestamp interface.
+ *
+ * How to use:
+ * SystemClock::time_point start = SystemClock::now();
+ * SystemClock::time_point end   = SystemClock::now();
+ * SystemClock::duration elapsed = end - start;
+ */
+class SystemClock {
+public:
+	static void Configure();
+	static uint64_t GetTimeStampUs();
 
-	/**
-	 * AHB bus frequency in Hz
-	 */
-	uint32_t ahb_freq_hz;
+	using rep = uint64_t;
 
-	/**
-	 * APB1 bus frequency in Hz
-	 */
-	uint32_t apb1_freq_hz;
+	using period = std::micro;
 
-	/**
-	 * APB2 bus frequency in Hz
-	 */
-	uint32_t apb2_freq_hz;
+	using duration = std::chrono::duration<rep, period>;
+	using time_point = std::chrono::time_point<SystemClock>;
 
-	/**
-	 * APB1 timer clock frequency in Hz.
-	 *
-	 * Per the STM32F10x reference manual, timers clocked from APB1 run at
-	 * apb1_freq_hz when the APB1 prescaler is 1, but at 2 * apb1_freq_hz
-	 * whenever the APB1 prescaler is not 1. Always use this field (instead
-	 * of apb1_freq_hz) to compute a timer's prescaler/reload values.
-	 */
-	uint32_t apb1_timer_freq_hz;
+	static constexpr bool is_steady = true;
 
-	/**
-	 * APB2 timer clock frequency in Hz.
-	 *
-	 * Per the STM32F10x reference manual, timers clocked from APB2 run at
-	 * apb2_freq_hz when the APB2 prescaler is 1, but at 2 * apb2_freq_hz
-	 * whenever the APB2 prescaler is not 1. Always use this field (instead
-	 * of apb2_freq_hz) to compute a timer's prescaler/reload values.
-	 */
-	uint32_t apb2_timer_freq_hz;
+	static time_point now() noexcept {
+		return time_point(duration(GetTimeStampUs()));
+	}
 };
 
 #endif /* STM32F10X_CLOCK_H */

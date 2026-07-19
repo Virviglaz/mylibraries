@@ -48,33 +48,24 @@
 #include <stdint.h>
 
 /**
- * @brief Delays interface for STM32F10x microcontrollers.
+ * @brief Delay interface for STM32F10x mcu family.
+ *
+ * @note SystemClock::Configure() must be called before using this class.
  */
-class Delays {
+class Delay {
 public:
 	/**
-	 * Initialize systick timer for delay functions.
-	 */
-	static void Init();
-
-	/**
-	 * Delay for specified number of milliseconds.
+	 * @brief Delay for specified number of milliseconds.
 	 *
 	 * @param ms Number of milliseconds to delay
-	 * @note Maximum delay is limited by 24-bit systick timer,
-	 * so for high CPU frequencies it may be less than 1 second.
-	 * For 72 MHz CPU frequency maximum delay is about 4 seconds.
 	 */
-	static void DelayMs(uint32_t ms);
+	static void ms(uint32_t ms);
 
 	/**
-	 * Delay for specified number of microseconds.
-	 *
+	 * @brief Delay for specified number of microseconds.
 	 * @param us Number of microseconds to delay
-	 * @note Maximum delay is limited by 24-bit systick timer,
-	 * so for high CPU frequencies it may be less than 1 second.
 	 */
-	static void DelayUs(uint32_t us);
+	static void us(uint32_t us);
 };
 
 #endif /* STM32F10X_DELAYS_H */

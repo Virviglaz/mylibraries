@@ -43,6 +43,7 @@
  */
 
 #include "clock.h"
+#include <stm32f10x.h>
 
 #define HSI_CLOCK_FREQ		8000000UL
 
@@ -51,18 +52,7 @@ static uint32_t cpu_freq_hz_ = HSI_CLOCK_FREQ;
 static uint32_t ahb_freq_hz_ = HSI_CLOCK_FREQ;
 static uint32_t apb1_freq_hz_ = HSI_CLOCK_FREQ;
 static uint32_t apb2_freq_hz_ = HSI_CLOCK_FREQ;
-static uint32_t apb1_timer_freq_hz_ = HSI_CLOCK_FREQ;
-static uint32_t apb2_timer_freq_hz_ = HSI_CLOCK_FREQ;
 static Clocks::ClockSource current_source_ = Clocks::ClockSource::HSI_CLOCK;
-
-Clocks::Clocks()
-	: cpu_freq_hz(cpu_freq_hz_),
-	  ahb_freq_hz(ahb_freq_hz_),
-	  apb1_freq_hz(apb1_freq_hz_),
-	  apb2_freq_hz(apb2_freq_hz_),
-	  apb1_timer_freq_hz(apb1_timer_freq_hz_),
-	  apb2_timer_freq_hz(apb2_timer_freq_hz_)
-{}
 
 static uint32_t get_ahb_mult(void)
 {
@@ -107,33 +97,29 @@ static uint8_t get_pll_mult(void)
 	return mult >= 2 ? mult + 2 : 1;
 }
 
-Clocks &Clocks::Update()
+void Clocks::Update()
 {
 	switch (Clocks::GetClockSource()) {
 	case Clocks::ClockSource::HSI_CLOCK:
-		cpu_freq_hz = HSI_CLOCK_FREQ;
+		cpu_freq_hz_ = HSI_CLOCK_FREQ;
 		break;
 	case Clocks::ClockSource::HSE_CLOCK:
-		cpu_freq_hz = hse_freq_;
+		cpu_freq_hz_ = hse_freq_;
 		break;
 	case Clocks::ClockSource::PLL_CLOCK:
 		if (get_pll_source() == Clocks::ClockSource::HSI_CLOCK)
-			cpu_freq_hz = HSI_CLOCK_FREQ / 2 * get_pll_mult();
+			cpu_freq_hz_ = HSI_CLOCK_FREQ / 2 * get_pll_mult();
 		else
-			cpu_freq_hz = hse_freq_ * get_pll_mult();
+			cpu_freq_hz_ = hse_freq_ * get_pll_mult();
 		break;
 	default:
-		cpu_freq_hz = 0;
+		cpu_freq_hz_ = 0;
 		break;
 	}
 
-	ahb_freq_hz = cpu_freq_hz / get_ahb_mult();
-	apb1_freq_hz = ahb_freq_hz / get_apb1_mult();
-	apb2_freq_hz = ahb_freq_hz / get_apb2_mult();
-	apb1_timer_freq_hz = get_timer_freq_hz(apb1_freq_hz, get_apb1_mult());
-	apb2_timer_freq_hz = get_timer_freq_hz(apb2_freq_hz, get_apb2_mult());
-
-	return *this;
+	ahb_freq_hz_ = cpu_freq_hz_ / get_ahb_mult();
+	apb1_freq_hz_ = ahb_freq_hz_ / get_apb1_mult();
+	apb2_freq_hz_ = ahb_freq_hz_ / get_apb2_mult();
 }
 
 Clocks::ClockSource Clocks::GetClockSource()
@@ -216,11 +202,55 @@ void Clocks::EnablePLL(uint8_t mult)
 	ahb_freq_hz_ = cpu_freq_hz_ / get_ahb_mult();
 	apb1_freq_hz_ = ahb_freq_hz_ / get_apb1_mult();
 	apb2_freq_hz_ = ahb_freq_hz_ / get_apb2_mult();
-	apb1_timer_freq_hz_ = get_timer_freq_hz(apb1_freq_hz_, get_apb1_mult());
-	apb2_timer_freq_hz_ = get_timer_freq_hz(apb2_freq_hz_, get_apb2_mult());
 }
 
-uint32_t Clocks::GetCPUFreqHz()
+uint32_t Clocks::GetFreqHz(BusClock source)
 {
-	return cpu_freq_hz_;
+	switch (source) {
+	case Clocks::BusClock::HSE_FREQ:
+		return hse_freq_;
+	case Clocks::BusClock::CPU_FREQ:
+		return cpu_freq_hz_;
+	case Clocks::BusClock::AHB_FREQ:
+		return ahb_freq_hz_;
+	case Clocks::BusClock::APB1_FREQ:
+		return apb1_freq_hz_;
+	case Clocks::BusClock::APB2_FREQ:
+		return apb2_freq_hz_;
+	}
+	return 0;
 }
+
+static uint64_t time_us = 0;
+
+extern "C"
+{
+	void SysTick_Handler(void) {
+		time_us += SysTick->LOAD;
+	}
+}
+
+void SystemClock::Configure()
+{
+	SysTick->LOAD = 0xFFFFFF;
+	SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
+	__enable_irq();
+}
+
+uint64_t SystemClock::GetTimeStampUs()
+{
+	uint64_t t1;
+	uint32_t val;
+	uint64_t t2;
+
+	do {
+		t1 = time_us;
+		val = SysTick->VAL;
+		t2 = time_us;
+	} while (t1 != t2);
+
+	uint64_t elapsed_in_period = SysTick->LOAD - val;
+
+	return (t1 + elapsed_in_period) * 8000000 / ahb_freq_hz_;
+}
+

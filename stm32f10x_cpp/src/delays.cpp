@@ -44,27 +44,20 @@
 
 #include "clock.h"
 #include "delays.h"
-#include <stm32f10x.h>
+#include "clock.h"
 
-void Delays::Init() {
-	SysTick->LOAD = 0xFFFFFF;
-	SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk;
+void Delay::ms(uint32_t ms) {
+	SystemClock::time_point end = SystemClock::now()
+			+ SystemClock::duration(ms * 1000);
+	while (SystemClock::now() < end) {
+		// Wait until the specified time has passed
+	}
 }
 
-static void delay_ticks(uint32_t ticks) {
-	SysTick->LOAD = ticks;
-	SysTick->VAL = 0;
-
-	while (!(SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk)) { }
-}
-
-void Delays::DelayMs(uint32_t ms) {
-	uint32_t ticks = ms * Clocks::GetCPUFreqHz() / 1000UL;
-	while (--ticks)
-		DelayUs(1000);
-}
-
-void Delays::DelayUs(uint32_t us) {
-	uint32_t ticks = us * Clocks::GetCPUFreqHz() / 1000000UL;
-	delay_ticks(ticks);
+void Delay::us(uint32_t us) {
+	SystemClock::time_point end = SystemClock::now()
+			+ SystemClock::duration(us);
+	while (SystemClock::now() < end) {
+		// Wait until the specified time has passed
+	}
 }

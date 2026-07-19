@@ -66,10 +66,8 @@ Timer_DeviceBase &Timer_Device::InitAt(uint32_t freq_hz)
 	// Using apb1_freq_hz/apb2_freq_hz directly here would compute a wrong
 	// prescaler (off by 2x) whenever the APBx prescaler isn't 1, so the
 	// timer would not actually tick at freq_hz (e.g. not truly at 1 MHz).
-	Clocks clocks;
-	uint32_t timer_clock_hz = (clock_enable_reg_ == &RCC->APB1ENR)
-			? clocks.apb1_timer_freq_hz
-			: clocks.apb2_timer_freq_hz;
+	uint32_t timer_clock_hz = Clocks::GetFreqHz((clock_enable_reg_ == &RCC->APB1ENR) ?
+			Clocks::BusClock::APB1_FREQ : Clocks::BusClock::APB2_FREQ);
 
 	tim_base_->PSC = (timer_clock_hz / freq_hz) - 1;
 	tim_base_->EGR = TIM_EGR_UG;
