@@ -48,33 +48,66 @@
 
 using namespace IMU;
 
-template <class T>
-RealData<T>::RealData(T x, T y, T z, T w)
-{
+template<class T>
+EulerAngles<T>::EulerAngles(T x, T y, T z, T w) {
 	T norm = std::sqrt(w * w + x * x + y * y + z * z);
-	if (norm > 0.0f) {
-		w /= norm;
-		x /= norm;
-		y /= norm;
-		z /= norm;
+
+	if (norm > std::numeric_limits<T>::epsilon()) {
+		T invNorm = static_cast<T>(1.0) / norm;
+		w *= invNorm;
+		x *= invNorm;
+		y *= invNorm;
+		z *= invNorm;
 	}
 
+	const T one = static_cast<T>(1.0);
+	const T two = static_cast<T>(2.0);
+
 	// Roll
-	roll = std::atan2(2.0f * (w * x + y * z), 1.0f - 2.0f * (x * x + y * y));
+	roll = std::atan2(two * (w * x + y * z), one - two * (x * x + y * y));
 
 	// Pitch
-	T pitch_val = 2.0f * (w * y - z * x);
-	pitch = std::asin(std::clamp(pitch_val, static_cast<T>(-1.0), static_cast<T>(1.0)));
+	T pitch_val = two * (w * y - z * x);
+	pitch = std::asin(std::clamp(pitch_val, -one, one));
 
 	// Yaw
-	yaw = std::atan2(2.0f * (w * z + x * y), 1.0f - 2.0f * (y * y + z * z));
+	yaw = std::atan2(two * (w * z + x * y), one - two * (y * y + z * z));
+}
 
+template<class T>
+Acceleration<T>::Acceleration(const RawData_6DOF_Base &raw_data, T qx, T qy, T qz, T qw)
+{
+	const T one = static_cast<T>(1.0);
+	const T two = static_cast<T>(2.0);
+
+	// 2. Convert quaternion to rotation matrix
+	T xx = qx * qx; T yy = qy * qy; T zz = qz * qz;
+	T xy = qx * qy; T xz = qx * qz; T yz = qy * qz;
+	T wx = qw * qx; T wy = qw * qy; T wz = qw * qz;
+
+	// Matrix elements
+	T R11 = one - two * (yy + zz);
+	T R12 = two * (xy - wz);
+	T R13 = two * (xz + wy);
+
+	T R21 = two * (xy + wz);
+	T R22 = one - two * (xx + zz);
+	T R23 = two * (yz - wx);
+
+	T R31 = two * (xz - wy);
+	T R32 = two * (yz + wx);
+	T R33 = one - two * (xx + yy);
+
+	// 3. Transform acceleration to world frame
+	x = R11 * raw_data.Accel.GetX() + R12 * raw_data.Accel.GetY() + R13 * raw_data.Accel.GetZ();
+	y = R21 * raw_data.Accel.GetX() + R22 * raw_data.Accel.GetY() + R23 * raw_data.Accel.GetZ();
+	z = R31 * raw_data.Accel.GetX() + R32 * raw_data.Accel.GetY() + R33 * raw_data.Accel.GetZ();
 }
 
 template <class T>
-Position& Position::Update(
+Position<T>& Position<T>::Update(
 		const RawData_6DOF_Base &raw_data,
-		const RealData<T> &real_data,
+		EulerAngles<T> euler_angles,
 		T dt) {
 	// 1. Transform acceleration from body frame to world frame using the orientation (real_data)
 	T acc_local_x = (static_cast<float>(raw_data.Accel.GetX())) * GRAVITY;
@@ -82,12 +115,12 @@ Position& Position::Update(
 	T acc_local_z = (static_cast<float>(raw_data.Accel.GetZ())) * GRAVITY;
 
 	// 2. Calculate velocity by integrating acceleration over time
-	T sr = std::sin(real_data.GetRollRad());
-	T cr = std::cos(real_data.GetRollRad());
-	T sp = std::sin(real_data.GetPitchRad());
-	T cp = std::cos(real_data.GetPitchRad());
-	T sy = std::sin(real_data.GetYawRad());
-	T cy = std::cos(real_data.GetYawRad());
+	T sr = std::sin(euler_angles.GetRollRad());
+	T cr = std::cos(euler_angles.GetRollRad());
+	T sp = std::sin(euler_angles.GetPitchRad());
+	T cp = std::cos(euler_angles.GetPitchRad());
+	T sy = std::sin(euler_angles.GetYawRad());
+	T cy = std::cos(euler_angles.GetYawRad());
 
 	// Matrix to transform from body frame to world frame
 	T R11 = cy * cp;
@@ -113,7 +146,7 @@ Position& Position::Update(
 	// 4. Gravity compensation (gravity acts in the negative Z direction in world frame)
 	T linear_acc_x = acc_world_x;
 	T linear_acc_y = acc_world_y;
-	T linear_acc_z = acc_world_z - GRAVITY; // Subtract gravity so a stationary sensor reads ~0
+	T linear_acc_z = acc_world_z;// - GRAVITY; // Subtract gravity so a stationary sensor reads ~0
 
 	// 5. Zero-velocity update (ZUPT): if the *total* linear acceleration is small,
 	// assume the device is stationary and clamp velocity to zero. This is required
@@ -127,9 +160,9 @@ Position& Position::Update(
 	if (acc_mag < stationary_threshold) {
 		// Treat as stationary: do not integrate acceleration, and quickly bleed off
 		// any residual velocity so the position does not keep drifting.
-		velocity.x *= 0.90f;
-		velocity.y *= 0.90f;
-		velocity.z *= 0.90f;
+		velocity.x *= static_cast<T>(0.90);
+		velocity.y *= static_cast<T>(0.90);
+		velocity.z *= static_cast<T>(0.90);
 	} else {
 		// 6. First-order integration to update velocity
 		velocity.x += linear_acc_x * dt;
@@ -153,24 +186,66 @@ Position& Position::Update(
 	return *this;
 }
 
-Position& Position::Reset() {
-	velocity = { 0.0f, 0.0f, 0.0f };
-	position = { 0.0f, 0.0f, 0.0f };
+template<class T>
+Position<T>& Position<T>::Update(const Acceleration<T> &acceleration, T dt) {
+	// 1. Get the linear acceleration in world frame
+	T acc_world_x = acceleration.GetX();
+	T acc_world_y = acceleration.GetY();
+	T acc_world_z = acceleration.GetZ();
+
+	// 2. Gravity compensation (gravity acts in the negative Z direction in world frame)
+	T linear_acc_x = acc_world_x;
+	T linear_acc_y = acc_world_y;
+	T linear_acc_z = acc_world_z;// - GRAVITY; TODO: Check if gravity compensation is needed here
+
+	// 3. Calculate the magnitude of the linear acceleration
+	T acc_mag = std::sqrt(
+			linear_acc_x * linear_acc_x + linear_acc_y * linear_acc_y
+					+ linear_acc_z * linear_acc_z);
+
+	// Movement detection threshold
+	const T stationary_threshold = static_cast<T>(0.15);
+
+	// 4. Zero-velocity update (ZUPT): if the total linear acceleration is small,
+	if (acc_mag < stationary_threshold) {
+		// The device is considered stationary, and we apply a velocity decay to reduce drift.
+		velocity.x *= static_cast<T>(0.90);
+		velocity.y *= static_cast<T>(0.90);
+		velocity.z *= static_cast<T>(0.90);
+	} else {
+		// 5. First-order integration to update velocity
+		velocity.x += linear_acc_x * dt;
+		velocity.y += linear_acc_y * dt;
+		velocity.z += linear_acc_z * dt;
+
+		// 6. High-pass filter to reduce long-term drift caused by constant acceleration bias/orientation error.
+		const T leak = static_cast<T>(0.02); // 1/s
+		T decay = static_cast<T>(1.0) - leak * dt;
+		velocity.x *= decay;
+		velocity.y *= decay;
+		velocity.z *= decay;
+	}
+
+	// 7. Second-order integration to update position
+	position.x += velocity.x * dt;
+	position.y += velocity.y * dt;
+	position.z += velocity.z * dt;
+
 	return *this;
 }
 
-template class IMU::RealData<float>;
-template class IMU::RealData<double>;
+template<class T>
+Position<T>& Position<T>::Reset() {
+	velocity = { static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(0.0) };
+	position = { static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(0.0) };
+	return *this;
+}
 
-// IMU_Position is not a class template, but Update() is a template member
-// function defined here in the .cpp file. Without explicit instantiation,
-// no object code for Update<float>/Update<double> is ever emitted, causing
-// "undefined reference to IMU_Position::Update<double>(...)" at link time.
-template Position& IMU::Position::Update<float>(
-		const RawData_6DOF_Base &raw_data,
-		const RealData<float> &real_data,
-		float dt);
-template Position& IMU::Position::Update<double>(
-		const RawData_6DOF_Base &raw_data,
-		const RealData<double> &real_data,
-		double dt);
+template class IMU::EulerAngles<float>;
+template class IMU::EulerAngles<double>;
+
+template class IMU::Acceleration<float>;
+template class IMU::Acceleration<double>;
+
+template class IMU::Position<float>;
+template class IMU::Position<double>;

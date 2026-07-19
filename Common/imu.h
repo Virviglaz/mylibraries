@@ -51,7 +51,10 @@
 namespace IMU
 {
 	/**
-	 * @brief Class representing raw data from IMU sensors.
+	 * @brief Class representing 16-bit signed raw data from IMU sensors (MPU6x50/ICM).
+	 *
+	 * @todo Add support for 32-bit raw data from IMU sensors.
+	 * @todo Add support for double precision raw data from IMU sensors.
 	 */
 	class RawData16_XYZ
 	{
@@ -81,7 +84,7 @@ namespace IMU
 	{
 	public:
 		RawData_6DOF_Base() = default;
-		RawData_6DOF_Base(RawData16_XYZ &&accel, RawData16_XYZ &&gyro, float temp)
+		RawData_6DOF_Base(RawData16_XYZ accel, RawData16_XYZ gyro, float temp)
 			: Accel(accel), Gyro(gyro), temperature(temp) {}
 		RawData16_XYZ Accel;
 		RawData16_XYZ Gyro;
@@ -91,59 +94,222 @@ namespace IMU
 	};
 
 	/**
-	 * @brief Class representing real data (in degrees and radians) from IMU sensors
+	 * @brief Helper class representing 3D vector data (x, y, z) with floating point values.
+	 *
+	 * @tparam T Floating-point type (float or double) for the real data.
+	 */
+	template<class T>
+	struct Vector3D
+	{
+		static_assert(std::is_floating_point<T>::value, "Vector3D type must be a floating point type.");
+
+		Vector3D(T x, T y, T z) : x(x), y(y), z(z) {}
+		Vector3D() : x(static_cast<T>(0.0)), y(static_cast<T>(0.0)), z(static_cast<T>(0.0)) {}
+
+		T x, y, z;
+	};
+
+	/**
+	 * @brief Helper class representing quaternion data (w, x, y, z) with floating point values.
+	 *
+	 * @tparam T Floating-point type (float or double) for the real data.
+	 */
+	template<class T>
+	struct Quaternion
+	{
+		static_assert(std::is_floating_point<T>::value, "Quaternion type must be a floating point type.");
+
+		Quaternion() : w(static_cast<T>(1.0)), x(static_cast<T>(0.0)), y(static_cast<T>(0.0)), z(static_cast<T>(0.0)) {}
+		Quaternion(T w, T x, T y, T z) : w(w), x(x), y(y), z(z) {}
+
+		T w, x, y, z;
+	};
+
+	/**
+	 * @brief Class representing Eulers angles data (in degrees and radians) from IMU sensors
 	 * calculated from quaternions, provided by the IMU DMP (Digital Motion Processor).
+	 *
+	 * @note Calculations requires complex math operations! Use it only when you need to get Euler angles from quaternions.
+	 * Otherwise, use quaternions directly.
+	 *
+	 * @tparam T Floating-point type (float or double) for the real data.
+	 */
+	template<class T>
+	class EulerAngles {
+		static_assert(std::is_floating_point<T>::value,
+				"EulerAngles template parameter T must be a floating-point type");
+	public:
+		EulerAngles() = default;
+
+		/**
+		 * @brief Construct Euler angles from quaternion components.
+		 */
+		EulerAngles(T x, T y, T z, T w);
+
+		/**
+		 * @brief Construct Euler angles from a quaternion object.
+		 */
+		EulerAngles(Quaternion<T> q) : EulerAngles(q.w, q.x, q.y, q.z) {}
+
+		/**
+		 * @brief Get the roll angle in degrees.
+		 */
+		T GetRollDeg() const {
+			return roll * rad2deg;
+		}
+
+		/**
+		 * @brief Get the pitch angle in degrees.
+		 */
+		T GetPitchDeg() const {
+			return pitch * rad2deg;
+		}
+
+		/**
+		 * @brief Get the yaw angle in degrees.
+		 */
+		T GetYawDeg() const {
+			return yaw * rad2deg;
+		}
+
+		/**
+		 * @brief Get the roll angle in radians.
+		 */
+		T GetRollRad() const {
+			return roll;
+		}
+
+		/**
+		 * @brief Get the pitch angle in radians.
+		 */
+		T GetPitchRad() const {
+			return pitch;
+		}
+
+		/**
+		 * @brief Get the yaw angle in radians.
+		 */
+		T GetYawRad() const {
+			return yaw;
+		}
+	private:
+		static constexpr T pi = 3.14159265358979323846;
+		static constexpr T rad2deg = static_cast<T>(180.0) / pi;
+		T roll = static_cast<T>(0.0);
+		T pitch = static_cast<T>(0.0);
+		T yaw = static_cast<T>(0.0);
+	};
+
+	/**
+	 * @brief Class representing linear acceleration data (in m/s^2) from IMU sensors
+	 * calculated from raw acceleration data and orientation (quaternion) provided by the IMU DMP (Digital Motion Processor).
+	 *
+	 * @tparam T Floating-point type (float or double) for the real data.
+	 */
+	template<class T>
+	class Acceleration {
+		static_assert(std::is_floating_point<T>::value,
+				"Acceleration template parameter T must be a floating-point type");
+	public:
+		Acceleration() = default;
+
+		/**
+		 * @brief Construct Acceleration from raw data and quaternion components.
+		 */
+		Acceleration(const RawData_6DOF_Base& raw_data, T qx, T qy, T qz, T qw);
+
+		/**
+		 * @brief Construct Acceleration from raw data and a quaternion object.
+		 */
+		Acceleration(const RawData_6DOF_Base& raw_data, Quaternion<T> q) :
+			Acceleration(raw_data, q.x, q.y, q.z, q.w) {}
+
+		/**
+		 * @brief Construct Acceleration from rvalue reference of raw data and quaternion components.
+		 */
+		Acceleration(RawData_6DOF_Base&& raw_data, Quaternion<T> q) :
+			Acceleration(raw_data, q.x, q.y, q.z, q.w) {}
+
+		/**
+		 * @brief Get the X component of the acceleration in m/s^2.
+		 */
+		T GetX() const { return x; }
+
+		/**
+		 * @brief Get the Y component of the acceleration in m/s^2.
+		 */
+		T GetY() const { return y; }
+
+		/**
+		 * @brief Get the Z component of the acceleration in m/s^2.
+		 */
+		T GetZ() const { return z; }
+	private:
+		T x = static_cast<T>(0.0);
+		T y = static_cast<T>(0.0);
+		T z = static_cast<T>(0.0);
+	};
+
+	/**
+	 * @brief Class holding actual position in 3D space, calculated from acceleration data.
 	 *
 	 * @tparam T Floating-point type (float or double) for the real data.
 	 */
 	template <class T>
-	class RealData
-	{
-	public:
-		RealData() = default;
-		RealData(T x, T y, T z, T w);
-
-		T GetRollDeg() const { return roll; }
-		T GetPitchDeg() const { return pitch; }
-		T GetYawDeg() const { return yaw; }
-
-		T GetRollRad() const { return roll * pi / 180.0; }
-		T GetPitchRad() const { return pitch * pi / 180.0; }
-		T GetYawRad() const { return yaw * pi / 180.0; }
-	protected:
-		T pi = 3.14159265358979323846;
-		T roll, pitch, yaw;
-		static_assert(std::is_floating_point<T>::value,
-				"ImuData template parameter T must be a floating-point type");
-	};
-
 	class Position
 	{
+		static_assert(std::is_floating_point<T>::value,
+				"Position template parameter T must be a floating-point type");
 	public:
 		explicit Position() = default;
 
-		struct Vector3D {
-		    float x = 0.0f;
-		    float y = 0.0f;
-		    float z = 0.0f;
-		};
+		/**
+		 * @brief Update the position based on the provided Euler angles and acceleration.
+		 *
+		 * @note Calculations requires complex math operations! Use it only when you need to get position from acceleration.
+		 * Otherwise, use acceleration directly.
+		 *
+		 * @param raw_data	Raw linear acceleration data from the IMU.
+		 * @param euler_angles Euler angles data (in radians) from the IMU.
+		 * @param dt The time interval (in seconds) since the last update.
+		 */
+		Position& Update(const RawData_6DOF_Base& raw_data,
+				EulerAngles<T> euler_angles, T dt);
 
-		template <class T>
-		Position& Update(const RawData_6DOF_Base &raw_data,
-				const RealData<T> &real_data, T dt);
+		/**
+		 * @brief Update the position based on the provided acceleration and time interval.
+		 *
+		 * @param acceleration Real linear acceleration data from the IMU.
+		 * @param dt The time interval (in seconds) since the last update.
+		 */
+		Position& Update(const Acceleration<T>& acceleration, T dt);
 
-		Vector3D getPosition() const { return position; }
-		Vector3D getVelocity() const { return velocity; }
+		/**
+		 * @brief Get the current position in 3D space.
+		 *
+		 * @return A Vector3D<T> representing the current position (x, y, z).
+		 */
+		Vector3D<T> getPosition() const { return position; }
 
+		/**
+		 * @brief Get the current velocity in 3D space.
+		 *
+		 * @return A Vector3D<T> representing the current velocity (x, y, z).
+		 */
+		Vector3D<T> getVelocity() const { return velocity; }
+
+		/**
+		 * @brief Reset the position and velocity to zero.
+		 */
 		Position& Reset();
 	protected:
-		const float GRAVITY = 9.80665f; // м/с^2
-		Vector3D velocity;
-		Vector3D position;
+		const T GRAVITY = static_cast<T>(9.80665); // м/с^2
+		Vector3D<T> velocity;
+		Vector3D<T> position;
 	};
 
 	/**
-	 * @brief Abstract base class for IMU devices.
+	 * @brief Abstract base class for basic IMU devices.
 	 */
 	class DeviceBase
 	{
@@ -157,6 +323,9 @@ namespace IMU
 		virtual RawData_6DOF_Base& WaitForData() = 0;
 	};
 
+	/**
+	 * @brief Abstract base class for IMU devices with DMP (Digital Motion Processor) support.
+	 */
 	template <class T>
 	class DMP_DeviceBase
 	{
@@ -164,8 +333,8 @@ namespace IMU
 		explicit DMP_DeviceBase() = default;
 		virtual ~DMP_DeviceBase() = default;
 
-		virtual RealData<T>& GetRealIMUData() = 0;
-		virtual RealData<T>& WaitForRealIMUData() = 0;
+		virtual Quaternion<T>& GetQuaternion() = 0;
+		virtual Quaternion<T>& WaitForQuaternion() = 0;
 	};
 }
 
