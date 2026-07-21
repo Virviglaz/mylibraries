@@ -110,7 +110,7 @@ namespace IMU
 	};
 
 	/**
-	 * @brief Helper class representing quaternion data (w, x, y, z) with floating point values.
+	 * @brief Helper class representing quaternion data (x, y, z, w) with floating point values.
 	 *
 	 * @tparam T Floating-point type (float or double) for the real data.
 	 */
@@ -119,10 +119,10 @@ namespace IMU
 	{
 		static_assert(std::is_floating_point<T>::value, "Quaternion type must be a floating point type.");
 
-		Quaternion() : w(static_cast<T>(1.0)), x(static_cast<T>(0.0)), y(static_cast<T>(0.0)), z(static_cast<T>(0.0)) {}
-		Quaternion(T w, T x, T y, T z) : w(w), x(x), y(y), z(z) {}
+		Quaternion() : x(static_cast<T>(1.0)), y(static_cast<T>(0.0)), z(static_cast<T>(0.0)), w(static_cast<T>(0.0)) {}
+		Quaternion(T x, T y, T z, T w) : x(x), y(y), z(z), w(w) {}
 
-		T w, x, y, z;
+		T x, y, z, w;
 	};
 
 	/**
@@ -149,7 +149,7 @@ namespace IMU
 		/**
 		 * @brief Construct Euler angles from a quaternion object.
 		 */
-		EulerAngles(Quaternion<T> q) : EulerAngles(q.w, q.x, q.y, q.z) {}
+		EulerAngles(Quaternion<T> q) : EulerAngles(q.x, q.y, q.z, q.w) {}
 
 		/**
 		 * @brief Get the roll angle in degrees.
@@ -244,6 +244,8 @@ namespace IMU
 		 * @brief Get the Z component of the acceleration in m/s^2.
 		 */
 		T GetZ() const { return z; }
+
+		static constexpr T GRAVITY = static_cast<T>(9.80665); // м/с^2
 	private:
 		T x = static_cast<T>(0.0);
 		T y = static_cast<T>(0.0);
@@ -281,8 +283,14 @@ namespace IMU
 		 *
 		 * @param acceleration Real linear acceleration data from the IMU.
 		 * @param dt The time interval (in seconds) since the last update.
+		 * @param stationary_threshold The threshold for determining if the device is stationary (in m/s^2).
+		 * If the magnitude of the linear acceleration is below this threshold,
+		 * the device is considered stationary and a velocity decay is applied to reduce drift.
+		 * TODO: Consider making this threshold configurable or adaptive based on the application.
+		 *
+		 * @return A reference to the updated Position object.
 		 */
-		Position& Update(const Acceleration<T>& acceleration, T dt);
+		Position& Update(const Acceleration<T>& acceleration, T dt, T stationary_threshold = static_cast<T>(0.15));
 
 		/**
 		 * @brief Get the current position in 3D space.
@@ -302,8 +310,8 @@ namespace IMU
 		 * @brief Reset the position and velocity to zero.
 		 */
 		Position& Reset();
+
 	protected:
-		const T GRAVITY = static_cast<T>(9.80665); // м/с^2
 		Vector3D<T> velocity;
 		Vector3D<T> position;
 	};

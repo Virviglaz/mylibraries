@@ -50,58 +50,59 @@ using namespace IMU;
 
 template<class T>
 EulerAngles<T>::EulerAngles(T x, T y, T z, T w) {
-	T norm = std::sqrt(w * w + x * x + y * y + z * z);
-
+	T norm = std::sqrt(x * x + y * y + z * z + w * w);
 	if (norm > std::numeric_limits<T>::epsilon()) {
 		T invNorm = static_cast<T>(1.0) / norm;
-		w *= invNorm;
-		x *= invNorm;
-		y *= invNorm;
-		z *= invNorm;
+		x *= invNorm; y *= invNorm; z *= invNorm; w *= invNorm;
 	}
 
 	const T one = static_cast<T>(1.0);
 	const T two = static_cast<T>(2.0);
 
-	// Roll
-	roll = std::atan2(two * (w * x + y * z), one - two * (x * x + y * y));
-
-	// Pitch
-	T pitch_val = two * (w * y - z * x);
-	pitch = std::asin(std::clamp(pitch_val, -one, one));
-
-	// Yaw
-	yaw = std::atan2(two * (w * z + x * y), one - two * (y * y + z * z));
+	roll  = std::atan2(two * (w * x + y * z), one - two * (x * x + y * y));
+	pitch = std::asin(std::clamp(two * (w * y - z * x), -one, one));
+	yaw   = std::atan2(two * (w * z + x * y), one - two * (y * y + z * z));
 }
 
 template<class T>
-Acceleration<T>::Acceleration(const RawData_6DOF_Base &raw_data, T qx, T qy, T qz, T qw)
-{
+Acceleration<T>::Acceleration(const RawData_6DOF_Base &raw_data, T qx, T qy,
+		T qz, T qw) {
 	const T one = static_cast<T>(1.0);
 	const T two = static_cast<T>(2.0);
 
-	// 2. Convert quaternion to rotation matrix
-	T xx = qx * qx; T yy = qy * qy; T zz = qz * qz;
-	T xy = qx * qy; T xz = qx * qz; T yz = qy * qz;
-	T wx = qw * qx; T wy = qw * qy; T wz = qw * qz;
+	T ax = static_cast<T>(raw_data.Accel.GetX()) * GRAVITY;
+	T ay = static_cast<T>(raw_data.Accel.GetY()) * GRAVITY;
+	T az = static_cast<T>(raw_data.Accel.GetZ()) * GRAVITY;
 
-	// Matrix elements
-	T R11 = one - two * (yy + zz);
-	T R12 = two * (xy - wz);
-	T R13 = two * (xz + wy);
+	T norm = std::sqrt(qw * qw + qx * qx + qy * qy + qz * qz);
+	if (norm > std::numeric_limits<T>::epsilon()) {
+		T invNorm = one / norm;
+		qx *= invNorm;
+		qy *= invNorm;
+		qz *= invNorm;
+		qw *= invNorm;
+	} else {
+		qx = static_cast<T>(0.0);
+		qy = static_cast<T>(0.0);
+		qz = static_cast<T>(0.0);
+		qw = one;
+	}
 
-	T R21 = two * (xy + wz);
-	T R22 = one - two * (xx + zz);
-	T R23 = two * (yz - wx);
+	T R11 = one - two * (qy * qy + qz * qz);
+	T R12 = two * (qx * qy - qw * qz);
+	T R13 = two * (qx * qz + qw * qy);
 
-	T R31 = two * (xz - wy);
-	T R32 = two * (yz + wx);
-	T R33 = one - two * (xx + yy);
+	T R21 = two * (qx * qy + qw * qz);
+	T R22 = one - two * (qx * qx + qz * qz);
+	T R23 = two * (qy * qz - qw * qx);
 
-	// 3. Transform acceleration to world frame
-	x = R11 * raw_data.Accel.GetX() + R12 * raw_data.Accel.GetY() + R13 * raw_data.Accel.GetZ();
-	y = R21 * raw_data.Accel.GetX() + R22 * raw_data.Accel.GetY() + R23 * raw_data.Accel.GetZ();
-	z = R31 * raw_data.Accel.GetX() + R32 * raw_data.Accel.GetY() + R33 * raw_data.Accel.GetZ();
+	T R31 = two * (qx * qz - qw * qy);
+	T R32 = two * (qy * qz + qw * qx);
+	T R33 = one - two * (qx * qx + qy * qy);
+
+	x = R11 * ax + R12 * ay + R13 * az;
+	y = R21 * ax + R22 * ay + R23 * az;
+	z = R31 * ax + R32 * ay + R33 * az;
 }
 
 template <class T>
@@ -110,9 +111,9 @@ Position<T>& Position<T>::Update(
 		EulerAngles<T> euler_angles,
 		T dt) {
 	// 1. Transform acceleration from body frame to world frame using the orientation (real_data)
-	T acc_local_x = (static_cast<float>(raw_data.Accel.GetX())) * GRAVITY;
-	T acc_local_y = (static_cast<float>(raw_data.Accel.GetY())) * GRAVITY;
-	T acc_local_z = (static_cast<float>(raw_data.Accel.GetZ())) * GRAVITY;
+	T acc_local_x = (static_cast<float>(raw_data.Accel.GetX())) * Acceleration<T>::GRAVITY;
+	T acc_local_y = (static_cast<float>(raw_data.Accel.GetY())) * Acceleration<T>::GRAVITY;
+	T acc_local_z = (static_cast<float>(raw_data.Accel.GetZ())) * Acceleration<T>::GRAVITY;
 
 	// 2. Calculate velocity by integrating acceleration over time
 	T sr = std::sin(euler_angles.GetRollRad());
@@ -187,7 +188,7 @@ Position<T>& Position<T>::Update(
 }
 
 template<class T>
-Position<T>& Position<T>::Update(const Acceleration<T> &acceleration, T dt) {
+Position<T>& Position<T>::Update(const Acceleration<T> &acceleration, T dt, T stationary_threshold) {
 	// 1. Get the linear acceleration in world frame
 	T acc_world_x = acceleration.GetX();
 	T acc_world_y = acceleration.GetY();
@@ -196,15 +197,12 @@ Position<T>& Position<T>::Update(const Acceleration<T> &acceleration, T dt) {
 	// 2. Gravity compensation (gravity acts in the negative Z direction in world frame)
 	T linear_acc_x = acc_world_x;
 	T linear_acc_y = acc_world_y;
-	T linear_acc_z = acc_world_z;// - GRAVITY; TODO: Check if gravity compensation is needed here
+	T linear_acc_z = acc_world_z - Acceleration<T>::GRAVITY;
 
 	// 3. Calculate the magnitude of the linear acceleration
 	T acc_mag = std::sqrt(
 			linear_acc_x * linear_acc_x + linear_acc_y * linear_acc_y
 					+ linear_acc_z * linear_acc_z);
-
-	// Movement detection threshold
-	const T stationary_threshold = static_cast<T>(0.15);
 
 	// 4. Zero-velocity update (ZUPT): if the total linear acceleration is small,
 	if (acc_mag < stationary_threshold) {
