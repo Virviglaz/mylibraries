@@ -70,6 +70,7 @@ namespace IMU
 		float GetX() const { return static_cast<float>(x) / scale; }
 		float GetY() const { return static_cast<float>(y) / scale; }
 		float GetZ() const { return static_cast<float>(z) / scale; }
+
 	protected:
 		int16_t x, y, z;
 		float scale;
@@ -89,6 +90,7 @@ namespace IMU
 		RawData16_XYZ Accel;
 		RawData16_XYZ Gyro;
 		virtual float GetTemperature() const = 0;
+
 	protected:
 		float temperature;
 	};
@@ -98,7 +100,7 @@ namespace IMU
 	 *
 	 * @tparam T Floating-point type (float or double) for the real data.
 	 */
-	template<class T>
+	template <class T>
 	struct Vector3D
 	{
 		static_assert(std::is_floating_point<T>::value, "Vector3D type must be a floating point type.");
@@ -114,7 +116,7 @@ namespace IMU
 	 *
 	 * @tparam T Floating-point type (float or double) for the real data.
 	 */
-	template<class T>
+	template <class T>
 	struct Quaternion
 	{
 		static_assert(std::is_floating_point<T>::value, "Quaternion type must be a floating point type.");
@@ -134,10 +136,12 @@ namespace IMU
 	 *
 	 * @tparam T Floating-point type (float or double) for the real data.
 	 */
-	template<class T>
-	class EulerAngles {
+	template <class T>
+	class EulerAngles
+	{
 		static_assert(std::is_floating_point<T>::value,
-				"EulerAngles template parameter T must be a floating-point type");
+					  "EulerAngles template parameter T must be a floating-point type");
+
 	public:
 		EulerAngles() = default;
 
@@ -154,44 +158,51 @@ namespace IMU
 		/**
 		 * @brief Get the roll angle in degrees.
 		 */
-		T GetRollDeg() const {
+		T GetRollDeg() const
+		{
 			return roll * rad2deg;
 		}
 
 		/**
 		 * @brief Get the pitch angle in degrees.
 		 */
-		T GetPitchDeg() const {
+		T GetPitchDeg() const
+		{
 			return pitch * rad2deg;
 		}
 
 		/**
 		 * @brief Get the yaw angle in degrees.
 		 */
-		T GetYawDeg() const {
+		T GetYawDeg() const
+		{
 			return yaw * rad2deg;
 		}
 
 		/**
 		 * @brief Get the roll angle in radians.
 		 */
-		T GetRollRad() const {
+		T GetRollRad() const
+		{
 			return roll;
 		}
 
 		/**
 		 * @brief Get the pitch angle in radians.
 		 */
-		T GetPitchRad() const {
+		T GetPitchRad() const
+		{
 			return pitch;
 		}
 
 		/**
 		 * @brief Get the yaw angle in radians.
 		 */
-		T GetYawRad() const {
+		T GetYawRad() const
+		{
 			return yaw;
 		}
+
 	private:
 		static constexpr T pi = 3.14159265358979323846;
 		static constexpr T rad2deg = static_cast<T>(180.0) / pi;
@@ -206,29 +217,29 @@ namespace IMU
 	 *
 	 * @tparam T Floating-point type (float or double) for the real data.
 	 */
-	template<class T>
-	class Acceleration {
+	template <class T>
+	class Acceleration
+	{
 		static_assert(std::is_floating_point<T>::value,
-				"Acceleration template parameter T must be a floating-point type");
+					  "Acceleration template parameter T must be a floating-point type");
+
 	public:
 		Acceleration() = default;
 
 		/**
 		 * @brief Construct Acceleration from raw data and quaternion components.
 		 */
-		Acceleration(const RawData_6DOF_Base& raw_data, T qx, T qy, T qz, T qw);
+		Acceleration(const RawData_6DOF_Base &raw_data, T qx, T qy, T qz, T qw);
 
 		/**
 		 * @brief Construct Acceleration from raw data and a quaternion object.
 		 */
-		Acceleration(const RawData_6DOF_Base& raw_data, Quaternion<T> q) :
-			Acceleration(raw_data, q.x, q.y, q.z, q.w) {}
+		Acceleration(const RawData_6DOF_Base &raw_data, Quaternion<T> q) : Acceleration(raw_data, q.x, q.y, q.z, q.w) {}
 
 		/**
 		 * @brief Construct Acceleration from rvalue reference of raw data and quaternion components.
 		 */
-		Acceleration(RawData_6DOF_Base&& raw_data, Quaternion<T> q) :
-			Acceleration(raw_data, q.x, q.y, q.z, q.w) {}
+		Acceleration(RawData_6DOF_Base &&raw_data, Quaternion<T> q) : Acceleration(raw_data, q.x, q.y, q.z, q.w) {}
 
 		/**
 		 * @brief Get the X component of the acceleration in m/s^2.
@@ -261,7 +272,8 @@ namespace IMU
 	class Position
 	{
 		static_assert(std::is_floating_point<T>::value,
-				"Position template parameter T must be a floating-point type");
+					  "Position template parameter T must be a floating-point type");
+
 	public:
 		explicit Position() = default;
 
@@ -275,8 +287,8 @@ namespace IMU
 		 * @param euler_angles Euler angles data (in radians) from the IMU.
 		 * @param dt The time interval (in seconds) since the last update.
 		 */
-		Position& Update(const RawData_6DOF_Base& raw_data,
-				EulerAngles<T> euler_angles, T dt);
+		Position &Update(const RawData_6DOF_Base &raw_data,
+						 EulerAngles<T> euler_angles, T dt);
 
 		/**
 		 * @brief Update the position based on the provided acceleration and time interval.
@@ -290,7 +302,7 @@ namespace IMU
 		 *
 		 * @return A reference to the updated Position object.
 		 */
-		Position& Update(const Acceleration<T>& acceleration, T dt, T stationary_threshold = static_cast<T>(0.15));
+		Position &Update(const Acceleration<T> &acceleration, T dt, T stationary_threshold = static_cast<T>(0.15));
 
 		/**
 		 * @brief Get the current position in 3D space.
@@ -309,7 +321,7 @@ namespace IMU
 		/**
 		 * @brief Reset the position and velocity to zero.
 		 */
-		Position& Reset();
+		Position &Reset();
 
 	protected:
 		Vector3D<T> velocity;
@@ -318,6 +330,12 @@ namespace IMU
 
 	/**
 	 * @brief Abstract base class for basic IMU devices.
+	 *
+	 * This class defines the interface for IMU devices,
+	 * including methods for initialization, resetting,
+	 * setting gain, reading calibration offsets, and retrieving raw data.
+	 * Derived classes must implement the specific functionality
+	 * for their respective IMU devices.
 	 */
 	class DeviceBase
 	{
@@ -325,10 +343,111 @@ namespace IMU
 		explicit DeviceBase() = default;
 		virtual ~DeviceBase() = default;
 
+		/**
+		 * @brief Reset the IMU device to its default state.
+		 */
 		virtual int Reset() = 0;
+
+		/**
+		 * @brief Initialize the IMU device.
+		 * This method must be called after resetting the device.
+		 *
+		 * @return 0 on success, or a negative error code on failure.
+		 */
 		virtual int Init() = 0;
-		virtual RawData_6DOF_Base& GetData() = 0;
-		virtual RawData_6DOF_Base& WaitForData() = 0;
+
+		/**
+		 * @brief Set the accelerometer gain (full scale range) for the IMU device.
+		 * The gain setting affects the sensitivity of the accelerometer readings.
+		 */
+		enum class AccelGain : uint8_t
+		{
+			ACC_GAIN_2G,
+			ACC_GAIN_4G,
+			ACC_GAIN_8G,
+			ACC_GAIN_16G
+		};
+
+		/**
+		 * @brief Set the accelerometer gain (full scale range) for the IMU device.
+		 * The gain setting affects the sensitivity of the accelerometer readings.
+		 *
+		 * @param gain The desired accelerometer gain setting.
+		 */
+		virtual void SetAccGain(AccelGain) = 0;
+
+		/**
+		 * @brief Set the gyroscope gain (full scale range) for the IMU device.
+		 * The gain setting affects the sensitivity of the gyroscope readings.
+		 */
+		enum class GyroGain : uint8_t
+		{
+			GYRO_GAIN_250DS,
+			GYRO_GAIN_500DS,
+			GYRO_GAIN_1000DS,
+			GYRO_GAIN_2000DS
+		};
+
+		/**
+		 * @brief Set the gyroscope gain (full scale range) for the IMU device.
+		 * The gain setting affects the sensitivity of the gyroscope readings.
+		 *
+		 * @param gain The desired gyroscope gain setting.
+		 */
+		virtual void SetGyroGain(GyroGain) = 0;
+
+		/**
+		 * @brief Calibration offsets for the IMU device.
+		 *
+		 * @return A CalibrationData struct containing the calibration offsets for accelerometer and gyroscope.
+		 * In order to calibrate the IMU device, the user can read the current offsets, adjust them as needed,
+		 * and then write the new offsets back to the device.
+		 */
+		struct CalibrationData
+		{
+			CalibrationData() : ax(0), ay(0), az(0), gx(0), gy(0), gz(0) {}
+			CalibrationData(int16_t ax, int16_t ay, int16_t az, int16_t gx, int16_t gy, int16_t gz)
+				: ax(ax), ay(ay), az(az), gx(gx), gy(gy), gz(gz) {}
+			int16_t ax, ay, az, gx, gy, gz;
+		};
+
+		/**
+		 * @brief Read the current calibration offsets from the IMU device.
+		 *
+		 * @return A CalibrationData struct containing the current calibration
+		 * offsets for accelerometer and gyroscope.
+		 */
+		virtual CalibrationData ReadCalibrationOffsets() = 0;
+
+		/**
+		 * @brief Write the given calibration offsets to the IMU device.
+		 *
+		 * @param offsets A CalibrationData struct containing the calibration
+		 * offsets for accelerometer and gyroscope to be written to the device.
+		 */
+		virtual void WriteCalibrationOffsets(CalibrationData) = 0;
+
+		/**
+		 * @brief Check if new data is ready to be read from the IMU device.
+		 *
+		 * @return true if new data is ready, false otherwise.
+		 */
+		virtual bool IsDataReady() = 0;
+
+		/**
+		 * @brief Get the raw 6DOF data from the IMU device.
+		 *
+		 * @return A reference to a RawData_6DOF_Base struct containing the raw sensor data.
+		 */
+		virtual RawData_6DOF_Base &GetData() = 0;
+
+		/**
+		 * @brief Wait for new raw 6DOF data to be available from the IMU device.
+		 * This method should block until new data is ready, and then return the raw data.
+		 *
+		 * @return A reference to a RawData_6DOF_Base struct containing the new raw sensor data.
+		 */
+		virtual RawData_6DOF_Base &WaitForData() = 0;
 	};
 
 	/**
@@ -341,8 +460,8 @@ namespace IMU
 		explicit DMP_DeviceBase() = default;
 		virtual ~DMP_DeviceBase() = default;
 
-		virtual Quaternion<T>& GetQuaternion() = 0;
-		virtual Quaternion<T>& WaitForQuaternion() = 0;
+		virtual Quaternion<T> &GetQuaternion() = 0;
+		virtual Quaternion<T> &WaitForQuaternion() = 0;
 	};
 }
 

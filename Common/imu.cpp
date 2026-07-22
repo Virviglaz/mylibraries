@@ -48,25 +48,31 @@
 
 using namespace IMU;
 
-template<class T>
-EulerAngles<T>::EulerAngles(T x, T y, T z, T w) {
+template <class T>
+EulerAngles<T>::EulerAngles(T x, T y, T z, T w)
+{
 	T norm = std::sqrt(x * x + y * y + z * z + w * w);
-	if (norm > std::numeric_limits<T>::epsilon()) {
+	if (norm > std::numeric_limits<T>::epsilon())
+	{
 		T invNorm = static_cast<T>(1.0) / norm;
-		x *= invNorm; y *= invNorm; z *= invNorm; w *= invNorm;
+		x *= invNorm;
+		y *= invNorm;
+		z *= invNorm;
+		w *= invNorm;
 	}
 
 	const T one = static_cast<T>(1.0);
 	const T two = static_cast<T>(2.0);
 
-	roll  = std::atan2(two * (w * x + y * z), one - two * (x * x + y * y));
+	roll = std::atan2(two * (w * x + y * z), one - two * (x * x + y * y));
 	pitch = std::asin(std::clamp(two * (w * y - z * x), -one, one));
-	yaw   = std::atan2(two * (w * z + x * y), one - two * (y * y + z * z));
+	yaw = std::atan2(two * (w * z + x * y), one - two * (y * y + z * z));
 }
 
-template<class T>
+template <class T>
 Acceleration<T>::Acceleration(const RawData_6DOF_Base &raw_data, T qx, T qy,
-		T qz, T qw) {
+							  T qz, T qw)
+{
 	const T one = static_cast<T>(1.0);
 	const T two = static_cast<T>(2.0);
 
@@ -74,14 +80,18 @@ Acceleration<T>::Acceleration(const RawData_6DOF_Base &raw_data, T qx, T qy,
 	T ay = static_cast<T>(raw_data.Accel.GetY()) * GRAVITY;
 	T az = static_cast<T>(raw_data.Accel.GetZ()) * GRAVITY;
 
+	// Normalize the quaternion to ensure it represents a valid rotation
 	T norm = std::sqrt(qw * qw + qx * qx + qy * qy + qz * qz);
-	if (norm > std::numeric_limits<T>::epsilon()) {
+	if (norm > std::numeric_limits<T>::epsilon())
+	{
 		T invNorm = one / norm;
 		qx *= invNorm;
 		qy *= invNorm;
 		qz *= invNorm;
 		qw *= invNorm;
-	} else {
+	}
+	else
+	{
 		qx = static_cast<T>(0.0);
 		qy = static_cast<T>(0.0);
 		qz = static_cast<T>(0.0);
@@ -106,10 +116,11 @@ Acceleration<T>::Acceleration(const RawData_6DOF_Base &raw_data, T qx, T qy,
 }
 
 template <class T>
-Position<T>& Position<T>::Update(
-		const RawData_6DOF_Base &raw_data,
-		EulerAngles<T> euler_angles,
-		T dt) {
+Position<T> &Position<T>::Update(
+	const RawData_6DOF_Base &raw_data,
+	EulerAngles<T> euler_angles,
+	T dt)
+{
 	// 1. Transform acceleration from body frame to world frame using the orientation (real_data)
 	T acc_local_x = (static_cast<float>(raw_data.Accel.GetX())) * Acceleration<T>::GRAVITY;
 	T acc_local_y = (static_cast<float>(raw_data.Accel.GetY())) * Acceleration<T>::GRAVITY;
@@ -137,34 +148,34 @@ Position<T>& Position<T>::Update(
 	T R33 = cp * cr;
 
 	// 3. Transform acceleration to world frame
-	T acc_world_x = R11 * acc_local_x + R12 * acc_local_y
-			+ R13 * acc_local_z;
-	T acc_world_y = R21 * acc_local_x + R22 * acc_local_y
-			+ R23 * acc_local_z;
-	T acc_world_z = R31 * acc_local_x + R32 * acc_local_y
-			+ R33 * acc_local_z;
+	T acc_world_x = R11 * acc_local_x + R12 * acc_local_y + R13 * acc_local_z;
+	T acc_world_y = R21 * acc_local_x + R22 * acc_local_y + R23 * acc_local_z;
+	T acc_world_z = R31 * acc_local_x + R32 * acc_local_y + R33 * acc_local_z;
 
 	// 4. Gravity compensation (gravity acts in the negative Z direction in world frame)
 	T linear_acc_x = acc_world_x;
 	T linear_acc_y = acc_world_y;
-	T linear_acc_z = acc_world_z;// - GRAVITY; // Subtract gravity so a stationary sensor reads ~0
+	T linear_acc_z = acc_world_z; // - GRAVITY; // Subtract gravity so a stationary sensor reads ~0
 
 	// 5. Zero-velocity update (ZUPT): if the *total* linear acceleration is small,
 	// assume the device is stationary and clamp velocity to zero. This is required
 	// because pure accelerometer double integration always drifts - any residual
 	// bias/noise (even below a per-axis deadband) accumulates without bound over time.
 	T acc_mag = std::sqrt(linear_acc_x * linear_acc_x +
-			linear_acc_y * linear_acc_y +
-			linear_acc_z * linear_acc_z);
+						  linear_acc_y * linear_acc_y +
+						  linear_acc_z * linear_acc_z);
 	const T stationary_threshold = 0.15f; // m/s^2, tune to your sensor noise floor
 
-	if (acc_mag < stationary_threshold) {
+	if (acc_mag < stationary_threshold)
+	{
 		// Treat as stationary: do not integrate acceleration, and quickly bleed off
 		// any residual velocity so the position does not keep drifting.
 		velocity.x *= static_cast<T>(0.90);
 		velocity.y *= static_cast<T>(0.90);
 		velocity.z *= static_cast<T>(0.90);
-	} else {
+	}
+	else
+	{
 		// 6. First-order integration to update velocity
 		velocity.x += linear_acc_x * dt;
 		velocity.y += linear_acc_y * dt;
@@ -187,8 +198,9 @@ Position<T>& Position<T>::Update(
 	return *this;
 }
 
-template<class T>
-Position<T>& Position<T>::Update(const Acceleration<T> &acceleration, T dt, T stationary_threshold) {
+template <class T>
+Position<T> &Position<T>::Update(const Acceleration<T> &acceleration, T dt, T stationary_threshold)
+{
 	// 1. Get the linear acceleration in world frame
 	T acc_world_x = acceleration.GetX();
 	T acc_world_y = acceleration.GetY();
@@ -201,16 +213,18 @@ Position<T>& Position<T>::Update(const Acceleration<T> &acceleration, T dt, T st
 
 	// 3. Calculate the magnitude of the linear acceleration
 	T acc_mag = std::sqrt(
-			linear_acc_x * linear_acc_x + linear_acc_y * linear_acc_y
-					+ linear_acc_z * linear_acc_z);
+		linear_acc_x * linear_acc_x + linear_acc_y * linear_acc_y + linear_acc_z * linear_acc_z);
 
 	// 4. Zero-velocity update (ZUPT): if the total linear acceleration is small,
-	if (acc_mag < stationary_threshold) {
+	if (acc_mag < stationary_threshold)
+	{
 		// The device is considered stationary, and we apply a velocity decay to reduce drift.
 		velocity.x *= static_cast<T>(0.90);
 		velocity.y *= static_cast<T>(0.90);
 		velocity.z *= static_cast<T>(0.90);
-	} else {
+	}
+	else
+	{
 		// 5. First-order integration to update velocity
 		velocity.x += linear_acc_x * dt;
 		velocity.y += linear_acc_y * dt;
@@ -232,10 +246,11 @@ Position<T>& Position<T>::Update(const Acceleration<T> &acceleration, T dt, T st
 	return *this;
 }
 
-template<class T>
-Position<T>& Position<T>::Reset() {
-	velocity = { static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(0.0) };
-	position = { static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(0.0) };
+template <class T>
+Position<T> &Position<T>::Reset()
+{
+	velocity = {static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(0.0)};
+	position = {static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(0.0)};
 	return *this;
 }
 
