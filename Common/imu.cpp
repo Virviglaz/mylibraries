@@ -51,16 +51,6 @@ using namespace IMU;
 template <class T>
 EulerAngles<T>::EulerAngles(T x, T y, T z, T w)
 {
-	T norm = std::sqrt(x * x + y * y + z * z + w * w);
-	if (norm > std::numeric_limits<T>::epsilon())
-	{
-		T invNorm = static_cast<T>(1.0) / norm;
-		x *= invNorm;
-		y *= invNorm;
-		z *= invNorm;
-		w *= invNorm;
-	}
-
 	const T one = static_cast<T>(1.0);
 	const T two = static_cast<T>(2.0);
 
@@ -79,24 +69,6 @@ Acceleration<T>::Acceleration(const RawData_6DOF_Base &raw_data, T qx, T qy,
 	T ax = static_cast<T>(raw_data.Accel.GetX()) * GRAVITY;
 	T ay = static_cast<T>(raw_data.Accel.GetY()) * GRAVITY;
 	T az = static_cast<T>(raw_data.Accel.GetZ()) * GRAVITY;
-
-	// Normalize the quaternion to ensure it represents a valid rotation
-	T norm = std::sqrt(qw * qw + qx * qx + qy * qy + qz * qz);
-	if (norm > std::numeric_limits<T>::epsilon())
-	{
-		T invNorm = one / norm;
-		qx *= invNorm;
-		qy *= invNorm;
-		qz *= invNorm;
-		qw *= invNorm;
-	}
-	else
-	{
-		qx = static_cast<T>(0.0);
-		qy = static_cast<T>(0.0);
-		qz = static_cast<T>(0.0);
-		qw = one;
-	}
 
 	T R11 = one - two * (qy * qy + qz * qz);
 	T R12 = two * (qx * qy - qw * qz);
@@ -155,7 +127,7 @@ Position<T> &Position<T>::Update(
 	// 4. Gravity compensation (gravity acts in the negative Z direction in world frame)
 	T linear_acc_x = acc_world_x;
 	T linear_acc_y = acc_world_y;
-	T linear_acc_z = acc_world_z; // - GRAVITY; // Subtract gravity so a stationary sensor reads ~0
+	T linear_acc_z = acc_world_z - Acceleration<T>::GRAVITY; // Subtract gravity so a stationary sensor reads ~0
 
 	// 5. Zero-velocity update (ZUPT): if the *total* linear acceleration is small,
 	// assume the device is stationary and clamp velocity to zero. This is required
@@ -254,6 +226,95 @@ Position<T> &Position<T>::Reset()
 	return *this;
 }
 
+template <typename T>
+void MadgwickFilter<T>::Update(const RawData_6DOF_Base &imuData, T dt)
+{
+	// 1. Get the physical quantities from your classes
+	// WARNING: gyroscope data must be in RADIANS per second.
+	// If the Gyro scale converts to degrees/sec, uncomment the conversion to radians below!
+	T gx = static_cast<T>(imuData.Gyro.GetX());
+	T gy = static_cast<T>(imuData.Gyro.GetY());
+	T gz = static_cast<T>(imuData.Gyro.GetZ());
+
+	// Conversion from deg/s to rad/s, if necessary:
+	// const T degToRad = static_cast<T>(M_PI / 180.0);
+	// gx *= degToRad; gy *= degToRad; gz *= degToRad;
+
+	T ax = static_cast<T>(imuData.Accel.GetX());
+	T ay = static_cast<T>(imuData.Accel.GetY());
+	T az = static_cast<T>(imuData.Accel.GetZ());
+
+	// Local copies of the current quaternion for convenience (in Madgwick format: w, x, y, z)
+	T qw = m_q.w;
+	T qx = m_q.x;
+	T qy = m_q.y;
+	T qz = m_q.z;
+
+	// 2. Integrate the gyroscope readings
+	T qDot1 = static_cast<T>(0.5) * (-qx * gx - qy * gy - qz * gz);
+	T qDot2 = static_cast<T>(0.5) * (qw * gx + qy * gz - qz * gy);
+	T qDot3 = static_cast<T>(0.5) * (qw * gy - qx * gz + qz * gx);
+	T qDot4 = static_cast<T>(0.5) * (qw * gz + qx * gy - qy * gx);
+
+	// Calculate accelerometer correction only if it provides non-zero data
+	if (!((ax == static_cast<T>(0.0)) && (ay == static_cast<T>(0.0)) && (az == static_cast<T>(0.0))))
+	{
+
+		// Normalize the accelerometer
+		T recipNorm = static_cast<T>(1.0) / std::sqrt(ax * ax + ay * ay + az * az);
+		ax *= recipNorm;
+		ay *= recipNorm;
+		az *= recipNorm;
+
+		// Auxiliary variables for optimization
+		T _2qw = static_cast<T>(2.0) * qw;
+		T _2qx = static_cast<T>(2.0) * qx;
+		T _2qy = static_cast<T>(2.0) * qy;
+		T _2qz = static_cast<T>(2.0) * qz;
+		T _4qw = static_cast<T>(4.0) * qw;
+		T _4qx = static_cast<T>(4.0) * qx;
+		T _4qy = static_cast<T>(4.0) * qy;
+		T _8qx = static_cast<T>(8.0) * qx;
+		T _8qy = static_cast<T>(8.0) * qy;
+		T qwqw = qw * qw;
+		T qxqx = qx * qx;
+		T qyqy = qy * qy;
+		T qzqz = qz * qz;
+
+		// Gradient descent step (error vector)
+		T s0 = _4qw * qyqy + _2qy * ax + _4qw * qxqx - _2qx * ay;
+		T s1 = _4qx * qzqz - _2qz * ax + static_cast<T>(4.0) * qwqw * qx - _2qw * ay - _4qx + _8qx * qxqx + _8qx * qyqy + _4qx * az;
+		T s2 = static_cast<T>(4.0) * qwqw * qy + _2qw * ax + _4qy * qzqz - _2qz * ay - _4qy + _8qy * qxqx + _8qy * qyqy + _4qy * az;
+		T s3 = static_cast<T>(4.0) * qxqx * qz - _2qx * ax + static_cast<T>(4.0) * qyqy * qz - _2qy * ay;
+
+		// Normalize the error vector
+		recipNorm = static_cast<T>(1.0) / std::sqrt(s0 * s0 + s1 * s1 + s2 * s2 + s3 * s3);
+		s0 *= recipNorm;
+		s1 *= recipNorm;
+		s2 *= recipNorm;
+		s3 *= recipNorm;
+
+		// Data fusion: subtract the error weighted by beta
+		qDot1 -= m_beta * s0;
+		qDot2 -= m_beta * s1;
+		qDot3 -= m_beta * s2;
+		qDot4 -= m_beta * s3;
+	}
+
+	// Integrate the rate of change to obtain the new quaternion
+	qw += qDot1 * dt;
+	qx += qDot2 * dt;
+	qy += qDot3 * dt;
+	qz += qDot4 * dt;
+
+	// Final normalization of the quaternion to prevent accumulation of rounding errors
+	T recipNorm = static_cast<T>(1.0) / std::sqrt(qw * qw + qx * qx + qy * qy + qz * qz);
+	m_q.w = qw * recipNorm;
+	m_q.x = qx * recipNorm;
+	m_q.y = qy * recipNorm;
+	m_q.z = qz * recipNorm;
+}
+
 template class IMU::EulerAngles<float>;
 template class IMU::EulerAngles<double>;
 
@@ -262,3 +323,6 @@ template class IMU::Acceleration<double>;
 
 template class IMU::Position<float>;
 template class IMU::Position<double>;
+
+template class IMU::MadgwickFilter<float>;
+template class IMU::MadgwickFilter<double>;

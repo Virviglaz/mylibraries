@@ -59,7 +59,8 @@ namespace IMU
 	class RawData16_XYZ
 	{
 	public:
-		RawData16_XYZ() = default;
+		explicit RawData16_XYZ() = default;
+		virtual ~RawData16_XYZ() = default;
 		RawData16_XYZ(int16_t x, int16_t y, int16_t z, float scale)
 			: x(x), y(y), z(z), scale(scale) {}
 
@@ -84,7 +85,8 @@ namespace IMU
 	class RawData_6DOF_Base
 	{
 	public:
-		RawData_6DOF_Base() = default;
+		explicit RawData_6DOF_Base() = default;
+		virtual ~RawData_6DOF_Base() = default;
 		RawData_6DOF_Base(RawData16_XYZ accel, RawData16_XYZ gyro, float temp)
 			: Accel(accel), Gyro(gyro), temperature(temp) {}
 		RawData16_XYZ Accel;
@@ -106,7 +108,8 @@ namespace IMU
 		static_assert(std::is_floating_point<T>::value, "Vector3D type must be a floating point type.");
 
 		Vector3D(T x, T y, T z) : x(x), y(y), z(z) {}
-		Vector3D() : x(static_cast<T>(0.0)), y(static_cast<T>(0.0)), z(static_cast<T>(0.0)) {}
+		explicit Vector3D() : x(static_cast<T>(0.0)), y(static_cast<T>(0.0)), z(static_cast<T>(0.0)) {}
+		virtual ~Vector3D() = default;
 
 		T x, y, z;
 	};
@@ -121,8 +124,9 @@ namespace IMU
 	{
 		static_assert(std::is_floating_point<T>::value, "Quaternion type must be a floating point type.");
 
-		Quaternion() : x(static_cast<T>(1.0)), y(static_cast<T>(0.0)), z(static_cast<T>(0.0)), w(static_cast<T>(0.0)) {}
 		Quaternion(T x, T y, T z, T w) : x(x), y(y), z(z), w(w) {}
+		explicit Quaternion() : x(static_cast<T>(1.0)), y(static_cast<T>(0.0)), z(static_cast<T>(0.0)), w(static_cast<T>(0.0)) {}
+		virtual ~Quaternion() = default;
 
 		T x, y, z, w;
 	};
@@ -328,8 +332,50 @@ namespace IMU
 		Vector3D<T> position;
 	};
 
+	template <typename T>
+	class MadgwickFilter
+	{
+		static_assert(std::is_floating_point<T>::value, "Filter type must be a floating point type.");
+
+	public:
+		// beta - filter coefficient. Usually from 0.01 to 0.1
+		explicit MadgwickFilter(T beta = static_cast<T>(0.1))
+			: m_beta(beta), m_q(static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(0.0), static_cast<T>(1.0)) {}
+
+		// Reset the orientation to the initial state
+		void Reset()
+		{
+			m_q = Quaternion<T>();
+		}
+
+		// Set the beta coefficient manually
+		void SetBeta(T beta) { m_beta = beta; }
+
+		// Main update method. Takes your raw sensor data and the time step dt in seconds
+		void Update(const RawData_6DOF_Base &imuData, T dt);
+
+		// Get the current orientation quaternion
+		Quaternion<T> GetQuaternion() const { return m_q; }
+
+	private:
+		T m_beta;
+		Quaternion<T> m_q;
+	};
+
 	/**
-	 * @brief Abstract base class for basic IMU devices.
+	 * @brief Abstract interface class for IMU device descriptions.
+	 *
+	 * This class provides an interface for retrieving the name and description of an IMU device.
+	 */
+	class IDescription
+	{
+	public:
+		virtual const char *GetName() const = 0;
+		virtual const char *GetDescription() const = 0;
+	};
+
+	/**
+	 * @brief Abstract interface class for basic IMU devices.
 	 *
 	 * This class defines the interface for IMU devices,
 	 * including methods for initialization, resetting,
@@ -337,11 +383,11 @@ namespace IMU
 	 * Derived classes must implement the specific functionality
 	 * for their respective IMU devices.
 	 */
-	class DeviceBase
+	class IDevice : public IDescription
 	{
 	public:
-		explicit DeviceBase() = default;
-		virtual ~DeviceBase() = default;
+		explicit IDevice() = default;
+		virtual ~IDevice() = default;
 
 		/**
 		 * @brief Reset the IMU device to its default state.
@@ -355,6 +401,23 @@ namespace IMU
 		 * @return 0 on success, or a negative error code on failure.
 		 */
 		virtual int Init() = 0;
+
+		/**
+		 * Performs a calibration of the sensor. The calibration process adjusts the hardware offset registers
+		 * iteratively to minimize the error between the sensor readings and the expected values (0 g for accelerometer axes,
+		 * 0 °/s for gyro axes). The calibration will run for a maximum of max_iterations or until the error is within
+		 * target_error LSB of the target values.
+		 * Returns 0 on success, or a negative error code on failure.
+		 *
+		 * @param max_iterations The maximum number of calibration iterations to perform.
+		 * A higher number may yield better results but will take longer.
+		 * @param target_error The target error threshold in LSB.
+		 * Calibration will stop when all sensor readings are within this error
+		 * threshold of the target values (0 for accel X/Y, 16384 for accel Z, 0 for gyro X/Y/Z).
+		 *
+		 * @return 0 if calibration succeeded, or a negative error code if calibration failed after max_iterations.
+		 */
+		virtual int Calibrate(int max_iterations = 100, int16_t target_error = 50) = 0;
 
 		/**
 		 * @brief Set the accelerometer gain (full scale range) for the IMU device.
@@ -428,41 +491,26 @@ namespace IMU
 		virtual void WriteCalibrationOffsets(CalibrationData) = 0;
 
 		/**
-		 * @brief Check if new data is ready to be read from the IMU device.
-		 *
-		 * @return true if new data is ready, false otherwise.
-		 */
-		virtual bool IsDataReady() = 0;
-
-		/**
 		 * @brief Get the raw 6DOF data from the IMU device.
 		 *
 		 * @return A reference to a RawData_6DOF_Base struct containing the raw sensor data.
 		 */
-		virtual RawData_6DOF_Base &GetData() = 0;
-
-		/**
-		 * @brief Wait for new raw 6DOF data to be available from the IMU device.
-		 * This method should block until new data is ready, and then return the raw data.
-		 *
-		 * @return A reference to a RawData_6DOF_Base struct containing the new raw sensor data.
-		 */
-		virtual RawData_6DOF_Base &WaitForData() = 0;
+		virtual RawData_6DOF_Base &ReadData() = 0;
 	};
 
 	/**
-	 * @brief Abstract base class for IMU devices with DMP (Digital Motion Processor) support.
+	 * @brief Abstract interface class for IMU devices with DMP (Digital Motion Processor) support.
 	 */
 	template <class T>
-	class DMP_DeviceBase
+	class IDeviceDMP : public virtual IDevice
 	{
+		static_assert(std::is_floating_point<T>::value,
+					  "IDeviceDMP template parameter T must be a floating-point type");
 	public:
-		explicit DMP_DeviceBase() = default;
-		virtual ~DMP_DeviceBase() = default;
+		explicit IDeviceDMP() = default;
+		virtual ~IDeviceDMP() = default;
 
-		virtual Quaternion<T> &GetQuaternion() = 0;
-		virtual Quaternion<T> &WaitForQuaternion() = 0;
+		virtual Quaternion<T> &ReadQuaternion() = 0;
 	};
 }
-
 #endif // IMU_H
