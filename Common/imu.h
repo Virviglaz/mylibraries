@@ -390,6 +390,13 @@ namespace IMU
 		virtual ~IDevice() = default;
 
 		/**
+		 * @brief Get the "Who Am I" identifier for the IMU device.
+		 *
+		 * @return Return 0 on success, or a -ENODEV code on failure.
+		 */
+		virtual int CheckWhoIam() = 0;
+
+		/**
 		 * @brief Reset the IMU device to its default state.
 		 */
 		virtual int Reset() = 0;
